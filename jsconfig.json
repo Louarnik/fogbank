@@ -1,0 +1,19 @@
+{
+  // Configuration JS pour VS Code : active l'IntelliSense sur les API Chrome
+  // (chrome.runtime, chrome.tabs, etc.) via @types/chrome, sans imposer
+  // de compilation (checkJs désactivé, on reste en JS vanilla).
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "node",
+    "checkJs": false,
+    "types": ["chrome"],
+    "lib": ["ES2022", "DOM"]
+  },
+  "include": ["src/**/*.js"],
+  "exclude": [
+    "node_modules",
+    "private",
+    "tests"
+  ]
+}

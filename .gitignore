@@ -1,0 +1,33 @@
+# === Contenu confidentiel : NE JAMAIS versionner ===
+# Tout le dossier private/ contient des données métier finance
+# et des cas de test réels. Il ne doit jamais être poussé sur GitHub.
+private/
+
+# === Dépendances Node ===
+node_modules/
+
+# === Sorties de build (si un jour on ajoute un bundler) ===
+dist/
+build/
+*.zip
+
+# === Logs ===
+npm-debug.log*
+*.log
+
+# === Fichiers d'environnement (secrets, clés API...) ===
+.env
+.env.*
+
+# === Fichiers spécifiques aux éditeurs / OS ===
+.vscode/*
+!.vscode/settings.json
+.DS_Store
+Thumbs.db
+
+# === Config locale Claude Code (spécifique à la machine, non partagée) ===
+.claude/settings.local.json
+
+# === Divers ===
+*.tmp
+*.bak

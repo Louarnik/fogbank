@@ -1,0 +1,20 @@
+#!/bin/sh
+# Garde-fou : bloque tout commit qui inclurait un fichier sous private/.
+# private/ contient des données métier finance confidentielles et ne doit
+# jamais être versionné, même si quelqu'un force son ajout avec `git add -f`.
+#
+# Ce fichier est la copie versionnée du hook (les hooks Git eux-mêmes ne
+# sont pas versionnés). Voir le README pour la commande de réinstallation.
+
+leaked=$(git diff --cached --name-only | grep -E '^private/' || true)
+
+if [ -n "$leaked" ]; then
+  echo "ERREUR : commit bloqué — fichiers sous private/ détectés :" >&2
+  echo "$leaked" >&2
+  echo "" >&2
+  echo "private/ contient des données confidentielles et ne doit jamais être commité." >&2
+  echo "Retire ces fichiers du commit avec : git restore --staged <fichier>" >&2
+  exit 1
+fi
+
+exit 0
