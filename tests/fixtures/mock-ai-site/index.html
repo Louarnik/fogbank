@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<title>Site IA factice — fixture de test fogbank</title>
+<style>
+  body {
+    font-family: system-ui, sans-serif;
+    max-width: 820px;
+    margin: 24px auto;
+    padding: 0 16px;
+    color: #222;
+  }
+  h1 { font-size: 20px; }
+  .banniere {
+    background: #fff3cd;
+    border: 1px solid #ffe58f;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 24px;
+  }
+  .scenario {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 32px;
+  }
+  .scenario h2 { margin-top: 0; font-size: 16px; }
+  .champ-saisie {
+    width: 100%;
+    min-height: 60px;
+    box-sizing: border-box;
+    border: 1px solid #bbb;
+    border-radius: 6px;
+    padding: 8px;
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+  button {
+    cursor: pointer;
+    border: 1px solid #444;
+    background: #222;
+    color: #fff;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  button.secondaire {
+    background: #fff;
+    color: #222;
+  }
+  .zone-reponse {
+    margin-top: 16px;
+    border-top: 1px dashed #ccc;
+    padding-top: 12px;
+  }
+  .message-ia {
+    background: #f2f2f2;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    white-space: pre-wrap;
+  }
+  .payload-log {
+    background: #0d1117;
+    color: #c9d1d9;
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    padding: 10px;
+    border-radius: 6px;
+    max-height: 160px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+  }
+  .harnais {
+    margin-top: 12px;
+    padding: 10px;
+    background: #eef6ff;
+    border: 1px dashed #8fbcf4;
+    border-radius: 6px;
+  }
+  .harnais summary {
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .harnais textarea {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 50px;
+    font-size: 13px;
+    margin: 8px 0;
+  }
+  label { font-size: 12px; color: #555; display: block; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<h1>Site IA factice — fixture de test fogbank</h1>
+<div class="banniere">
+  Cette page n'envoie rien à un vrai serveur. Elle sert uniquement à
+  vérifier, en local, ce que l'extension enverrait réellement (panneau
+  "Payload envoyé") et comment elle restaure une réponse simulée contenant
+  des pseudonymes. Deux scénarios de champ de saisie sont fournis car les
+  sites réels utilisent l'un ou l'autre.
+</div>
+
+<!-- ===================== SCÉNARIO A — textarea ===================== -->
+<section class="scenario" data-scenario="textarea">
+  <h2>Scénario A — champ &lt;textarea&gt;</h2>
+
+  <label for="input-textarea">Champ de saisie du prompt</label>
+  <textarea id="input-textarea" class="champ-saisie" placeholder="Tape ton prompt ici (& pour mentionner une entité)"></textarea>
+  <button data-role="envoyer" data-cible="textarea">Envoyer</button>
+
+  <div class="zone-reponse">
+    <strong>Réponse IA</strong>
+    <div id="reponse-textarea" data-role="reponse"></div>
+  </div>
+
+  <div>
+    <strong>Payload envoyé au "serveur"</strong>
+    <div id="payload-textarea" class="payload-log">(rien envoyé pour l'instant)</div>
+  </div>
+
+  <details class="harnais">
+    <summary>🧪 Contrôles de test (harnais, pas partie du site factice)</summary>
+    <label for="reponse-simulee-textarea">Réponse IA à simuler (peut contenir un tag [TYP:CODE], ex: [PER:PDT])</label>
+    <textarea id="reponse-simulee-textarea" placeholder="Bonjour [PER:PDT], voici le rapport demandé."></textarea>
+    <button class="secondaire" data-role="simuler-reponse" data-cible="textarea">Simuler la réception de cette réponse</button>
+  </details>
+</section>
+
+<!-- ================== SCÉNARIO B — contenteditable ================== -->
+<section class="scenario" data-scenario="contenteditable">
+  <h2>Scénario B — champ contenteditable (div)</h2>
+
+  <label for="input-contenteditable">Champ de saisie du prompt</label>
+  <div id="input-contenteditable" class="champ-saisie" contenteditable="true" data-placeholder="Tape ton prompt ici (& pour mentionner une entité)"></div>
+  <button data-role="envoyer" data-cible="contenteditable">Envoyer</button>
+
+  <div class="zone-reponse">
+    <strong>Réponse IA</strong>
+    <div id="reponse-contenteditable" data-role="reponse"></div>
+  </div>
+
+  <div>
+    <strong>Payload envoyé au "serveur"</strong>
+    <div id="payload-contenteditable" class="payload-log">(rien envoyé pour l'instant)</div>
+  </div>
+
+  <details class="harnais">
+    <summary>🧪 Contrôles de test (harnais, pas partie du site factice)</summary>
+    <label for="reponse-simulee-contenteditable">Réponse IA à simuler (peut contenir un tag [TYP:CODE], ex: [PER:PDT])</label>
+    <textarea id="reponse-simulee-contenteditable" placeholder="Bonjour [PER:PDT], voici le rapport demandé."></textarea>
+    <button class="secondaire" data-role="simuler-reponse" data-cible="contenteditable">Simuler la réception de cette réponse</button>
+  </details>
+</section>
+
+<script>
+  // Fixture volontairement "bête" : elle ne connaît rien de l'extension.
+  // Elle se comporte comme n'importe quel site réel se comporterait aux
+  // yeux d'un content script : lecture de la valeur du champ au clic sur
+  // "Envoyer", affichage de ce qui aurait été transmis.
+
+  function lireChamp(cible) {
+    if (cible === 'textarea') {
+      return document.getElementById('input-textarea').value;
+    }
+    return document.getElementById('input-contenteditable').textContent;
+  }
+
+  function horodatage() {
+    return new Date().toLocaleTimeString('fr-FR');
+  }
+
+  document.querySelectorAll('[data-role="envoyer"]').forEach((bouton) => {
+    bouton.addEventListener('click', () => {
+      const cible = bouton.dataset.cible;
+      const contenu = lireChamp(cible);
+      const panneau = document.getElementById('payload-' + cible);
+      const ligne = `[${horodatage()}] ${contenu || '(champ vide)'}\n`;
+      panneau.textContent = panneau.textContent.startsWith('(rien')
+        ? ligne
+        : panneau.textContent + ligne;
+    });
+  });
+
+  document.querySelectorAll('[data-role="simuler-reponse"]').forEach((bouton) => {
+    bouton.addEventListener('click', () => {
+      const cible = bouton.dataset.cible;
+      const texte = document.getElementById('reponse-simulee-' + cible).value;
+      if (!texte) return;
+      const zone = document.getElementById('reponse-' + cible);
+      const message = document.createElement('div');
+      message.className = 'message-ia';
+      message.textContent = texte;
+      zone.appendChild(message);
+    });
+  });
+</script>
+
+</body>
+</html>

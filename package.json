@@ -1,0 +1,26 @@
+{
+  "name": "fogbank",
+  "version": "0.1.0",
+  "description": "Pseudonymise data in prompt and reverse it.",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LouarnGlas/fogbank.git"
+  },
+  "keywords": [],
+  "author": "LouarnGlas",
+  "license": "AGPL-3.0",
+  "bugs": {
+    "url": "https://github.com/LouarnGlas/fogbank/issues"
+  },
+  "homepage": "https://github.com/LouarnGlas/fogbank#readme",
+  "devDependencies": {
+    "@types/chrome": "^0.2.2"
+  }
+}
