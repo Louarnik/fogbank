@@ -36,13 +36,18 @@ Mécanique générale :
   `[TYP:CODE]`, `TYP` étant un trigramme (ex: `[PER:PDT]`, `[ORG:ACM]`)
   afin que l'IA reconnaisse la nature de l'entité malgré la substitution —
   voir [ADR-003](adr/0003-typage-entites.md).
-- Le `CODE` est généré selon un format configurable, commun à tous les
-  types : **reconnaissable** (dérivé des initiales du nom, ex: `PDT` ou
-  `PIDU` pour Pierre Dupont — voir M-10 et
-  [ADR-002](adr/0002-format-pseudonyme.md)) ou **opaque** (aléatoire, sans
-  lien visuel avec le nom réel). En cas de collision entre deux entités du
-  même type générant le même code reconnaissable, un suffixe numérique est
-  ajouté automatiquement (ex: `PDT`, `PDT-2`).
+- Le `CODE` est généré selon un format configuré **par site** (M-01) et
+  commun à toutes les entités qui y sont mentionnées : **reconnaissable**
+  (dérivé des initiales du nom, ex: `PDT` ou `PIDU` pour Pierre Dupont —
+  voir M-10 et [ADR-002](adr/0002-format-pseudonyme.md)) ou **opaque**
+  (aléatoire, sans lien visuel avec le nom réel). Une même entité peut donc
+  avoir un style différent selon le site. En cas de collision entre deux
+  entités du même type générant le même code reconnaissable, un suffixe
+  numérique est ajouté automatiquement (ex: `PDT`, `PDT-2`). Cette unicité
+  du code est **globale, tous sites confondus** (pas seulement sur le site
+  où l'entité est ajoutée) : c'est nécessaire pour que M-12 (conversion
+  manuelle d'un fichier) puisse résoudre un pseudonyme sans avoir à
+  connaître le site d'origine du fichier.
 - Chaque pseudonyme a une durée de vie configurable **par site** (1 semaine,
   1 trimestre, 1 an, ou infini — paramètre associé à l'entrée de la liste
   autorisée, voir M-01) ; à expiration, un nouveau pseudonyme est généré pour
@@ -82,18 +87,18 @@ ci-dessous. Chaque macro-UC deviendra un ou plusieurs UC-XXX.
 
 | ID | Macro-UC | Résumé |
 |----|----------|--------|
-| M-01 | Gestion de la liste de sites autorisés | Configurer la whitelist des sites sur lesquels l'extension s'active (grands sites IA pré-activés + ajout manuel), avec pour chaque site sa durée de vie de pseudonyme (voir M-08) |
-| M-02 | Gestion de l'annuaire privé | Créer/modifier/supprimer les entités (personne, organisation, lieu, projet) de l'annuaire local (stocké dans `private/`) |
+| M-01 | Gestion de la liste de sites autorisés | Configurer la whitelist des sites sur lesquels l'extension s'active (grands sites IA pré-activés + ajout manuel), avec pour chaque site sa durée de vie (M-08) et son format de pseudonyme (M-10) |
+| M-02 | Gestion de l'annuaire privé | Créer/modifier/supprimer les entités (personne, organisation, lieu, projet) de l'annuaire, stocké localement dans le navigateur ([ADR-005](adr/0005-stockage-local.md)) ; une entité a un alias indépendant par site (voir [ARCHITECTURE.md](ARCHITECTURE.md)) et, pour une personne, un email facultatif |
 | M-03 | Déclenchement du menu `&` | Ouvrir le menu de sélection à la frappe de `&` dans un champ autorisé (voir [ADR-001](adr/0001-caractere-declencheur.md)) |
 | M-04 | Ajout à la volée depuis `&` | Créer une nouvelle entité directement depuis le menu si elle n'existe pas encore dans l'annuaire, avec sélection manuelle obligatoire de son type |
 | M-05 | Marquage visuel de la mention | Afficher l'entité en clair, soulignée, avec infobulle montrant le pseudonyme (tag `[TYP:CODE]`) au survol |
 | M-06 | Pseudonymisation à l'envoi | Substituer les mentions marquées par leur pseudonyme juste avant l'envoi du prompt |
 | M-07 | Restauration automatique à la réception | Détecter les pseudonymes dans la réponse affichée et les remplacer par les noms réels |
-| M-08 | Durée de vie / rotation du pseudonyme | Générer un nouveau pseudonyme à l'expiration de la durée configurée pour le site concerné (M-01) |
-| M-09 | Historique des alias | Conserver la trace de tous les pseudonymes jamais attribués à chaque personne, y compris expirés |
-| M-10 | Génération du pseudonyme | Générer le pseudonyme `[TYP:CODE]` selon le format configuré (commun aux 4 types) : reconnaissable (initiales, plusieurs variantes) ou opaque (aléatoire), avec suffixe numérique automatique en cas de collision |
+| M-08 | Durée de vie / rotation du pseudonyme | Générer un nouveau pseudonyme quand l'alias est utilisé après expiration de la durée configurée pour le site concerné (M-01) — rotation paresseuse à l'usage, pas de tâche périodique |
+| M-09 | Historique des alias | Conserver la trace de tous les pseudonymes jamais attribués à chaque entité, **par site**, y compris expirés |
+| M-10 | Génération du pseudonyme | Générer le pseudonyme `[TYP:CODE]` selon le format configuré **pour le site courant** (M-01, commun aux 4 types sur ce site) : reconnaissable (initiales, plusieurs variantes) ou opaque (aléatoire), avec suffixe numérique automatique en cas de collision |
 | M-11 | Typage de l'entité | Faire choisir manuellement le type (PER/ORG/LIE/PRJ) à l'utilisateur lors de l'ajout, et le conserver en clair (trigramme) dans le tag du pseudonyme |
-| M-12 | Conversion manuelle de fichiers générés | Interface dédiée, déclenchée manuellement, pour pseudonymiser ou restaurer le contenu d'un fichier téléchargé (.md, .csv, .txt...) dans les deux sens |
+| M-12 | Conversion manuelle de fichiers générés | Interface dédiée, déclenchée manuellement, pour pseudonymiser ou restaurer le contenu d'un fichier téléchargé (.md, .csv, .txt...) dans les deux sens ; le fichier proposé porte un infixe avant l'extension d'origine (`rapport.txt` → `rapport.fog.txt` ou `rapport.unfog.txt`) |
 | M-13 | Export / import de l'annuaire (Excel) | Exporter l'annuaire et son historique vers un fichier `.xlsx` local, et importer un tel fichier pour peupler ou mettre à jour l'annuaire |
 
 _Statut : brouillon à valider avant de passer à l'architecture cible._

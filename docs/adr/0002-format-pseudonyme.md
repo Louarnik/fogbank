@@ -38,25 +38,42 @@ des données) : le format doit donc être configurable plutôt qu'imposé.
 2. **Un format opaque** (pseudonyme aléatoire sans lien visuel avec le nom,
    ex: `X7K2Q`) coexiste comme deuxième option configurable, indépendamment
    des formats reconnaissables.
-3. Le format actif est un paramètre de configuration (portée à définir
-   précisément dans l'architecture cible — a priori par site, cohérent avec
-   la configuration de durée de vie de l'ADR sur M-01/M-08).
-4. **Gestion des collisions** : si deux personnes différentes génèrent le
-   même code reconnaissable (ex: Pierre Dupont et Paul Dumont → `PDT` tous
-   les deux), un suffixe numérique est ajouté automatiquement à la
-   deuxième occurrence et aux suivantes (`PDT`, `PDT-2`, `PDT-3`...). Ce
-   mécanisme s'applique aussi bien au format court qu'étendu ; il n'est pas
-   nécessaire pour le format opaque (espace de valeurs assez grand pour que
-   la collision soit négligeable, mais une vérification reste de mise avant
-   attribution).
+3. Le format (court/étendu/opaque) est un attribut du **site**
+   (`fogbank.sites[].formatPseudonyme`, voir [ARCHITECTURE.md](../ARCHITECTURE.md)
+   et M-01), pas de l'entité : toutes les entités mentionnées sur un même
+   site partagent le même style de pseudonyme, au même titre que sa durée
+   de vie (M-08). Une même entité peut donc avoir des styles différents
+   selon le site (ex: alias court sur un site, étendu sur un autre) — ce
+   n'est pas une caractéristique intrinsèque de l'entité elle-même.
+4. **Gestion des collisions, globale par type — pas par site** : si deux
+   entités différentes du même type génèrent le même code reconnaissable
+   (ex: Pierre Dupont et Paul Dumont → `PDT` tous les deux), un suffixe
+   numérique est ajouté automatiquement à la deuxième occurrence et aux
+   suivantes (`PDT`, `PDT-2`, `PDT-3`...). La détection considère **tout
+   l'annuaire, tous sites confondus**, pour ce type — pas seulement le site
+   sur lequel l'entité est en train d'être ajoutée. Raison : M-12
+   (conversion manuelle d'un fichier généré par l'IA) doit pouvoir résoudre
+   un tag `[TYP:CODE]` sans connaître le site d'origine du fichier ; si
+   deux entités pouvaient porter le même code sur deux sites différents, la
+   résolution deviendrait ambiguë dès que le fichier est traité hors du
+   contexte d'un site précis. Ce mécanisme s'applique aussi bien au format
+   court qu'étendu ; il n'est pas nécessaire pour le format opaque (espace
+   de valeurs assez grand pour que la collision soit négligeable, mais une
+   vérification reste de mise avant attribution).
 
 ## Conséquences
 
 - L'algorithme de génération doit être déterministe à partir du nom pour un
-  format donné, mais tenir compte de l'annuaire existant pour détecter les
-  collisions et appliquer le suffixe.
+  format donné, mais tenir compte de **tout l'annuaire existant pour ce
+  type** (tous les `aliasParSite[].historique` de toutes les entités du
+  même type, voir [ARCHITECTURE.md](../ARCHITECTURE.md)) pour détecter les
+  collisions et appliquer le suffixe — pas seulement l'historique du site
+  courant.
 - Le suffixe de collision fait partie intégrante du pseudonyme et doit être
-  conservé dans l'historique des alias (M-09) au même titre que le reste.
-- Si l'utilisateur change le format actif après coup, les pseudonymes déjà
-  attribués ne sont pas régénérés rétroactivement (cohérent avec M-09 :
-  l'historique complet des alias est toujours conservé).
+  conservé dans l'historique des alias du site concerné (M-09) au même
+  titre que le reste.
+- Si l'utilisateur change le format configuré pour un site après coup, les
+  pseudonymes déjà attribués sur ce site ne sont pas régénérés
+  rétroactivement (cohérent avec M-09 : l'historique complet des alias est
+  toujours conservé) ; seules les nouvelles entités mentionnées sur ce site
+  (ou les rotations futures, M-08) utiliseront le nouveau format.
