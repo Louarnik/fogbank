@@ -19,9 +19,20 @@ Pour chaque scénario :
   affiche encore le nom réel, la substitution n'a pas eu lieu à temps.
 - Un panneau replié **"🧪 Contrôles de test"** (harnais, ne fait pas partie
   du "site" simulé) avec un champ pour taper une fausse réponse IA
-  (éventuellement avec un tag `[PER:PDT]`) et un bouton pour l'injecter
-  dans la zone de réponse — simule l'arrivée d'une réponse dans le DOM,
-  pour tester la restauration automatique (M-07).
+  (éventuellement avec un tag `[PER:PDT]`) et deux boutons pour l'injecter
+  dans la zone de réponse :
+  - **Simuler la réception de cette réponse** — injection instantanée,
+    texte complet d'un coup.
+  - **Simuler une réponse progressive (streaming)** — révèle le texte par
+    petits blocs (3 caractères toutes les 60 ms), pour tester les deux
+    phases de UC-002 :
+    - pendant le streaming, la zone de réponse porte l'attribut
+      `data-streaming="true"` ;
+    - à la fin, cet attribut est retiré et un événement
+      `fogbank:streaming-end` (avec `bubbles: true`) est déclenché sur la
+      zone — c'est le signal qu'un adaptateur de site (`isStreaming` /
+      `onStreamingEnd`, voir [ARCHITECTURE.md](../../../docs/ARCHITECTURE.md))
+      peut utiliser pour détecter la fin de génération.
 
 ## Utilisation
 

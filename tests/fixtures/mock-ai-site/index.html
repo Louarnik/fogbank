@@ -103,8 +103,9 @@
   Cette page n'envoie rien à un vrai serveur. Elle sert uniquement à
   vérifier, en local, ce que l'extension enverrait réellement (panneau
   "Payload envoyé") et comment elle restaure une réponse simulée contenant
-  des pseudonymes. Deux scénarios de champ de saisie sont fournis car les
-  sites réels utilisent l'un ou l'autre.
+  des pseudonymes — instantanément ou progressivement (streaming), pour
+  tester les deux phases de UC-002. Deux scénarios de champ de saisie sont
+  fournis car les sites réels utilisent l'un ou l'autre.
 </div>
 
 <!-- ===================== SCÉNARIO A — textarea ===================== -->
@@ -130,6 +131,7 @@
     <label for="reponse-simulee-textarea">Réponse IA à simuler (peut contenir un tag [TYP:CODE], ex: [PER:PDT])</label>
     <textarea id="reponse-simulee-textarea" placeholder="Bonjour [PER:PDT], voici le rapport demandé."></textarea>
     <button class="secondaire" data-role="simuler-reponse" data-cible="textarea">Simuler la réception de cette réponse</button>
+    <button class="secondaire" data-role="simuler-streaming" data-cible="textarea">Simuler une réponse progressive (streaming)</button>
   </details>
 </section>
 
@@ -156,6 +158,7 @@
     <label for="reponse-simulee-contenteditable">Réponse IA à simuler (peut contenir un tag [TYP:CODE], ex: [PER:PDT])</label>
     <textarea id="reponse-simulee-contenteditable" placeholder="Bonjour [PER:PDT], voici le rapport demandé."></textarea>
     <button class="secondaire" data-role="simuler-reponse" data-cible="contenteditable">Simuler la réception de cette réponse</button>
+    <button class="secondaire" data-role="simuler-streaming" data-cible="contenteditable">Simuler une réponse progressive (streaming)</button>
   </details>
 </section>
 
@@ -198,6 +201,40 @@
       message.className = 'message-ia';
       message.textContent = texte;
       zone.appendChild(message);
+    });
+  });
+
+  // Simulation d'une réponse progressive (streaming), pour tester UC-002
+  // (phase 1 pendant le streaming / phase 2 à la fin). Signal de fin
+  // exposé de deux façons, comme un vrai site pourrait le faire :
+  // - attribut `data-streaming` sur la zone de réponse (présent pendant,
+  //   retiré à la fin) ;
+  // - événement custom `fogbank:streaming-end` déclenché sur la zone.
+  const TAILLE_CHUNK = 3;
+  const DELAI_CHUNK_MS = 60;
+
+  document.querySelectorAll('[data-role="simuler-streaming"]').forEach((bouton) => {
+    bouton.addEventListener('click', () => {
+      const cible = bouton.dataset.cible;
+      const texte = document.getElementById('reponse-simulee-' + cible).value;
+      if (!texte) return;
+      const zone = document.getElementById('reponse-' + cible);
+
+      const message = document.createElement('div');
+      message.className = 'message-ia';
+      zone.appendChild(message);
+      zone.dataset.streaming = 'true';
+
+      let position = 0;
+      const intervalle = setInterval(() => {
+        position += TAILLE_CHUNK;
+        message.textContent = texte.slice(0, position);
+        if (position >= texte.length) {
+          clearInterval(intervalle);
+          delete zone.dataset.streaming;
+          zone.dispatchEvent(new CustomEvent('fogbank:streaming-end', { bubbles: true }));
+        }
+      }, DELAI_CHUNK_MS);
     });
   });
 </script>
