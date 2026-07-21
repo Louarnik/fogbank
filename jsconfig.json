@@ -5,7 +5,7 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "ES2022",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "checkJs": false,
     "types": ["chrome"],
     "lib": ["ES2022", "DOM"]
