@@ -74,12 +74,18 @@ représenté par un adaptateur avec une interface commune :
 //   getInputField(): HTMLElement | null
 //   getSendTrigger(): HTMLElement | null   // bouton ou raccourci d'envoi
 //   getResponseContainer(): HTMLElement | null
+//   isStreaming(container): boolean            // voir UC-002
+//   onStreamingEnd(container, callback): void  // voir UC-002
 // }
 ```
 
 `generic.js` fournit une implémentation par défaut basée sur des
 heuristiques (premier `textarea`/`contenteditable` visible, etc.) pour les
-sites ajoutés manuellement sans adaptateur dédié.
+sites ajoutés manuellement sans adaptateur dédié. Pour `isStreaming` /
+`onStreamingEnd`, le repli générique se fait par délai d'inactivité du
+`MutationObserver` sur la zone de réponse (pas de signal DOM spécifique à
+détecter, contrairement à un adaptateur dédié qui peut viser un élément
+précis du site — bouton "regénérer", disparition d'un curseur...).
 
 ## Modèle de données (`chrome.storage.local`)
 
@@ -171,19 +177,31 @@ partir de l'entité et du site courant :
    avant d'utiliser l'alias, on vérifie s'il est expiré et on le régénère
    si besoin.
 
-**Réception (M-07)**
+**Réception (M-07) — deux phases, voir UC-002 pour le détail complet**
 1. `content.js` observe (MutationObserver) la zone de réponse de
    l'adaptateur actif.
-2. Détection des tags `[TYP:CODE]` par expression régulière, résolution
-   via `fogbank.annuaire` en cherchant, **parmi les entités de type
-   `type`**, celle dont un `aliasParSite[]` (n'importe quel site, actif ou
-   dans l'historique) a pour alias ce `CODE`. La recherche n'a pas besoin
-   d'être scopée au site courant : le `CODE` est unique par type sur tout
-   l'annuaire (voir plus haut) — c'est d'ailleurs cette même fonction de
-   résolution, indépendante du site, qui est réutilisée telle quelle par
-   M-12 (conversion manuelle d'un fichier hors contexte de site).
-3. Remplacement à l'affichage par le nom réel (le DOM affiché est modifié ;
-   rien n'est réémis vers le site IA).
+2. **Phase 1 (pendant le streaming)** : dès qu'un tag `[TYP:CODE]` complet
+   apparaît dans le texte streamé (regex `\[(PER|ORG|LIE|PRJ):[A-Z0-9-]+\]`),
+   il est enveloppé dans un `<span>` stylisé (même soulignement que M-05),
+   sans remplacer le texte — l'infobulle au survol montre le nom réel déjà
+   résolu (voir résolution ci-dessous). Le tag brut reste visible : c'est
+   la preuve que la pseudonymisation a fonctionné.
+3. **Résolution** : via `fogbank.annuaire`, en cherchant, **parmi les
+   entités de type `type`**, celle dont un `aliasParSite[]` (n'importe quel
+   site, actif ou dans l'historique) a pour alias ce `CODE`. La recherche
+   n'a pas besoin d'être scopée au site courant : le `CODE` est unique par
+   type sur tout l'annuaire (voir plus haut) — c'est d'ailleurs cette même
+   fonction de résolution, indépendante du site, qui est réutilisée telle
+   quelle par M-12 (conversion manuelle d'un fichier hors contexte de
+   site). Si aucune entité ne correspond (annuaire modifié entre-temps, tag
+   halluciné), le tag reste affiché brut avec un style d'erreur distinct
+   (voir UC-002, Cas d'erreur) — pas de remplacement en phase 2.
+4. **Phase 2 (fin du streaming)**, détectée via `isStreaming`/
+   `onStreamingEnd` de l'adaptateur (voir Adaptateurs de site) : le
+   contenu textuel de chaque span est remplacé par le nom réel ; le tag
+   d'origine est conservé en `data-*` pour une infobulle inversée (survol
+   → réaffiche `[TYP:CODE]`, utile en debug). Aucune écriture n'est
+   réémise vers le site IA : uniquement le DOM local est modifié.
 
 **Rotation (M-08) — paresseuse, pas de tâche périodique**
 - Pas de `chrome.alarms` ni de balayage périodique de tout l'annuaire :
