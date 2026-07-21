@@ -17,8 +17,13 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["content/content.js"]
+      "matches": ["<all_urls>", "file:///*"],
+      "js": [
+        "content/site-adapters/generic.js",
+        "content/pseudonyme.js",
+        "content/mention-menu.js",
+        "content/content.js"
+      ]
     }
   ],
   "icons": {
@@ -26,5 +31,5 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "permissions": []
+  "permissions": ["storage", "unlimitedStorage"]
 }

@@ -137,4 +137,69 @@ applicables à ce cas d'usage._
 
 | ID     | Titre | Statut |
 |--------|-------|--------|
-| UC-001 | _à définir_ | brouillon |
+| UC-001 | Mention `&` et pseudonymisation à l'envoi (contenteditable) | en cours |
+
+---
+
+### UC-001 — Mention `&` et pseudonymisation à l'envoi (contenteditable)
+
+**Déclencheur**
+L'utilisateur tape le caractère `&` dans un champ `contenteditable` d'un
+site autorisé, suivi de texte de filtre.
+
+**Résultat attendu**
+1. Un menu de sélection s'ouvre sous le curseur, listant les entités de
+   `fogbank.annuaire` dont le nom réel correspond au texte tapé après `&`
+   (filtrage insensible à la casse, sous-chaîne).
+2. La sélection d'une entité (clic ou Entrée) remplace le texte `&filtre`
+   par une mention marquée : span non éditable, soulignement bleu, nom réel
+   affiché en clair, `title` (infobulle native) montrant le pseudonyme
+   `[TYP:CODE]` qui sera envoyé.
+   - Si l'entité n'a pas encore d'alias pour le site courant
+     (`aliasParSite`), un nouvel alias est généré immédiatement (M-10 :
+     format du site, unicité globale par type — voir
+     [ADR-002](adr/0002-format-pseudonyme.md)) et persisté, pour que
+     l'infobulle soit exacte dès la création de la mention.
+3. Échap ferme le menu sans créer de mention ; le texte `&filtre` reste tel
+   quel en clair dans le champ.
+4. Au déclenchement de l'envoi (clic sur le bouton d'envoi détecté), chaque
+   mention marquée présente dans le champ est remplacée par son tag
+   `[TYP:CODE]` avant la soumission réelle. Si l'alias existant a expiré
+   entre-temps (M-08), il est régénéré à ce moment (rotation paresseuse).
+
+**Données**
+- Entrée : frappe clavier, texte tapé après `&`, position du curseur.
+- Lecture : `fogbank.annuaire`, `fogbank.sites` (`chrome.storage.local`,
+  voir [ADR-005](adr/0005-stockage-local.md)).
+- Écriture : nouvel alias / historique ajouté à l'entité concernée si
+  généré à la création de la mention ou à la rotation.
+- Sortie : DOM du champ modifié (span marqué), puis contenu réellement
+  soumis (texte avec tag substitué) au moment de l'envoi.
+
+**Cas d'erreur**
+- Aucune entité ne correspond au texte tapé → menu vide. Pas de création à
+  la volée dans cet UC (M-04/M-11, différé à un UC suivant).
+- Site non reconnu dans `fogbank.sites` (aucune entrée dont le domaine
+  correspond à `location.href`) → le caractère déclencheur n'est pas
+  intercepté, comportement natif du champ inchangé.
+- Champ non `contenteditable` (ex: `<textarea>`) → hors périmètre de cet
+  UC ; support différé (voir Contraintes).
+- Bouton d'envoi non détecté par l'adaptateur générique → aucune
+  substitution n'est effectuée (pas de faux positif silencieux : à
+  surveiller lors des tests).
+
+**Contraintes**
+- Scope volontairement restreint au `contenteditable` : un `<textarea>` ne
+  peut pas afficher une portion de texte soulignée avec infobulle
+  nativement ; le support `<textarea>` (overlay ou repli) sera un UC séparé.
+- La création d'une nouvelle entité (M-04, avec choix du type M-11) est
+  différée à un UC suivant : cet UC ne couvre que la sélection parmi les
+  entités déjà existantes dans l'annuaire.
+- Pas encore d'application de la whitelist de sites (M-01) : le site
+  courant est simplement recherché dans `fogbank.sites`, sans UI de
+  gestion — l'activation/désactivation par whitelist est un UC séparé.
+- Testé contre
+  [tests/fixtures/mock-ai-site/index.html](../tests/fixtures/mock-ai-site/index.html)
+  (Scénario B, contenteditable), avec l'annuaire de
+  [tests/fixtures/annuaire-exemple.json](../tests/fixtures/annuaire-exemple.json)
+  chargé dans `chrome.storage.local`.
