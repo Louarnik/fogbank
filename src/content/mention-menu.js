@@ -6,6 +6,44 @@ window.fogbankMentionMenu = (function () {
   let etatMenu = null; // { mention, resultats, elementMenu }
   let indexSurligne = 0;
 
+  // Infobulle custom : le délai natif du `title` HTML (~1s, non
+  // configurable) est trop lent, on le remplace par un délai court réglable.
+  const DELAI_INFOBULLE_MS = 150;
+  let elementInfobulle = null;
+  let minuteurInfobulle = null;
+
+  function afficherInfobulle(span, texte) {
+    clearTimeout(minuteurInfobulle);
+    minuteurInfobulle = setTimeout(() => {
+      if (!elementInfobulle) {
+        elementInfobulle = document.createElement('div');
+        elementInfobulle.className = 'fogbank-infobulle';
+        Object.assign(elementInfobulle.style, {
+          position: 'fixed',
+          zIndex: '2147483647',
+          background: '#222',
+          color: '#fff',
+          padding: '3px 8px',
+          borderRadius: '4px',
+          fontSize: '12px',
+          fontFamily: 'system-ui, sans-serif',
+          pointerEvents: 'none',
+        });
+        document.body.appendChild(elementInfobulle);
+      }
+      elementInfobulle.textContent = texte;
+      const rect = span.getBoundingClientRect();
+      elementInfobulle.style.left = `${rect.left}px`;
+      elementInfobulle.style.top = `${rect.bottom + 4}px`;
+      elementInfobulle.style.display = 'block';
+    }, DELAI_INFOBULLE_MS);
+  }
+
+  function masquerInfobulle() {
+    clearTimeout(minuteurInfobulle);
+    if (elementInfobulle) elementInfobulle.style.display = 'none';
+  }
+
   function texteAvantCaret() {
     const sel = window.getSelection();
     if (!sel || sel.rangeCount === 0) return null;
@@ -91,7 +129,6 @@ window.fogbankMentionMenu = (function () {
     span.setAttribute('contenteditable', 'false');
     span.dataset.fogbankEntityId = entite.id;
     span.dataset.fogbankType = entite.type;
-    span.title = `[${entite.type}:${code}]`;
     span.textContent = entite.nomReel;
     Object.assign(span.style, {
       textDecoration: 'underline',
@@ -99,6 +136,9 @@ window.fogbankMentionMenu = (function () {
       textDecorationThickness: '2px',
       cursor: 'default',
     });
+    const texteInfobulle = `[${entite.type}:${code}]`;
+    span.addEventListener('mouseenter', () => afficherInfobulle(span, texteInfobulle));
+    span.addEventListener('mouseleave', masquerInfobulle);
 
     const parent = noeud.parentNode;
     const noeudApres = document.createTextNode(apres);

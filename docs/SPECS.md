@@ -153,8 +153,9 @@ site autorisé, suivi de texte de filtre.
    (filtrage insensible à la casse, sous-chaîne).
 2. La sélection d'une entité (clic ou Entrée) remplace le texte `&filtre`
    par une mention marquée : span non éditable, soulignement bleu, nom réel
-   affiché en clair, `title` (infobulle native) montrant le pseudonyme
-   `[TYP:CODE]` qui sera envoyé.
+   affiché en clair, infobulle custom (délai court, ~150 ms, plus rapide
+   que le `title` HTML natif) montrant le pseudonyme `[TYP:CODE]` qui sera
+   envoyé.
    - Si l'entité n'a pas encore d'alias pour le site courant
      (`aliasParSite`), un nouvel alias est généré immédiatement (M-10 :
      format du site, unicité globale par type — voir
