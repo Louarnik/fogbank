@@ -143,7 +143,7 @@ applicables à ce cas d'usage._
 | ID     | Titre | Statut |
 |--------|-------|--------|
 | UC-001 | Mention `&` et pseudonymisation à l'envoi (contenteditable) | implémenté |
-| UC-002 | Restauration à la réception (affichage lisible + traçabilité) | brouillon |
+| UC-002 | Restauration à la réception (affichage lisible + traçabilité) | implémenté |
 
 ---
 
@@ -219,7 +219,7 @@ site autorisé, suivi de texte de filtre.
 
 ### UC-002 — Restauration à la réception (affichage lisible + traçabilité)
 
-**Statut** : brouillon
+**Statut** : implémenté
 **Macro-UC rattaché** : M-07 (Restauration automatique à la réception)
 **Dépendances** : M-06 (substitution à l'envoi), M-05 (marquage visuel de la mention à l'envoi)
 
@@ -354,6 +354,20 @@ Performance :
   le streaming (réponses parfois longues, mutations DOM fréquentes).
 - Phase 2 : substitution en un seul passage à la fin, pas de re-parsing
   continu.
+
+Implémentation :
+- Le repli générique (`generic.js`) détecte la zone de réponse comme le
+  premier élément suivant le bouton d'envoi ne contenant lui-même aucun
+  contrôle de saisie ; `isStreaming`/`onStreamingEnd` reposent uniquement
+  sur un délai d'inactivité du `MutationObserver` (~400 ms), rappelé à
+  chaque fin de rafale de mutations (pas seulement la première réponse
+  d'une conversation).
+- Testé contre
+  [tests/fixtures/mock-ai-site/index.html](../tests/fixtures/mock-ai-site/index.html)
+  (Scénario B, contenteditable), boutons harnais « Simuler la réception de
+  cette réponse » (phase 2 immédiate, pas de phase 1 observable) et
+  « Simuler une réponse progressive (streaming) » (phase 1 puis phase 2 à
+  la fin, via `fogbank:streaming-end`/inactivité).
 
 **Points ouverts**
 

@@ -118,4 +118,15 @@
     // pour que le DOM soit déjà substitué quand celui-ci lit le champ.
     boutonEnvoi.addEventListener('click', substituerMentions, { capture: true });
   }
+
+  // UC-002 : restauration à la réception (M-07).
+  // TODO(debug demain) : câblage jamais exécuté dans un vrai Chrome — si la
+  // phase 1/2 ne se déclenche pas, vérifier ici en premier que zoneReponse
+  // n'est pas null (voir TODO dans generic.js).
+  const zoneReponse = adaptateur.getResponseContainer ? adaptateur.getResponseContainer() : null;
+  if (zoneReponse) {
+    window.fogbankReception.observer(zoneReponse, adaptateur, (type, code) =>
+      window.fogbankPseudonyme.resoudreEntite(annuaire, type, code)
+    );
+  }
 })();

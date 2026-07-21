@@ -90,5 +90,19 @@ window.fogbankPseudonyme = (function () {
     return candidat;
   }
 
-  return { genererCodeUnique };
+  // Résolution inverse (M-07/UC-002) : retrouve l'entité portant ce CODE
+  // pour ce type, tous sites confondus (actif ou historique) — même
+  // logique d'unicité globale que genererCodeUnique. Réutilisée telle
+  // quelle par M-12 (conversion manuelle, hors contexte de site).
+  function resoudreEntite(annuaire, type, code) {
+    return (
+      annuaire.find(
+        (e) =>
+          e.type === type &&
+          e.aliasParSite.some((aps) => aps.historique.some((h) => h.alias === code))
+      ) || null
+    );
+  }
+
+  return { genererCodeUnique, resoudreEntite };
 })();

@@ -22,6 +22,7 @@
         "content/site-adapters/generic.js",
         "content/pseudonyme.js",
         "content/mention-menu.js",
+        "content/reception.js",
         "content/content.js"
       ]
     }
