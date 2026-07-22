@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit -m ' *)",
+      "Bash(ls \"/c/Users/frede/AppData/Local/Temp/6f7f5476-1e8f-4069-aeb4-779753558165_files.zip.165/\" 2>&1)",
+      "Read(//c/Users/frede/AppData/Local/Temp/6f7f5476-1e8f-4069-aeb4-779753558165_files.zip.165//**)",
+      "Bash(find \"/c/Users/frede/AppData/Local/Temp/\" -iname \"*.md\" -newer \"/c/Users/frede/AppData/Local/Temp\" 2>/dev/null | head -50; echo \"---\"; find \"/c/Users/frede/AppData/Local/Temp/\" -iname \"*files.zip*\" -maxdepth 2 2>/dev/null)",
+      "Read(//c/Users/frede/AppData/Local/Temp//**)",
+      "Read(//c/Users/frede/AppData/Local/Temp/6f7f5476-1e8f-4069-aeb4-779753558165_files.zip.165/**)",
+      "Read(//c/Users/frede/AppData/Local/Temp/8f2c7e1c-e9de-48d8-b219-dc2ee37b5342_files.zip.342/**)",
+      "Read(//c/Users/frede/AppData/Local/Temp/9b05d780-484a-4aed-a39e-4c672f15ab8c_files.zip.b8c/**)",
+      "Read(//c/Users/frede/AppData/Local/Temp/aad562c5-e455-403a-af47-d007c75b328b_files.zip.28b/**)",
+      "Bash(mkdir -p \"c:\\\\Users\\\\frede\\\\Documents\\\\fogbank\\\\docs\\\\recherche\")",
+      "Bash(git reset *)",
+      "Bash(grep -n \"hook réseau\\\\|TransformStream\\\\|monde MAIN\\\\|monde \\\\`MAIN\\\\`\" docs/SPECS.md docs/ARCHITECTURE.md docs/adr/0007-fail-closed.md docs/recherche/README.md)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\frede\\Documents\\fogbank\\docs"
+    ]
+  }
+}
