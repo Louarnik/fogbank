@@ -42,7 +42,7 @@ l'entité sur autant de lignes que de sites utilisés (source d'incohérence
 à l'édition/réimport).
 
 - **Feuille "Entités"** (une ligne par entité) : `ID entité`, `Type`
-  (trigramme PER/ORG/LIE/PRJ), `Nom réel`, `Email` (facultatif, pertinent
+  (PER/ORG/LOC/PRJ/MISC), `Nom réel`, `Email` (facultatif, pertinent
   seulement pour `PER`), `Créé le`. Pas de colonne `Format` : c'est une
   caractéristique du site, pas de l'entité (voir [ADR-002](0002-format-pseudonyme.md))
   — hors du périmètre de cet export, qui porte sur l'annuaire (M-13), pas

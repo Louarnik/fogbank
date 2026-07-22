@@ -5,17 +5,17 @@
 
 ## Contexte
 
-L'extension ne pseudonymise pas uniquement des personnes : quatre types
+L'extension ne pseudonymise pas uniquement des personnes : cinq types
 d'entités sont pris en charge (voir [SPECS.md](../SPECS.md), M-02, M-11) :
-**personne**, **organisation**, **lieu**, **projet**.
+**personne**, **organisation**, **lieu**, **projet**, **divers**.
 
 Contrainte forte : l'IA destinataire doit pouvoir **reconnaître la nature de
 l'objet substitué** (comprendre qu'il s'agit d'une personne, d'une
-organisation, d'un lieu ou d'un projet), même si elle ne connaît pas
-l'identité réelle derrière le pseudonyme. Sans cette information, la
-qualité des réponses de l'IA se dégraderait (elle ne peut pas raisonner
-correctement sur "PDT" si elle ne sait pas si c'est une personne ou un
-projet).
+organisation, d'un lieu, d'un projet ou d'une autre entité), même si elle
+ne connaît pas l'identité réelle derrière le pseudonyme. Sans cette
+information, la qualité des réponses de l'IA se dégraderait (elle ne peut
+pas raisonner correctement sur "PDT" si elle ne sait pas si c'est une
+personne ou un projet).
 
 Il faut donc un format de pseudonyme qui encode explicitement le type, en
 plus du code d'identification (voir [ADR-002](0002-format-pseudonyme.md)
@@ -32,21 +32,31 @@ pour la génération du code lui-même).
 ## Décision
 
 1. **Format retenu : tag entre crochets avec trigramme** — `[TYP:CODE]`,
-   `TYP` étant un trigramme fixe par type :
+   `TYP` étant un trigramme fixe par type, aligné sur le schéma NER standard
+   (CoNLL-2003 : `PER`/`ORG`/`LOC`/`MISC`) plutôt qu'inventé — familier pour
+   quiconque a déjà croisé de l'extraction d'entités, et `MISC` fournit un
+   type fourre-tout qui manquait :
    - `PER` — personne (ex: `[PER:PDT]`)
    - `ORG` — organisation (ex: `[ORG:ACM]`)
-   - `LIE` — lieu (ex: `[LIE:PRS]`)
-   - `PRJ` — projet (ex: `[PRJ:FGB]`)
+   - `LOC` — lieu (ex: `[LOC:PRS]`)
+   - `PRJ` — projet (ex: `[PRJ:FGB]`) — hors schéma NER standard, conservé
+     car spécifique au besoin de fogbank (un projet n'est ni une personne,
+     ni une organisation, ni un lieu, et mérite mieux qu'un classement en
+     divers)
+   - `MISC` — divers (ex: `[MISC:XYZ]`) — catégorie fourre-tout pour toute
+     entité sensible qui ne rentre dans aucun des quatre autres types
 
    Le trigramme lève l'ambiguïté du préfixe court à une lettre (`P` seul
    aurait été ambigu entre Personne et Projet) tout en restant compact,
-   contrairement au mot-clé complet.
+   contrairement au mot-clé complet. Seul `MISC` fait quatre caractères
+   (pas un vrai trigramme) : c'est le code du schéma NER standard, on ne
+   l'a pas raccourci pour ne pas s'en écarter inutilement.
 2. **Détermination du type : choix manuel obligatoire.** Lors de l'ajout
    d'une nouvelle entité via le menu `&` (M-04), l'utilisateur sélectionne
-   explicitement le type parmi les quatre. Aucune détection automatique
+   explicitement le type parmi les cinq. Aucune détection automatique
    n'est effectuée : plus fiable, et évite les erreurs de classification
    qui exposeraient indirectement la nature réelle d'une donnée mal typée.
-3. **Génération du CODE : schéma générique commun** aux quatre types (voir
+3. **Génération du CODE : schéma générique commun** aux cinq types (voir
    [ADR-002](0002-format-pseudonyme.md)) — même logique d'initiales ou de
    génération opaque quel que soit le type ; seul le préfixe de type dans
    le tag change. Pas de schéma dédié par type pour l'instant.

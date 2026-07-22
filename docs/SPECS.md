@@ -23,13 +23,15 @@ jamais envoyer de données personnelles/sensibles aux services IA tiers.
 > vrai Chrome chargé (unpacked) contre les fixtures, seulement relu/tracé à
 > la main.
 
-Quatre types d'entités sont pris en charge, chacun identifié par un
-trigramme : **PER** (personne), **ORG** (organisation), **LIE** (lieu),
-**PRJ** (projet). Le type est choisi manuellement par l'utilisateur au
-moment de l'ajout (voir M-04) — pas de détection automatique. Le pseudonyme
-conserve toujours le trigramme de type en clair (voir plus bas) afin que
-l'IA comprenne la nature de l'objet substitué, même sans en connaître
-l'identité réelle.
+Cinq types d'entités sont pris en charge, chacun identifié par un trigramme
+aligné sur le schéma NER standard (voir [ADR-003](adr/0003-typage-entites.md)) :
+**PER** (personne), **ORG** (organisation), **LOC** (lieu), **PRJ**
+(projet, hors schéma NER standard mais propre au besoin de fogbank), **MISC**
+(divers — catégorie fourre-tout, seul code à ne pas être un trigramme).
+Le type est choisi manuellement par l'utilisateur au moment de l'ajout
+(voir M-04) — pas de détection automatique. Le pseudonyme conserve toujours
+le code de type en clair (voir plus bas) afin que l'IA comprenne la nature
+de l'objet substitué, même sans en connaître l'identité réelle.
 
 Mécanique générale (cible fail-closed, ADR-007) :
 - Dans un champ de saisie d'un site autorisé, taper `&` ouvre un menu de
@@ -113,7 +115,7 @@ ci-dessous. Chaque macro-UC deviendra un ou plusieurs UC-XXX.
 | ID | Macro-UC | Résumé |
 |----|----------|--------|
 | M-01 | Gestion de la liste de sites autorisés | Configurer la whitelist des sites sur lesquels l'extension s'active (grands sites IA pré-activés + ajout manuel), avec pour chaque site sa durée de vie (M-08) et son format de pseudonyme (M-10) |
-| M-02 | Gestion de l'annuaire privé | Créer/modifier/supprimer les entités (personne, organisation, lieu, projet) de l'annuaire, stocké localement dans le navigateur ([ADR-005](adr/0005-stockage-local.md)) ; une entité a un alias indépendant par site (voir [ARCHITECTURE.md](ARCHITECTURE.md)) et, pour une personne, un email facultatif |
+| M-02 | Gestion de l'annuaire privé | Créer/modifier/supprimer les entités (personne, organisation, lieu, projet, divers) de l'annuaire, stocké localement dans le navigateur ([ADR-005](adr/0005-stockage-local.md)) ; une entité a un alias indépendant par site (voir [ARCHITECTURE.md](ARCHITECTURE.md)) et, pour une personne, un email facultatif |
 | M-03 | Déclenchement du menu `&` | Ouvrir le menu de sélection à la frappe de `&` dans un champ autorisé (voir [ADR-001](adr/0001-caractere-declencheur.md)) |
 | M-04 | Ajout à la volée depuis `&` | Créer une nouvelle entité directement depuis le menu si elle n'existe pas encore dans l'annuaire, avec sélection manuelle obligatoire de son type ; **insère le tag `[TYP:CODE]` dans le champ, pas le vrai nom** (fail-closed, [ADR-007](adr/0007-fail-closed.md)) |
 | M-05 | Calque de décoration de la mention | **Redéfini par ADR-007** : le champ contient le tag `[TYP:CODE]` en clair ; une couche de décoration cloisonnée (shadow root fermé) le souligne et révèle le vrai nom — une **légende sous le champ comme base** (liste `[TYP:CODE] → nom réel`, ne dépend d'aucune mesure géométrique), une **infobulle au survol comme raffinement** (R-43) — jamais en l'écrivant dans le DOM du site, l'inverse du comportement fail-open initial |
@@ -122,7 +124,7 @@ ci-dessous. Chaque macro-UC deviendra un ou plusieurs UC-XXX.
 | M-08 | Durée de vie / rotation du pseudonyme | Générer un nouveau pseudonyme quand l'alias est utilisé après expiration de la durée configurée pour le site concerné (M-01) — rotation paresseuse à l'usage, pas de tâche périodique |
 | M-09 | Historique des alias | Conserver la trace de tous les pseudonymes jamais attribués à chaque entité, **par site**, y compris expirés |
 | M-10 | Génération du pseudonyme | Générer le pseudonyme `[TYP:CODE]` selon le format configuré **pour le site courant** (M-01, commun aux 4 types sur ce site) : reconnaissable (initiales, plusieurs variantes) ou opaque (aléatoire), avec suffixe numérique automatique en cas de collision |
-| M-11 | Typage de l'entité | Faire choisir manuellement le type (PER/ORG/LIE/PRJ) à l'utilisateur lors de l'ajout, et le conserver en clair (trigramme) dans le tag du pseudonyme |
+| M-11 | Typage de l'entité | Faire choisir manuellement le type (PER/ORG/LOC/PRJ/MISC) à l'utilisateur lors de l'ajout, et le conserver en clair dans le tag du pseudonyme |
 | M-12 | Conversion manuelle de fichiers générés | Interface dédiée, déclenchée manuellement, pour pseudonymiser ou restaurer le contenu d'un fichier téléchargé (.md, .csv, .txt...) dans les deux sens ; le fichier proposé porte un infixe avant l'extension d'origine (`rapport.txt` → `rapport.fog.txt` ou `rapport.unfog.txt`) |
 | M-13 | Export / import de l'annuaire (Excel) | Exporter l'annuaire et son historique vers un fichier `.xlsx` local, et importer un tel fichier pour peupler ou mettre à jour l'annuaire |
 | M-14 | Mode « vision site » _(différé, non spécifié)_ | Bascule volontaire affichant les pseudonymes bruts tels que le site IA les voit réellement, sans restauration — voir TODO dans UC-002 |
@@ -280,7 +282,7 @@ texte de filtre.
   uniquement sur le soulignement — détail complet partagé avec UC-002 dans
   [ARCHITECTURE.md](ARCHITECTURE.md).
 - Regex de tag partagée avec UC-002 et M-12 :
-  `\[(PER|ORG|LIE|PRJ):([A-Z0-9]+(?:-\d+)?)\]`.
+  `\[(PER|ORG|LOC|PRJ|MISC):([A-Z0-9]+(?:-\d+)?)\]`.
 - Rotation paresseuse (M-08) : sans geste de substitution à l'envoi,
   l'expiration d'un alias est vérifiée **à chaque insertion d'un tag pour
   une entité donnée** (étape 2 ci-dessus) — c'est le seul point d'ancrage
@@ -444,7 +446,7 @@ Techniques :
   un signal plus précis et plus rapide (ex : disparition d'un bouton
   « stop », attribut `data-is-streaming`) ; `generic.js` reste sur le délai
   d'inactivité `MutationObserver` (~400 ms), seul repli sans signal dédié.
-- Un tag est considéré complet quand la regex `\[(PER|ORG|LIE|PRJ):[A-Z0-9-]+\]`
+- Un tag est considéré complet quand la regex `\[(PER|ORG|LOC|PRJ|MISC):[A-Z0-9-]+\]`
   matche entièrement dans le texte. Éviter le marquage prématuré sur un tag
   partiellement streamé (`[PER:PD` — pas encore de crochet fermant).
 - Les `<span>` insérés doivent survivre aux re-renders du site IA. Certains

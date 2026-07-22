@@ -22,7 +22,13 @@ window.fogbankDisplay = (function () {
   const DELAI_OUVERTURE_MS = 180;
   const DELAI_FERMETURE_MS = 100;
 
-  const LIBELLES_TYPE = { PER: 'Personne', ORG: 'Organisation', LIE: 'Lieu', PRJ: 'Projet' };
+  const LIBELLES_TYPE = {
+    PER: 'Personne',
+    ORG: 'Organisation',
+    LOC: 'Lieu',
+    PRJ: 'Projet',
+    MISC: 'Divers',
+  };
 
   let racineOmbre = null;
 

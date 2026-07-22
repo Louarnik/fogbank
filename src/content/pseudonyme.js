@@ -109,7 +109,7 @@ window.fogbankPseudonyme = (function () {
   // (`g`) porte un `lastIndex` mutable, dangereux à partager entre appelants
   // qui l'utilisent en parallèle ou de façon imbriquée.
   function creerRegexTag() {
-    return /\[(PER|ORG|LIE|PRJ):([A-Z0-9]+(?:-\d+)?)\]/g;
+    return /\[(PER|ORG|LOC|PRJ|MISC):([A-Z0-9]+(?:-\d+)?)\]/g;
   }
 
   return { genererCodeUnique, resoudreEntite, creerRegexTag };

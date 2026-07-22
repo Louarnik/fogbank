@@ -144,7 +144,7 @@ de stockage. Trois clés racine :
 // sites sur lesquels elle est mentionnée
 {
   id: string,
-  type: "PER" | "ORG" | "LIE" | "PRJ",     // voir ADR-003
+  type: "PER" | "ORG" | "LOC" | "PRJ" | "MISC",     // voir ADR-003
   nomReel: string,                          // donnée sensible
   email: string | null,                     // facultatif, pertinent seulement si type === "PER"
   creeLe: string,                           // ISO date — ajout de l'entité à l'annuaire

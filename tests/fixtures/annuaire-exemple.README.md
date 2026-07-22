@@ -1,19 +1,25 @@
 # Jeu de données de test — annuaire-exemple
 
-`annuaire-exemple.json` (et son équivalent `annuaire-exemple.xlsx`, format
-[ADR-006](../../docs/adr/0006-export-import-excel.md)) contiennent un
-annuaire **entièrement fictif** — 10 entités, structuré selon le modèle de
-données de [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md) — à utiliser
-pour développer et tester M-01, M-02, M-08, M-09, M-10 et M-13 sans
-dépendre de vraies données (celles-ci restent dans
-[`private/`](../../private/README.md)).
+`annuaire-exemple.json` contient un annuaire **entièrement fictif** — 11
+entités, structuré selon le modèle de données de
+[docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md) — à utiliser pour
+développer et tester M-01, M-02, M-08, M-09, M-10 et M-13 sans dépendre de
+vraies données (celles-ci restent dans [`private/`](../../private/README.md)).
+
+Pas d'équivalent `.xlsx` maintenu à côté de ce JSON : un fixture binaire à
+retenir manuellement en phase à chaque évolution du modèle (comme le
+renommage des types en `PER/ORG/LOC/PRJ/MISC`) coûte plus qu'il n'apporte.
+Le format d'export/import reste spécifié dans
+[ADR-006](../../docs/adr/0006-export-import-excel.md) ; il sera testé
+contre un fichier généré par M-13 lui-même, pas contre un exemple statique.
 
 Aucun nom réel : "Pierre Dupont", "Acme Corporation", "Paris"... sont des
 exemples génériques, pas des personnes/organisations réelles.
 
 ## Couverture
 
-- Les **4 types** d'entités (PER, ORG, LIE, PRJ).
+- Les **5 types** d'entités (PER, ORG, LOC, PRJ, MISC — voir
+  [ADR-003](../../docs/adr/0003-typage-entites.md)).
 - Les **3 formats** de pseudonyme, chacun configuré **au niveau du site**
   (voir [ADR-002](../../docs/adr/0002-format-pseudonyme.md)) : `court` sur
   `site-chatgpt`, `etendu` sur `site-claude`, `opaque` sur
@@ -40,6 +46,10 @@ exemples génériques, pas des personnes/organisations réelles.
 - Deux entités dont l'alias **expire bientôt** (`ent-04`, `ent-10`, sur
   `site-local-test`, durée `1s`) — utile pour tester la logique de
   rotation de M-08 sans attendre.
+- Un exemple de type **`MISC`** (`ent-11`, "Opération Mistral") — la
+  catégorie fourre-tout ajoutée par [ADR-003](../../docs/adr/0003-typage-entites.md)
+  pour toute entité sensible qui ne rentre dans aucun des quatre autres
+  types.
 
 ## Hypothèses de modélisation (à confirmer lors du développement)
 

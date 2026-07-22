@@ -33,7 +33,7 @@ Structure retenue (clés au niveau racine du storage) :
   de pseudonyme par défaut — voir ADR-001, ADR-002)
 - `fogbank.sites` — tableau des sites autorisés et leur configuration
   (durée de vie du pseudonyme par site — M-01, M-08)
-- `fogbank.annuaire` — tableau des entités (personne/organisation/lieu/projet),
+- `fogbank.annuaire` — tableau des entités (personne/organisation/lieu/projet/divers),
   chacune avec son alias actif et son historique complet d'alias (M-02, M-09)
 
 Le filtrage/recherche (ex: retrouver une entité par nom ou par pseudonyme)

@@ -147,7 +147,7 @@
     },
     {
       "id": "ent-07",
-      "type": "LIE",
+      "type": "LOC",
       "nomReel": "Paris",
       "email": null,
       "creeLe": "2026-04-01",
@@ -164,7 +164,7 @@
     },
     {
       "id": "ent-08",
-      "type": "LIE",
+      "type": "LOC",
       "nomReel": "New York",
       "email": null,
       "creeLe": "2026-05-20",
@@ -209,6 +209,23 @@
           "expireLe": "2026-07-25",
           "historique": [
             { "alias": "Q7Z3M", "attribueLe": "2026-07-18", "expireLe": "2026-07-25" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ent-11",
+      "type": "MISC",
+      "nomReel": "Opération Mistral",
+      "email": null,
+      "creeLe": "2026-07-05",
+      "aliasParSite": [
+        {
+          "siteId": "site-chatgpt",
+          "aliasActif": "OML",
+          "expireLe": "2027-07-05",
+          "historique": [
+            { "alias": "OML", "attribueLe": "2026-07-05", "expireLe": "2027-07-05" }
           ]
         }
       ]

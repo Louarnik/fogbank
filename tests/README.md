@@ -5,8 +5,8 @@ contre des fixtures locales — des sites IA factices qui ne font aucun appel
 réseau, utilisés pour vérifier :
 
 - ce que l'extension enverrait réellement (panneau "Payload envoyé"),
-  pour valider la substitution des mentions par leur pseudonyme (M-06,
-  à refondre en garde-fou fail-closed — voir
+  pour valider que le tag inséré via le menu `&` (M-04) est bien ce qui
+  part au site IA, sans réécriture à l'envoi (fail-closed — voir
   [ADR-007](../docs/adr/0007-fail-closed.md)) ;
 - la restauration automatique d'une réponse simulée contenant des
   pseudonymes (M-07).
@@ -28,10 +28,16 @@ tient lieu pour l'instant.
 
 ## Jeu de données d'annuaire
 
-[fixtures/annuaire-exemple.json](fixtures/annuaire-exemple.json) (et son
-équivalent [fixtures/annuaire-exemple.xlsx](fixtures/annuaire-exemple.xlsx))
-fournissent un annuaire fictif de 10 entités couvrant les 4 types, les 3
-formats de pseudonyme, la rotation et la collision d'alias — voir
+[fixtures/annuaire-exemple.json](fixtures/annuaire-exemple.json) fournit un
+annuaire fictif de 11 entités couvrant les 5 types, les 3 formats de
+pseudonyme, la rotation et la collision d'alias — voir
 [fixtures/annuaire-exemple.README.md](fixtures/annuaire-exemple.README.md)
 pour le détail et les hypothèses de modélisation. À utiliser pour
 développer M-02, M-08, M-09, M-10 et M-13 sans données réelles.
+
+Pas d'équivalent `.xlsx` maintenu à côté : un fixture binaire à retenir en
+phase avec le JSON à chaque évolution du modèle (comme le renommage des
+types ci-dessus) coûte plus qu'il n'apporte. Le format d'export/import
+Excel reste spécifié dans [ADR-006](../docs/adr/0006-export-import-excel.md)
+et sera testé contre un fichier généré par M-13 lui-même le moment venu,
+pas contre un exemple statique à maintenir à la main.
