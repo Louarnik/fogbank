@@ -313,13 +313,16 @@ src/content/
 │   └── generic.js               # repli DOM seul ; UI doit annoncer l'absence de garantie de restauration (R-07)
 ├── mention-menu.js              # M-03/M-04 : insère le tag via EditorHandle.replaceRange, plus le vrai nom
 ├── pseudonyme.js                # inchangé (génération + résolution de code)
-├── reception.js                 # M-07 : bascule vers un hook réseau (ChatGPT/Claude) + repli MutationObserver (Copilot)
-└── content.js                   # orchestration ; perd la substitution à l'envoi, gagne le garde-fou (M-06)
+├── reception.js                 # M-07 : MutationObserver sur les trois sites (pas de hook réseau — écarté, voir ADR-007)
+└── content.js                   # orchestration ; perd la substitution à l'envoi, M-06 devient quasiment vestigial (pas de garde-fou, voir ADR-007)
 ```
 
-**Contrat d'adaptateur cible** (remplace `getInputField`/`getSendTrigger`/
-`isStreaming(container)`/`onStreamingEnd(container, cb)` actuels — voir R-04
-à R-07) :
+**Contrat d'adaptateur cible** (garde `getResponseContainer`/
+`isStreaming(container)`/`onStreamingEnd(container, callback)` — déjà
+implémentés dans `generic.js` pour UC-002 — mais étendu à `getComposer` et
+`inputKind`, voir R-04/R-05/R-07 ; **pas de champ réseau** `transport`/
+`matchRecv` : décision de simplification, M-07 reste du DOM pur sur les
+trois sites, voir ADR-007) :
 
 ```js
 export const chatgpt = {
@@ -332,23 +335,27 @@ export const chatgpt = {
   getInputField: () => document.querySelector('#prompt-textarea'),
   getSendTrigger:() => document.querySelector('#composer-submit-button'),
 
-  // --- réponse (affichage, pour le calque de décoration)
+  // --- réponse (M-07, DOM uniquement — voir ADR-007)
   getResponseContainer: () => document.querySelector('#thread'),
-  getMessageNodes: (r) => r.querySelectorAll('[data-message-author-role]'),
-  isStreaming: () => !!document.querySelector('[data-testid="stop-button"]'),
-
-  // --- réception réseau (M-07 uniquement, absent sur l'adaptateur Copilot
-  // qui reste sur le repli MutationObserver, R-58)
-  transport: 'fetch',                        // 'fetch' | 'websocket' | null
-  matchRecv: (url) => /\/backend-api\/(f\/)?conversation/.test(url),
+  // Signal précis propre au site plutôt que l'heuristique d'inactivité
+  // générique : le même bouton bascule stop/send pendant la génération.
+  isStreaming: (container) => !!document.querySelector('[data-testid="stop-button"]'),
+  onStreamingEnd: (container, callback) => {
+    // ex: MutationObserver sur le bouton d'envoi, callback() quand
+    // `[data-testid="stop-button"]` disparaît — plus précis et plus
+    // rapide que l'inactivité, mais reste du DOM, pas du réseau.
+  },
 };
 ```
 
-`generic.js` perd toute prétention à la restauration réseau : il reste un
-repli DOM pur (`getResponseContainer` + `MutationObserver` par inactivité,
-déjà implémenté), avec `transport: null`. L'UI doit annoncer explicitement,
-pour un site ajouté manuellement, que fogbank n'y garantit pas la
-restauration (R-07).
+`generic.js` reste sur l'heuristique d'inactivité `MutationObserver` déjà
+implémentée (seul repli sans signal dédié). Les adaptateurs de site
+(`chatgpt.js`, `claude.js`, `copilot.js`) peuvent fournir un
+`isStreaming`/`onStreamingEnd` plus précis et plus rapide (bouton stop,
+attribut `data-is-streaming`...), mais restent sur le même mécanisme DOM,
+pas sur un hook réseau. L'UI doit annoncer explicitement, pour un site
+ajouté manuellement sans adaptateur dédié, que fogbank n'y garantit pas la
+restauration avec la même réactivité (R-07).
 
 **Façade `EditorHandle`** (R-08 à R-18) : plus aucun code fogbank ne touche
 l'élément de saisie brut. Deux implémentations (`TextareaHandle`,
@@ -367,33 +374,55 @@ l'infobulle (verre dépoli, thème du site détecté par luminance de fond,
 R-34/R-35) et la légende sous le champ (base non dépendante de la mesure
 géométrique, à livrer avant le calque si un choix doit être fait — R-43).
 
-**Flux Envoi (cible)** — remplace M-06 « pseudonymisation à l'envoi » :
+**Flux Envoi (cible)** — remplace M-06 « pseudonymisation à l'envoi », voir
+UC-001 (réécrit dans [SPECS.md](SPECS.md)) :
 1. M-04 insère le tag `[TYP:CODE]` via `EditorHandle.replaceRange`, jamais
    le vrai nom.
-2. En continu (sur `input`, pas seulement à l'envoi), détection d'un vrai
-   nom déclaré resté en clair dans le champ (R-50) : souligné en
-   avertissement, bouton « convertir » proposé (R-51) — jamais de
-   substitution silencieuse.
-3. À l'envoi (`Enter` ou clic), le garde-fou bloque la soumission si un vrai
-   nom connu ou un tag cassé (`[PER:PDT` non refermé, code inconnu de
-   l'annuaire) subsiste, et affiche la raison (R-48/R-52). C'est le seul
-   endroit où fogbank annule un événement.
+2. À l'envoi (`Enter` ou clic), **rien n'est réécrit ni bloqué** : le
+   contenu soumis est exactement celui du champ, tag compris, puisque
+   c'est déjà ce qui y a été inséré à l'étape 1. `content.js` n'a plus
+   aucun rôle à jouer à ce moment (pas de garde-fou, pas de détection de
+   vrai nom en clair — décision qui s'écarte de R-50 à R-53, voir
+   [ADR-007](adr/0007-fail-closed.md) Conséquences et UC-001 Contraintes :
+   fogbank protège ce qui passe par le menu `&`, pas ce qui est tapé à côté).
+3. Un tag corrompu par une édition manuelle à l'intérieur (R-48, la regex ne
+   le matche plus) est signalé par le calque de décoration (soulignement
+   pointillé rouge, légende « tag invalide ») mais n'empêche pas non plus
+   l'envoi — décoration seule, aucune annulation d'événement dans ce flux.
 
-**Flux Réception (cible)** — M-07, mécanisme redéfini par site :
-1. **ChatGPT et Claude.ai** : hook réseau entrant en monde `MAIN`
-   (`fetch`/SSE), `TransformStream` avec report du texte à cheval sur deux
-   chunks (R-55), échappement JSON du nom réel substitué (R-56), couverture
-   du rechargement d'historique (R-57). Le monde `MAIN` ne transporte que du
-   texte à résoudre via `postMessage` vers le monde `ISOLATED` qui seul
-   détient l'annuaire (R-01) — jamais l'inverse.
-2. **Copilot** : repli `MutationObserver` assumé (R-58), sensiblement ce
-   qu'implémente déjà `content/reception.js` pour UC-002 — acceptable ici
-   car une restauration ratée en réception n'est pas une fuite (au pire un
-   pseudonyme reste affiché tel quel), contrairement à l'envoi.
-3. Dans les deux cas : idempotence (ne jamais restaurer deux fois, ni le
-   texte en cours de frappe de l'utilisateur, R-60) et jamais de mutation de
-   structure DOM dans un sous-arbre React — remplacer le contenu d'un nœud
-   texte, jamais ajouter/retirer d'enfants (R-59).
+**Flux Réception (cible)** — M-07, **mécanisme unique pour les trois
+sites**, décision de simplification prise après ADR-007 : le hook réseau
+entrant recommandé par `docs/recherche/reco.md` (R-54 à R-56 : `fetch`/SSE
+en monde `MAIN`, `TransformStream`, échappement JSON) a été jugé trop
+complexe pour le gain et **n'est pas retenu**. fogbank reste sur du DOM pur,
+sensiblement ce qu'implémente déjà `content/reception.js` pour UC-002 :
+1. `MutationObserver` sur `getResponseContainer()` de l'adaptateur actif.
+   Pendant le streaming, fogbank peut ne rien faire — aucune obligation de
+   marquer les tags au fur et à mesure (contrairement à la phase 1 déjà
+   implémentée, qui reste un bonus best-effort, pas un requis).
+2. Une fois la réponse stable — fin de streaming détectée via
+   `isStreaming`/`onStreamingEnd` (signal dédié si l'adaptateur en fournit
+   un, sinon repli par inactivité), ou immédiatement si la réponse arrive
+   d'un coup — passage unique : chaque tag complet est résolu via
+   l'annuaire et remplacé par le nom réel, marquage conservé pour la
+   traçabilité (infobulle inversée vers le tag d'origine au survol).
+3. Une restauration ratée n'est pas une fuite (au pire un pseudonyme reste
+   affiché tel quel) — acceptable en réception, contrairement à l'envoi
+   (R-58, désormais valable pour les trois sites, pas seulement Copilot).
+4. Idempotence (ne jamais restaurer deux fois, ni le texte en cours de
+   frappe de l'utilisateur, R-60). Point de vigilance non résolu ici :
+   l'implémentation actuelle enveloppe chaque tag dans un `<span>` inséré
+   dans le DOM, ce qui ajoute un nœud dans un sous-arbre potentiellement
+   rendu par React — R-59 recommande de ne remplacer que le contenu d'un
+   nœud texte existant, jamais d'ajouter/retirer d'enfants, pour éviter un
+   `NotFoundError` au prochain re-rendu du composant. À surveiller lors des
+   tests contre les fixtures dédiées, pas nécessairement à corriger avant.
+   Corollaire du DOM pur (pas de hook réseau) : une conversation rechargée
+   (page rafraîchie, historique déjà rendu) ne génère aucune mutation à
+   observer — `onStreamingEnd` ne se déclenchera pas tout seul. Un passage
+   initial explicite au chargement (déjà fait par `reception.js` pour le
+   marquage) doit aussi couvrir la restauration finale dans ce cas, pas
+   seulement le marquage — point ouvert, voir UC-002.
 
 **Fixtures** : `tests/fixtures/mock-ai-site/` garde ses deux scénarios
 (`<textarea>` / `contenteditable`, R-63) pour exercer les deux

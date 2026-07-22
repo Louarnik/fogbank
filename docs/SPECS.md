@@ -18,10 +18,10 @@ jamais envoyer de données personnelles/sensibles aux services IA tiers.
 > nom n'est **jamais écrit dans l'éditeur** ; il n'est que **décoré** à
 > l'affichage (soulignement, infobulle, légende), dans une couche cloisonnée
 > qui ne dépose rien dans le DOM du site. La mécanique ci-dessous décrit
-> cette cible ; **UC-001 et UC-002, déjà implémentés, décrivent encore
-> l'ancien modèle fail-open (substitution du vrai nom par le tag juste avant
-> l'envoi) et doivent être refondus en conséquence** — voir la note de
-> statut au début de chacun.
+> cette cible, déjà réécrite dans **UC-001**. **UC-002 reste à refondre** :
+> son code, déjà implémenté, décrit encore l'ancien modèle fail-open — voir
+> la note de statut en tête de son UC. Le code source (`src/`) des deux UC
+> n'est pas encore aligné sur cette cible.
 
 Quatre types d'entités sont pris en charge, chacun identifié par un
 trigramme : **PER** (personne), **ORG** (organisation), **LIE** (lieu),
@@ -41,10 +41,11 @@ Mécanique générale (cible fail-closed, ADR-007) :
   substitution ultérieure. Une couche de décoration (calque + infobulle +
   légende sous le champ) souligne le tag et révèle le vrai nom au survol,
   sans jamais le déposer dans le DOM du site (voir ADR-007).
-- Si un vrai nom déclaré dans l'annuaire est tapé en clair (au lieu d'être
-  sélectionné via `&`), un garde-fou le signale et **bloque l'envoi** tant
-  qu'il n'a pas été converti en tag — plus de substitution silencieuse à
-  l'envoi.
+- **Aucun garde-fou ni détection d'un vrai nom tapé en clair** en dehors du
+  menu `&` (décision explicite, voir UC-001 Contraintes et
+  [ADR-007](adr/0007-fail-closed.md)) : fogbank protège ce qui passe par la
+  mention, pas ce qui est tapé à côté. Limite assumée, à documenter
+  clairement pour l'utilisateur.
 - À la réception de la réponse, les pseudonymes détectés sont automatiquement
   remplacés par les valeurs réelles correspondantes pour l'affichage (M-07,
   inchangé dans son objectif — voir ADR-007 pour le changement de mécanisme).
@@ -115,9 +116,9 @@ ci-dessous. Chaque macro-UC deviendra un ou plusieurs UC-XXX.
 | M-02 | Gestion de l'annuaire privé | Créer/modifier/supprimer les entités (personne, organisation, lieu, projet) de l'annuaire, stocké localement dans le navigateur ([ADR-005](adr/0005-stockage-local.md)) ; une entité a un alias indépendant par site (voir [ARCHITECTURE.md](ARCHITECTURE.md)) et, pour une personne, un email facultatif |
 | M-03 | Déclenchement du menu `&` | Ouvrir le menu de sélection à la frappe de `&` dans un champ autorisé (voir [ADR-001](adr/0001-caractere-declencheur.md)) |
 | M-04 | Ajout à la volée depuis `&` | Créer une nouvelle entité directement depuis le menu si elle n'existe pas encore dans l'annuaire, avec sélection manuelle obligatoire de son type ; **insère le tag `[TYP:CODE]` dans le champ, pas le vrai nom** (fail-closed, [ADR-007](adr/0007-fail-closed.md)) |
-| M-05 | Calque de décoration de la mention | **Redéfini par ADR-007** : le champ contient le tag `[TYP:CODE]` en clair ; une couche de décoration (soulignement, infobulle, légende sous le champ) révèle le vrai nom au survol, sans jamais l'écrire dans le DOM du site — l'inverse du comportement fail-open initial |
-| M-06 | Garde-fou à l'envoi | **Redéfini par ADR-007** : détecter un vrai nom déclaré resté en clair dans le champ (comparaison continue, pas seulement à l'envoi) et **bloquer l'envoi** tant qu'il n'a pas été converti en tag. Plus aucune écriture/substitution dans l'éditeur au moment de l'envoi |
-| M-07 | Restauration automatique à la réception | Détecter les pseudonymes dans la réponse et les remplacer par les noms réels. Inchangé dans son objectif ; mécanisme cible : hook réseau entrant sur ChatGPT/Claude.ai, repli `MutationObserver` sur Copilot (voir ADR-007) |
+| M-05 | Calque de décoration de la mention | **Redéfini par ADR-007** : le champ contient le tag `[TYP:CODE]` en clair ; une couche de décoration cloisonnée (shadow root fermé) le souligne et révèle le vrai nom — une **légende sous le champ comme base** (liste `[TYP:CODE] → nom réel`, ne dépend d'aucune mesure géométrique), une **infobulle au survol comme raffinement** (R-43) — jamais en l'écrivant dans le DOM du site, l'inverse du comportement fail-open initial |
+| M-06 | Envoi sans réécriture | **Redéfini par ADR-007, et volontairement minimal** : rien n'est réécrit dans l'éditeur au moment de l'envoi (le tag est déjà la source de vérité depuis M-04). **Aucun garde-fou, aucune détection** d'un vrai nom resté en clair (écart assumé par rapport à `docs/recherche/reco.md` R-50 à R-53) — voir UC-001, Contraintes |
+| M-07 | Restauration automatique à la réception | Détecter les pseudonymes dans la réponse et les remplacer par les noms réels. Inchangé dans son objectif ; mécanisme **DOM uniquement** (`MutationObserver`) sur les trois sites — pas de hook réseau, écarté pour rester simple (voir UC-002, ADR-007) |
 | M-08 | Durée de vie / rotation du pseudonyme | Générer un nouveau pseudonyme quand l'alias est utilisé après expiration de la durée configurée pour le site concerné (M-01) — rotation paresseuse à l'usage, pas de tâche périodique |
 | M-09 | Historique des alias | Conserver la trace de tous les pseudonymes jamais attribués à chaque entité, **par site**, y compris expirés |
 | M-10 | Génération du pseudonyme | Générer le pseudonyme `[TYP:CODE]` selon le format configuré **pour le site courant** (M-01, commun aux 4 types sur ce site) : reconnaissable (initiales, plusieurs variantes) ou opaque (aléatoire), avec suffixe numérique automatique en cas de collision |
@@ -166,65 +167,80 @@ applicables à ce cas d'usage._
 
 | ID     | Titre | Statut |
 |--------|-------|--------|
-| UC-001 | Mention `&` et pseudonymisation à l'envoi (contenteditable) | implémenté (fail-open) — à refondre, [ADR-007](adr/0007-fail-closed.md) |
-| UC-002 | Restauration à la réception (affichage lisible + traçabilité) | implémenté (fail-open) — à refondre, [ADR-007](adr/0007-fail-closed.md) |
+| UC-001 | Mention `&` et insertion du tag `[TYP:CODE]` (fail-closed) | brouillon (fail-closed) — code (`src/`) encore fail-open, non aligné |
+| UC-002 | Restauration à la réception (affichage lisible + traçabilité) | brouillon (fail-closed, mécanisme simplifié) — code (`src/`) encore fail-open, non aligné |
 
 ---
 
-### UC-001 — Mention `&` et pseudonymisation à l'envoi (contenteditable)
+### UC-001 — Mention `&` et insertion du tag `[TYP:CODE]` (fail-closed)
 
-> **⚠ À refondre ([ADR-007](adr/0007-fail-closed.md))** : cet UC décrit le
-> modèle fail-open — l'entité choisie reste affichée en clair dans le champ
-> et n'est substituée par son tag qu'au moment de l'envoi (§4 ci-dessous).
-> C'est exactement le point de défaillance unique et invisible qu'ADR-007
-> écarte : sur ChatGPT/Claude.ai (ProseMirror), une réécriture DOM juste
-> avant l'envoi peut ne pas atteindre le modèle interne de l'éditeur, et le
-> vrai nom part alors en clair sans avertissement (voir
-> [docs/recherche/constat-chatgpt.md](recherche/constat-chatgpt.md) §2.3).
-> Cible fail-closed : M-04 insère le **tag** dans le champ dès la sélection
-> (pas le vrai nom), M-05 devient un calque de décoration en lecture seule,
-> M-06 devient un garde-fou qui bloque l'envoi si un vrai nom reste en
-> clair — plus aucune substitution à l'envoi. Corps de l'UC conservé
-> ci-dessous tel qu'implémenté, à réécrire à la prochaine session (voir
-> `docs/recherche/reco.md` §J pour l'ordre d'implémentation).
+> **Réécrit selon [ADR-007](adr/0007-fail-closed.md)** — remplace la
+> précédente version de cet UC (fail-open : l'entité restait affichée en
+> clair, substituée par son tag juste avant l'envoi). Le code actuel
+> (`src/content/mention-menu.js`, `content.js`) implémente encore cette
+> ancienne version et n'est pas aligné sur ce qui suit — refonte de code à
+> faire, voir `docs/recherche/reco.md` §J pour l'ordre d'implémentation
+> proposé (EditorHandle et calque d'abord, contre la fixture `<textarea>`).
 
-**Statut** : implémenté (fail-open) — à refondre
-**Macro-UC rattaché** : M-03, M-04 (sélection seulement), M-05, M-06, M-10
+**Statut** : brouillon (fail-closed)
+**Macro-UC rattaché** : M-03, M-04 (sélection seulement), M-05, M-10
 **Dépendances** : aucune
 
 **Déclencheur**
-L'utilisateur tape le caractère `&` dans un champ `contenteditable` d'un
-site autorisé, suivi de texte de filtre.
+L'utilisateur tape le caractère `&` dans un champ de saisie d'un site
+autorisé — `<textarea>` ou `contenteditable`, indifféremment, via la
+façade `EditorHandle` (voir [ARCHITECTURE.md](ARCHITECTURE.md)) — suivi de
+texte de filtre.
 
 **Résultat attendu**
 1. Un menu de sélection s'ouvre sous le curseur, listant les entités de
    `fogbank.annuaire` dont le nom réel correspond au texte tapé après `&`
    (filtrage insensible à la casse, sous-chaîne).
-2. La sélection d'une entité (clic ou Entrée) remplace le texte `&filtre`
-   par une mention marquée : span non éditable, soulignement bleu, nom réel
-   affiché en clair, infobulle custom (délai court, ~150 ms, plus rapide
-   que le `title` HTML natif) montrant le pseudonyme `[TYP:CODE]` qui sera
-   envoyé.
+2. La sélection d'une entité (clic ou Entrée) remplace `&filtre` par son
+   tag `[TYP:CODE]`, inséré via `EditorHandle.replaceRange` (primitive
+   `document.execCommand('insertText')`, seule à traverser le modèle
+   interne de ProseMirror comme le tracker React d'un `<textarea>` — voir
+   ADR-007) — **jamais le vrai nom**. C'est ce tag, et rien d'autre, qui
+   sera transmis au site IA : aucune étape de substitution n'a lieu plus
+   tard, contrairement à la version fail-open précédente.
    - Si l'entité n'a pas encore d'alias pour le site courant
      (`aliasParSite`), un nouvel alias est généré immédiatement (M-10 :
      format du site, unicité globale par type — voir
-     [ADR-002](adr/0002-format-pseudonyme.md)) et persisté, pour que
-     l'infobulle soit exacte dès la création de la mention.
-3. Échap ferme le menu sans créer de mention ; le texte `&filtre` reste tel
+     [ADR-002](adr/0002-format-pseudonyme.md)) et persisté, pour que le tag
+     inséré soit déjà correct dès la création de la mention.
+3. Échap ferme le menu sans rien insérer ; le texte `&filtre` reste tel
    quel en clair dans le champ.
-4. Au déclenchement de l'envoi (clic sur le bouton d'envoi détecté), chaque
-   mention marquée présente dans le champ est remplacée par son tag
-   `[TYP:CODE]` avant la soumission réelle. Si l'alias existant a expiré
-   entre-temps (M-08), il est régénéré à ce moment (rotation paresseuse).
+4. Le calque de décoration (racine shadow DOM fermée, voir ADR-007) marque
+   le tag inséré. Deux mécanismes de lisibilité, l'un base, l'autre
+   raffinement :
+   - **Légende sous le champ** (base, R-43) : une ligne par tag
+     actuellement présent dans le champ, au format
+     `[TYP:CODE] → Nom réel`, mise à jour à chaque frappe. Ne dépend
+     d'aucune mesure géométrique — reste lisible même si le calque de
+     soulignement échoue à se positionner.
+   - **Infobulle au survol du tag** (raffinement) : délai court (~180 ms),
+     affiche le nom réel, le type en clair et l'email le cas échéant (3
+     lignes maximum) ; verre dépoli, thème détecté depuis le site.
+   - Soulignement bleu sur le tag lui-même : même token visuel que la
+     version fail-open précédente (couleur, épaisseur) — c'est la mention
+     qui change de support (le tag plutôt que le nom réel), pas le style.
+5. À l'envoi (clic sur le bouton d'envoi détecté, ou raccourci natif du
+   site), **rien n'est réécrit** : le contenu soumis est exactement celui
+   du champ, tag compris, puisque c'est déjà ce qui y a été inséré à
+   l'étape 2. Il n'y a plus de geste de substitution à l'envoi auquel
+   accrocher la rotation paresseuse de M-08 — voir Contraintes.
 
 **Données**
 - Entrée : frappe clavier, texte tapé après `&`, position du curseur.
 - Lecture : `fogbank.annuaire`, `fogbank.sites` (`chrome.storage.local`,
   voir [ADR-005](adr/0005-stockage-local.md)).
 - Écriture : nouvel alias / historique ajouté à l'entité concernée si
-  généré à la création de la mention ou à la rotation.
-- Sortie : DOM du champ modifié (span marqué), puis contenu réellement
-  soumis (texte avec tag substitué) au moment de l'envoi.
+  généré à la création de la mention.
+- Sortie : contenu du champ modifié directement (tag inséré via
+  `EditorHandle`) — c'est aussi, sans aucune transformation, ce qui part au
+  site IA. Le calque de décoration (légende + infobulle) est un rendu
+  séparé dans la racine shadow DOM fermée ; il ne modifie jamais le contenu
+  du champ.
 
 **Cas d'erreur**
 - Aucune entité ne correspond au texte tapé → menu vide. Pas de création à
@@ -232,25 +248,51 @@ site autorisé, suivi de texte de filtre.
 - Site non reconnu dans `fogbank.sites` (aucune entrée dont le domaine
   correspond à `location.href`) → le caractère déclencheur n'est pas
   intercepté, comportement natif du champ inchangé.
-- Champ non `contenteditable` (ex: `<textarea>`) → hors périmètre de cet
-  UC ; support différé (voir Contraintes).
-- Bouton d'envoi non détecté par l'adaptateur générique → aucune
-  substitution n'est effectuée (pas de faux positif silencieux : à
-  surveiller lors des tests).
+- L'utilisateur édite **à l'intérieur** d'un tag déjà inséré (ex : place le
+  curseur entre `[PER:` et `PDT]` et tape) → le tag est corrompu dans le
+  champ. La regex partagée (R-47) ne le matche plus : le calque le signale
+  comme invalide (soulignement pointillé rouge, légende « tag invalide »),
+  mais **rien n'empêche l'envoi** — voir Contraintes, pas de garde-fou dans
+  cette version.
+- L'utilisateur tape un vrai nom déclaré dans l'annuaire directement en
+  clair, sans passer par `&` → **non détecté, non signalé**. Le nom part
+  tel quel au site IA. Limite assumée, voir Contraintes.
 
 **Contraintes**
-- Scope volontairement restreint au `contenteditable` : un `<textarea>` ne
-  peut pas afficher une portion de texte soulignée avec infobulle
-  nativement ; le support `<textarea>` (overlay ou repli) sera un UC séparé.
-- La création d'une nouvelle entité (M-04, avec choix du type M-11) est
-  différée à un UC suivant : cet UC ne couvre que la sélection parmi les
-  entités déjà existantes dans l'annuaire.
+- Façade `EditorHandle` obligatoire (deux implémentations :
+  `TextareaHandle`, `ContentEditableHandle`) — aucun code fogbank ne touche
+  l'élément de saisie brut (voir ARCHITECTURE.md). Contrairement à la
+  version fail-open précédente, cet UC n'est **plus scopé au seul
+  `contenteditable`** : `<textarea>` (Copilot) est couvert dès cette
+  version, `EditorHandle` existant précisément pour unifier les deux.
+- Suppression quasi atomique du tag : sur `Backspace`/`Delete` au bord ou à
+  l'intérieur d'un tag, sélectionner et supprimer le tag entier d'un coup,
+  pour éviter les fragments `[PER:PD` qui ne révèlent rien mais polluent le
+  prompt et cassent la détection par regex.
+- **Aucun garde-fou, aucune détection de vrai nom tapé en clair** —
+  décision explicite qui s'écarte de `docs/recherche/reco.md` R-50 à R-53
+  (qui recommandaient une détection continue + un blocage à l'envoi) :
+  fogbank ne protège que ce qui passe effectivement par le menu `&`. Un
+  vrai nom tapé manuellement en dehors de ce flux part sans avertissement.
+  Limite à documenter clairement dans le README utilisateur.
+- Calque de décoration : racine shadow DOM **fermée**, hôte anodin, aucune
+  ressource externe, `pointer-events: none`, propriétés de peinture
+  uniquement sur le soulignement — détail complet partagé avec UC-002 dans
+  [ARCHITECTURE.md](ARCHITECTURE.md).
+- Regex de tag partagée avec UC-002 et M-12 :
+  `\[(PER|ORG|LIE|PRJ):([A-Z0-9]+(?:-\d+)?)\]`.
+- Rotation paresseuse (M-08) : sans geste de substitution à l'envoi,
+  l'expiration d'un alias est vérifiée **à chaque insertion d'un tag pour
+  une entité donnée** (étape 2 ci-dessus) — c'est le seul point d'ancrage
+  retenu. La résolution pour la légende/l'infobulle reste, elle, en lecture
+  seule et ne déclenche jamais de rotation.
 - Pas encore d'application de la whitelist de sites (M-01) : le site
   courant est simplement recherché dans `fogbank.sites`, sans UI de
   gestion — l'activation/désactivation par whitelist est un UC séparé.
-- Testé contre
+- À tester contre
   [tests/fixtures/mock-ai-site/index.html](../tests/fixtures/mock-ai-site/index.html)
-  (Scénario B, contenteditable), avec l'annuaire de
+  (scénarios A **et** B, désormais tous deux dans le périmètre de cet UC),
+  avec l'annuaire de
   [tests/fixtures/annuaire-exemple.json](../tests/fixtures/annuaire-exemple.json)
   chargé dans `chrome.storage.local`.
 
@@ -258,75 +300,67 @@ site autorisé, suivi de texte de filtre.
 
 ### UC-002 — Restauration à la réception (affichage lisible + traçabilité)
 
-> **⚠ À refondre ([ADR-007](adr/0007-fail-closed.md))** : l'objectif de cet
-> UC (afficher le vrai nom à la place des tags reçus, avec traçabilité) ne
-> change pas, mais son mécanisme le doit. L'implémentation actuelle marque
-> les tags par analyse du texte déjà **rendu** dans le DOM
-> (`MutationObserver` générique + heuristique d'inactivité). La cible
-> ADR-007 privilégie un **hook réseau entrant** (`fetch`/SSE) sur ChatGPT et
-> Claude.ai — réécrire le flux de réponse plutôt que le DOM rendu, ce qui
-> couvre aussi le rechargement d'historique et les blocs CodeMirror/artefacts
-> (voir `docs/recherche/reco.md` R-54 à R-60) — et réserve l'approche
-> `MutationObserver` de cet UC au seul repli Copilot, où une restauration
-> ratée n'est pas considérée comme une fuite (R-58). Corps de l'UC conservé
-> ci-dessous tel qu'implémenté, à réécrire à la prochaine session.
+> **Simplifié après ADR-007** : `docs/recherche/reco.md` recommandait un
+> **hook réseau entrant** (`fetch`/SSE en monde `MAIN`) sur ChatGPT et
+> Claude.ai pour cet UC (R-54 à R-56), avec repli `MutationObserver` réservé
+> à Copilot (R-58). **Décision : trop complexe pour le gain, non retenue.**
+> fogbank reste sur un **mécanisme DOM unique pour les trois sites** —
+> sensiblement ce qu'implémente déjà `content/reception.js` (fail-open), à
+> confirmer/étendre plutôt qu'à remplacer. Autre changement : le marquage
+> pendant le streaming (phase 1 ci-dessous) devient un **bonus best-effort**,
+> pas un requis — fogbank peut ne rien faire tant que la réponse n'est pas
+> stable. Voir [ADR-007](adr/0007-fail-closed.md) Conséquences.
 
-**Statut** : implémenté (fail-open) — à refondre
+**Statut** : brouillon (fail-closed, mécanisme simplifié) — proche du code
+actuel (`src/content/reception.js`), à valider/étendre aux trois sites
 **Macro-UC rattaché** : M-07 (Restauration automatique à la réception)
-**Dépendances** : M-06 (substitution à l'envoi), M-05 (marquage visuel de la mention à l'envoi)
+**Dépendances** : M-04 (le tag `[TYP:CODE]` est ce qui part réellement au
+site IA depuis l'insertion — voir UC-001), M-10 (génération du code)
 
 **Déclencheur**
-L'utilisateur envoie un prompt contenant une ou plusieurs mentions
-pseudonymisées (voir M-06). Le site IA commence à retourner sa réponse dans
+L'utilisateur envoie un prompt contenant un ou plusieurs tags `[TYP:CODE]`
+insérés via le menu `&` (voir UC-001). Le site IA commence à retourner sa réponse dans
 la zone de réponse observée par l'adaptateur de site actif. La réponse peut
 contenir zéro, un ou plusieurs tags de la forme `[TYP:CODE]`.
 
 **Résultat attendu**
 
-Le comportement se décompose en deux phases distinctes selon l'état du
-streaming du site IA.
+Mécanisme **DOM uniquement** (`MutationObserver` sur
+`getResponseContainer()` de l'adaptateur actif), le même pour ChatGPT,
+Claude.ai et Copilot — pas de hook réseau (voir note de statut ci-dessus).
+Une seule étape est garantie ; le marquage pendant le streaming est un
+bonus optionnel.
 
-*Phase 1 — Pendant le streaming (réponse en cours de génération)*
+*Pendant le streaming (best-effort, pas requis)*
 
-- Le texte affiché conserve les tags bruts `[TYP:CODE]` tels qu'écrits par
-  le modèle.
-- Chaque tag est stylisé comme une mention interactive : soulignement bleu
-  discret (**mêmes tokens visuels que M-05** à l'envoi — cohérence de la
-  grammaire visuelle de fogbank).
-- Au **survol** du tag, une infobulle affiche le **nom réel** correspondant,
-  résolu via l'annuaire (recherche par type + CODE, voir
-  [ARCHITECTURE.md](ARCHITECTURE.md), flux Réception).
-- Aucun remplacement du texte n'est effectué durant cette phase.
+- fogbank peut ne rien faire tant que la réponse n'est pas stable — ce
+  n'est pas une régression, c'est le comportement de base accepté.
+- S'il est implémenté (comme c'est déjà le cas dans `content/reception.js`),
+  le marquage best-effort suit le même principe qu'avant : chaque tag
+  complet `[TYP:CODE]` repéré dans le texte streamé est stylisé en mention
+  interactive (soulignement discret, **mêmes tokens visuels que M-05**),
+  sans remplacer le texte ; l'infobulle au survol montre le nom réel déjà
+  résolu. Aucune garantie que ce marquage suive fidèlement chaque frappe du
+  modèle — c'est un confort, pas un contrat.
 
-Rationale : pendant le streaming, l'utilisateur voit fogbank « au travail »
-— la présence des tags est la **preuve visible** que la pseudonymisation a
-bien eu lieu. Le survol reste disponible pour la lisibilité ponctuelle.
+*Une fois la réponse stable (requis)*
 
-*Phase 2 — À la fin du streaming (réponse complète)*
+- Détection : signal dédié de l'adaptateur (`isStreaming`/`onStreamingEnd`,
+  ex. disparition d'un bouton « stop ») si disponible, sinon repli par
+  délai d'inactivité du `MutationObserver` (déjà implémenté dans
+  `generic.js`, ~400 ms) — ou immédiatement si la réponse arrive d'un coup
+  (pas de streaming à observer).
+- Passage unique : chaque tag `[TYP:CODE]` complet est résolu via
+  l'annuaire (type + CODE, voir [ARCHITECTURE.md](ARCHITECTURE.md), flux
+  Réception) et remplacé dans le DOM par le **nom réel** correspondant.
+- Le nom réel remplacé reste stylisé (soulignement discret) pour indiquer
+  qu'il s'agit d'une valeur restaurée par fogbank. Au **survol**, l'infobulle
+  affiche cette fois le **tag `[TYP:CODE]`** effectivement reçu — utile pour
+  vérifier/debug/expliquer (traçabilité).
 
-- Chaque tag `[TYP:CODE]` est remplacé dans le DOM par le **nom réel**
-  correspondant.
-- Le nom réel remplacé reste stylisé de la même manière (soulignement bleu
-  discret) pour indiquer qu'il s'agit d'une valeur restaurée par fogbank.
-- Au **survol** du nom réel restauré, l'infobulle affiche cette fois le
-  **tag `[TYP:CODE]`** qui avait été effectivement reçu du site IA — utile
-  pour vérifier / debug / expliquer.
-
-Rationale : une fois la réponse figée, l'utilisateur veut lire dans son
-propre vocabulaire ; la substitution devient l'affichage par défaut. Le
-soulignement conservé + l'infobulle inversée assurent la traçabilité sans
-encombrer la lecture.
-
-*Détection de fin de streaming*
-
-L'adaptateur de site est responsable de signaler la fin du streaming
-(nouveau contrat à ajouter à l'interface commune — voir Contraintes). Sans
-ce signal, la phase 2 ne peut pas être déclenchée. Deux heuristiques
-possibles à préciser par adaptateur :
-- Apparition d'un élément DOM propre au site indiquant la fin de génération
-  (bouton « regénérer », icône d'état, disparition du curseur clignotant).
-- Absence de mutation dans la zone de réponse pendant un délai configurable
-  (fallback).
+Rationale : l'utilisateur veut lire la réponse dans son propre vocabulaire ;
+la substitution devient l'affichage par défaut dès que possible, sans
+exiger de mise en scène particulière pendant que ça streame encore.
 
 **Données**
 
@@ -338,12 +372,14 @@ Entrée :
 
 Sortie :
 - DOM de la zone de réponse modifié :
-  - Phase 1 : tags remplacés par des `<span>` stylisés porteurs des
-    attributs `data-fogbank-type`, `data-fogbank-code`, `data-fogbank-nom`
-    (utilisés par l'infobulle et la phase 2).
-  - Phase 2 : contenu textuel du span remplacé par `nomReel`, attribut
-    `data-fogbank-tag` ajouté avec la valeur `[TYP:CODE]` d'origine (pour
-    l'infobulle inversée).
+  - Marquage best-effort (optionnel, pendant le streaming) : tags
+    remplacés par des `<span>` stylisés porteurs des attributs
+    `data-fogbank-type`, `data-fogbank-code`, `data-fogbank-nom` (utilisés
+    par l'infobulle et par la substitution finale).
+  - Substitution finale (requise, une fois la réponse stable) : contenu
+    textuel du span remplacé par `nomReel`, attribut `data-fogbank-tag`
+    ajouté avec la valeur `[TYP:CODE]` d'origine (pour l'infobulle
+    inversée).
 - Aucune écriture vers le site IA (le DOM affiché est modifié localement,
   la substitution n'est **pas** réémise dans la conversation).
 
@@ -355,35 +391,70 @@ Non-écriture en storage :
 
 | Cas | Comportement attendu |
 |-----|----------------------|
-| Tag `[TYP:CODE]` reçu mais aucune entité correspondante dans l'annuaire (ex : annuaire modifié entre l'envoi et la réception, ou tag halluciné par le modèle) | Le tag reste affiché brut, soulignement discret différencié (ex : pointillé rouge), infobulle indiquant « pseudonyme inconnu ». Pas de remplacement en phase 2. Pas d'erreur bloquante. |
+| Tag `[TYP:CODE]` reçu mais aucune entité correspondante dans l'annuaire (ex : annuaire modifié entre l'envoi et la réception, ou tag halluciné par le modèle) | Le tag reste affiché brut, soulignement discret différencié (ex : pointillé rouge), infobulle indiquant « pseudonyme inconnu ». Pas de substitution finale. Pas d'erreur bloquante. |
 | Type valide mais CODE inconnu pour ce type | Idem : traité comme un pseudonyme inconnu, aucun remplacement. |
 | Tag mal formé (ex : `[per:PDT]` en minuscule, `[PER:PD T]` avec espace) | Non détecté par la regex, laissé brut sans marquage. À documenter comme comportement attendu (pas de tentative de correction). |
-| Fin de streaming non détectée par l'adaptateur | La phase 2 ne s'exécute pas. L'utilisateur reste en phase 1 (tags soulignés + infobulle survol). Comportement dégradé mais fonctionnel. À logger pour diagnostic. |
+| Fin de streaming non détectée par l'adaptateur (ni signal dédié, ni inactivité) | La substitution finale ne s'exécute pas. L'utilisateur reste sur le texte brut (marqué ou non selon que le best-effort a eu lieu). Comportement dégradé mais fonctionnel. À logger pour diagnostic. |
 | Réponse ne contenant aucun tag | Aucune action de fogbank ; DOM inchangé. Pas de badge, pas de log. |
-| Utilisateur qui édite/répond avant fin du streaming | Phase 2 déclenchée quand même à la détection de fin du streaming courant. |
+| Utilisateur qui édite/répond avant fin du streaming | Substitution finale déclenchée quand même à la détection de fin du streaming courant. |
 | Modèle qui réécrit un tag corrompu (ex : `[PER-PDT]`) | Non détecté, laissé brut. Cas à surveiller en pratique. |
 
 **Contraintes**
 
+Décision (cette session) :
+- **Pas de hook réseau** pour M-07, contrairement à `docs/recherche/reco.md`
+  R-54 à R-56 (jugé trop complexe pour le gain). Le mécanisme DOM déjà
+  implémenté pour cet UC devient définitif, pour les trois sites — pas
+  seulement le repli Copilot. Corollaire assumé : un re-rendu React qui
+  écrase le marquage exige un nouveau passage du `MutationObserver` (déjà
+  prévu), et une conversation rechargée (page déjà rendue, aucune mutation
+  à observer) ne déclenche pas `onStreamingEnd` toute seule — voir Points
+  ouverts.
+- Le marquage pendant le streaming (ex-phase 1) est **best-effort, pas
+  requis** : simplifie l'implémentation, pas d'obligation de distinguer
+  précisément une mutation "texte en cours de streaming" d'une mutation
+  "fin de génération".
+- **Décision — historique/SPA** : deux cas distincts pour revenir sur une
+  conversation existante, traités différemment :
+  - **Rechargement réel de la page (F5)** : le content script se réinjecte
+    au chargement, ce qui *est* le signal — le passage initial déjà fait
+    par `reception.js` (aujourd'hui : marquage best-effort seulement) doit
+    aussi déclencher la substitution finale à ce moment-là.
+  - **Changement de conversation en SPA (`pushState`, sans reload)** :
+    ChatGPT, Claude.ai et Copilot ne rechargent jamais le document pour
+    changer de conversation (voir les constats) — le content script ne se
+    réinjecte pas, il n'y a donc rien à détecter de ce côté. **Décision :
+    rien de spécial** — on compte sur le `MutationObserver` déjà attaché à
+    `getResponseContainer()` pour capter le changement (valable si le site
+    garde le même conteneur et ne fait que remplacer ses enfants, ce qui
+    est le cas React le plus courant). Pas de surveillance dédiée de
+    `pushState`/`replaceState` comme R-16 le fait pour le champ de saisie —
+    à vérifier empiriquement par site ; si le conteneur est remplacé en
+    entier plutôt que ses enfants, ce cas resterait non couvert, à
+    reconsidérer alors.
+
 Techniques :
-- Extension du contrat d'adaptateur de site (voir
-  [ARCHITECTURE.md](ARCHITECTURE.md), § Adaptateurs de site) :
+- Contrat d'adaptateur de site (voir [ARCHITECTURE.md](ARCHITECTURE.md),
+  § Adaptateurs de site), déjà implémenté dans `generic.js` :
   ```
   isStreaming(container): boolean
-  onStreamingEnd(container, callback): void  // ou événement équivalent
+  onStreamingEnd(container, callback): void
   ```
-  Fallback dans `generic.js` : détection par délai d'inactivité
-  MutationObserver.
-- L'observation DOM (MutationObserver déjà prévu pour M-07) doit
-  distinguer les mutations « ajout de texte streamé » (phase 1, marquage
-  progressif des tags dès qu'ils sont complets) des mutations « fin de
-  génération » (phase 2, substitution).
+  Un adaptateur dédié (`chatgpt.js`, `claude.js`, `copilot.js`) peut fournir
+  un signal plus précis et plus rapide (ex : disparition d'un bouton
+  « stop », attribut `data-is-streaming`) ; `generic.js` reste sur le délai
+  d'inactivité `MutationObserver` (~400 ms), seul repli sans signal dédié.
 - Un tag est considéré complet quand la regex `\[(PER|ORG|LIE|PRJ):[A-Z0-9-]+\]`
   matche entièrement dans le texte. Éviter le marquage prématuré sur un tag
   partiellement streamé (`[PER:PD` — pas encore de crochet fermant).
 - Les `<span>` insérés doivent survivre aux re-renders du site IA. Certains
   sites (Claude.ai notamment) reconstruisent leur DOM au fil du streaming ;
-  le MutationObserver doit re-marquer si nécessaire.
+  le MutationObserver doit re-marquer si nécessaire. Point de vigilance non
+  résolu ici : insérer un `<span>` dans un sous-arbre rendu par React ajoute
+  un nœud, ce qui peut provoquer un `NotFoundError` au prochain re-rendu du
+  composant si React ne s'attend pas à cette structure (R-59 recommande de
+  ne remplacer que le contenu d'un nœud texte existant) — à surveiller lors
+  des tests, pas nécessairement à corriger dans cette itération.
 
 Cohérence visuelle :
 - Soulignement bleu **strictement identique** à M-05 (même couleur, même
@@ -402,10 +473,11 @@ Confidentialité :
   comportement souhaité pour un usage interne.
 
 Performance :
-- Phase 1 : le marquage doit être suffisamment léger pour ne pas ralentir
-  le streaming (réponses parfois longues, mutations DOM fréquentes).
-- Phase 2 : substitution en un seul passage à la fin, pas de re-parsing
-  continu.
+- Marquage best-effort pendant le streaming : suffisamment léger pour ne pas
+  ralentir le streaming s'il est implémenté (réponses parfois longues,
+  mutations DOM fréquentes) — sinon, ne rien faire est toujours l'option la
+  plus légère.
+- Substitution finale : en un seul passage, pas de re-parsing continu.
 
 Implémentation :
 - Le repli générique (`generic.js`) détecte la zone de réponse comme le
@@ -416,28 +488,30 @@ Implémentation :
   d'une conversation).
 - Testé contre
   [tests/fixtures/mock-ai-site/index.html](../tests/fixtures/mock-ai-site/index.html)
-  (Scénario B, contenteditable), boutons harnais « Simuler la réception de
-  cette réponse » (phase 2 immédiate, pas de phase 1 observable) et
-  « Simuler une réponse progressive (streaming) » (phase 1 puis phase 2 à
-  la fin, via `fogbank:streaming-end`/inactivité).
+  (Scénario B, contenteditable), réception désormais automatique à l'envoi
+  (voir le harnais de la fixture) : substitution finale immédiate en mode
+  instantané, marquage best-effort puis substitution finale en mode
+  streaming (via `fogbank:streaming-end`/inactivité).
+- À étendre à
+  [mock-claude-site](../tests/fixtures/mock-claude-site/index.html) et
+  [mock-copilot-site](../tests/fixtures/mock-copilot-site/index.html)
+  (ajoutés depuis, mécanisme DOM identique par construction) et au
+  Scénario A (`<textarea>`) de `mock-ai-site`, maintenant dans le périmètre
+  de cet UC au même titre que UC-001.
 
 **Points ouverts**
 
 - **Copie de la réponse** : quand l'utilisateur copie tout ou partie de la
-  réponse (phase 2), copie-t-il le nom réel (comportement par défaut du
-  DOM) ou le tag ? Reco : nom réel, cohérent avec le mode d'affichage.
-  Fournir éventuellement un raccourci « copier avec pseudonymes » via menu
-  contextuel — à trancher.
+  réponse (après substitution finale), copie-t-il le nom réel
+  (comportement par défaut du DOM) ou le tag ? Reco : nom réel, cohérent
+  avec le mode d'affichage. Fournir éventuellement un raccourci « copier
+  avec pseudonymes » via menu contextuel — à trancher.
 - **Édition manuelle** : si l'utilisateur édite sa réponse dans un site qui
   le permet (ex : Claude Artifacts), le marquage doit-il persister ?
   Comportement par défaut : non, les spans édités sont considérés comme
   texte libre.
-- **Historique de conversation** : quand l'utilisateur revient sur une
-  conversation antérieure (rechargement de la page), la phase 2 doit
-  s'appliquer directement (pas de streaming à observer). L'UC couvre-t-il
-  ce cas ou est-ce un UC séparé ? Reco : UC séparé
-  (**UC-002-B — restauration au chargement d'une conversation
-  existante**), même logique de résolution mais déclencheur différent.
+- **Historique de conversation** : tranché, voir Contraintes (« Décision —
+  historique/SPA »). Traité dans cet UC, pas de UC-002-B séparé.
 
 **TODO — Mode « vision site »**
 
