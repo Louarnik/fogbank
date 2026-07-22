@@ -1,13 +1,18 @@
 // Point d'entrée du content script — fail-closed (ADR-007, voir
 // docs/SPECS.md UC-001/UC-002). Charge l'annuaire/config depuis
-// chrome.storage.local, détermine le site courant, puis pour chaque champ
-// de saisie détecté : attache l'insertion de tag (M-03/M-04) via un
-// EditorHandle et le calque de décoration (M-05), avec rotation paresseuse
-// (M-08) au moment de l'insertion. Aucune substitution à l'envoi (M-06
-// devient vestigial : le tag est déjà ce qui est inséré dans le champ dès
-// la sélection dans le menu, rien à réécrire plus tard). La restauration à
-// la réception (M-07) est attachée séparément par champ, sur la zone de
-// réponse associée.
+// chrome.storage.local, détermine le site courant, puis :
+// - câble l'insertion de tag (M-03/M-04) via un EditorHandle et le calque
+//   de décoration (M-05) sur chaque champ de saisie détecté, avec rotation
+//   paresseuse (M-08) au moment de l'insertion ; aucune substitution à
+//   l'envoi (M-06 vestigial : le tag est déjà ce qui est inséré dans le
+//   champ dès la sélection dans le menu, rien à réécrire plus tard) ;
+// - restaure à la réception (M-07) en scannant tout le texte de la page
+//   (voir reception.js), pas une zone de réponse identifiée par site.
+//
+// Les deux se déclenchent quand la page a cessé de bouger (voir
+// « approche hyper robuste » ci-dessous) plutôt que de tenter d'identifier
+// précisément un composer ou une zone de réponse par site — voir bugs.md et
+// docs/ARCHITECTURE.md, § Travail restant, pour l'historique de ce choix.
 
 (async function () {
   const DUREE_EN_JOURS = { '1s': 7, '1t': 91, '1a': 365 };
@@ -34,15 +39,7 @@
     return;
   }
 
-  // Adaptateurs dédiés d'abord (sélecteurs exacts, voir docs/recherche/) —
-  // le repli générique matches() toujours vrai sert de dernier recours pour
-  // tout site sans adaptateur dédié.
-  const ADAPTATEURS = [
-    window.fogbankChatgptAdapter,
-    window.fogbankClaudeAdapter,
-    window.fogbankGenericAdapter,
-  ].filter(Boolean);
-  const adaptateur = ADAPTATEURS.find((a) => a.matches()) || window.fogbankGenericAdapter;
+  const adaptateur = window.fogbankGenericAdapter;
 
   function aujourdHuiISO() {
     return new Date().toISOString().slice(0, 10);
@@ -111,23 +108,12 @@
       : window.fogbankContentEditableHandle.creer(champ);
   }
 
-  // Résilience (SPA) : un composer React (ChatGPT, Claude.ai...) peut se
-  // monter après ce premier passage — ce content script ne s'exécute
-  // qu'une fois, à document_idle — et une zone de réponse peut elle-même
-  // ne pas encore exister (nouvelle conversation sans aucun tour envoyé).
-  // Sans repasser périodiquement sur getInputFields()/getResponseContainer,
-  // ces cas ne seraient jamais câblés du tout. `champsTraites` /
-  // `champsAvecReception` évitent tout double câblage à chaque repassage.
+  // `champsTraites` évite de re-câbler un champ déjà traité à chaque
+  // repassage (voir plus bas) — un composer React peut se monter après le
+  // premier passage (ce content script ne s'exécute qu'une fois, à
+  // document_idle), d'où le besoin de repasser plutôt que de tout câbler
+  // une seule fois au chargement.
   const champsTraites = new WeakSet();
-  const champsAvecReception = new WeakSet();
-  // Dédoublonnage par conteneur (pas seulement par champ) : plusieurs champs
-  // détectés peuvent résoudre à la même zone de réponse (ex. la fixture
-  // mock-claude-site, qui a un second contenteditable — renommage de
-  // conversation — dont l'ancêtre climbing de generic.js aboutit au même
-  // conteneur que le vrai composer). Sans ce dédoublonnage, un même
-  // conteneur recevrait un MutationObserver par champ, chacun retraitant le
-  // même contenu.
-  const conteneursAvecReception = new WeakSet();
 
   // Isolation : un champ en échec (sélecteur inattendu, EditorHandle qui
   // lève...) ne doit pas empêcher le câblage des autres champs détectés
@@ -149,26 +135,6 @@
     }
   }
 
-  function attacherReception(champ) {
-    try {
-      // UC-002 : restauration à la réception (M-07), une zone de réponse
-      // par champ détecté (utile notamment pour la fixture qui présente
-      // deux scénarios de saisie indépendants sur la même page).
-      const zoneReponse = adaptateur.getResponseContainer
-        ? adaptateur.getResponseContainer(champ)
-        : null;
-      if (zoneReponse) {
-        champsAvecReception.add(champ);
-        if (!conteneursAvecReception.has(zoneReponse)) {
-          conteneursAvecReception.add(zoneReponse);
-          window.fogbankReception.observer(zoneReponse, adaptateur, resoudre);
-        }
-      }
-    } catch (err) {
-      console.error('[fogbank] échec du câblage de la réception pour un champ :', err);
-    }
-  }
-
   function traiterChamps() {
     const champs = adaptateur.getInputFields ? adaptateur.getInputFields() : [];
     champs.forEach((champ) => {
@@ -176,26 +142,42 @@
         champsTraites.add(champ);
         attacherChamp(champ);
       }
-      if (!champsAvecReception.has(champ)) {
-        attacherReception(champ);
-      }
     });
   }
 
-  traiterChamps();
+  // Approche hyper robuste (voir bugs.md — les adaptateurs dédiés par
+  // sélecteur exact ou proximité du bouton d'envoi ne fonctionnaient
+  // toujours pas sur les vrais Claude.ai/ChatGPT) : plutôt que deviner OÙ
+  // se trouve un composer ou une zone de réponse, on attend que la page ait
+  // cessé de bouger, puis on retraite TOUT — câblage des champs de saisie
+  // détectables et marquage/substitution de tout tag [TYP:CODE] trouvé
+  // n'importe où dans le texte rendu (reception.js exclut lui-même les
+  // champs de saisie actifs, jamais touchés — R-31). Un seul
+  // MutationObserver debouncé pour les deux, pas de contrat par site à
+  // maintenir.
+  const DELAI_STABILITE_MS = 500;
+  let minuteurStabilite = null;
 
-  // Repassage à chaque rafale de mutations du document (composer monté
-  // tardivement, premier message envoyé qui fait apparaître la zone de
-  // réponse...) — coalescé pour ne pas repasser sur getInputFields() à
-  // chaque nœud individuel pendant un streaming de réponse.
-  let repassagePlanifie = false;
-  const observateurDom = new MutationObserver(() => {
-    if (repassagePlanifie) return;
-    repassagePlanifie = true;
-    setTimeout(() => {
-      repassagePlanifie = false;
-      traiterChamps();
-    }, 200);
+  function surPageStable() {
+    traiterChamps();
+    window.fogbankReception.traiterPage(document.body, resoudre);
+  }
+
+  function planifierStabilisation() {
+    clearTimeout(minuteurStabilite);
+    minuteurStabilite = setTimeout(surPageStable, DELAI_STABILITE_MS);
+  }
+
+  traiterChamps();
+  // Passage de stabilisation même sans aucune mutation ultérieure : couvre
+  // une page déjà entièrement rendue au chargement (conversation relue,
+  // fixture statique) que le MutationObserver ci-dessous ne verrait jamais
+  // bouger.
+  planifierStabilisation();
+
+  new MutationObserver(planifierStabilisation).observe(document.body, {
+    childList: true,
+    subtree: true,
+    characterData: true,
   });
-  observateurDom.observe(document.body, { childList: true, subtree: true });
 })();

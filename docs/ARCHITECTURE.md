@@ -51,11 +51,8 @@ src/
 │   ├── mention-menu.js       # menu déclenché par "&" (M-03/M-04) : insère le tag via EditorHandle
 │   ├── pseudonyme.js         # génération/résolution de code + regex de tag partagée (M-10)
 │   ├── reception.js          # restauration à la réception (M-07)
-│   └── site-adapters/        # un adaptateur par site IA (sélecteurs DOM spécifiques)
-│       ├── chatgpt.js        # sélecteurs exacts (#prompt-textarea, #thread...)
-│       ├── claude.js         # sélecteurs exacts (div.ProseMirror, .group/conversation-turn...)
-│       ├── copilot.js        # PRÉVU, pas encore implémenté — voir « Travail restant »
-│       └── generic.js        # repli heuristique pour tout site sans adaptateur dédié
+│   └── site-adapters/
+│       └── generic.js        # seul adaptateur : ne fait plus que détecter les champs de saisie (voir « Travail restant »)
 ├── options/                  # NOUVEAU — page de configuration complète
 │   ├── options.html
 │   ├── options.js
@@ -74,9 +71,9 @@ src/
 | `content/editor-handle/` | Façade de saisie unique pour `<textarea>` et `contenteditable` (`getText`, `replaceRange`, `getRangeRects`...) | M-04 |
 | `content/mention-menu.js` | Détecte `&`, affiche le menu, insère le tag `[TYP:CODE]` via l'`EditorHandle` | M-03, M-04, M-11 |
 | `content/display.js` | Calque de décoration cloisonné (shadow DOM) : légende sous le champ, infobulle, soulignement | M-05 |
-| `content/reception.js` + `site-adapters/*` | Restauration à la réception : marquage best-effort pendant le streaming, substitution finale garantie | M-07 |
+| `content/reception.js` | Restauration à la réception : scanne tout le texte de la page, substitue chaque tag `[TYP:CODE]` trouvé (hors champ de saisie) | M-07 |
 | `content/pseudonyme.js` | Génération de code (M-10), résolution inverse, regex de tag partagée | M-10 |
-| `content/site-adapters/*` | Abstraction des sélecteurs DOM propres à chaque site (champs de saisie, bouton d'envoi, zone de réponse) | M-01, M-07 |
+| `content/site-adapters/generic.js` | Détection des champs de saisie (`getInputFields`) — plus de zone de réponse ni de bouton d'envoi à identifier | M-01 |
 | `background/background.js` | Cycle de vie de l'extension, gestion des permissions de site à la demande | M-01 |
 | `options/` | Gestion de l'annuaire (CRUD), configuration des sites, format de pseudonyme, historique, export/import Excel, outil de conversion manuelle | M-01, M-02, M-09, M-10, M-12, M-13 |
 | `popup/` | Statut rapide (site actif ou non), raccourci vers la page d'options | — |
@@ -86,38 +83,38 @@ La page d'options est déclarée en `open_in_tab: true` (onglet complet plutôt
 que popover) : les écrans d'annuaire et d'historique sont tabulaires et
 gagnent à disposer de tout l'espace d'un onglet.
 
-### Adaptateurs de site
+### Adaptateurs de site — et pourquoi il n'y en a plus qu'un
 
-Chaque site autorisé (M-01) a des sélecteurs DOM différents pour son champ
-de saisie, son bouton d'envoi et sa zone de réponse. Plutôt que du code
-spécifique dispersé, chaque site (pré-activé ou ajouté manuellement) est
-représenté par un adaptateur avec une interface commune :
+Deux générations ont été essayées et abandonnées avant l'approche actuelle
+(voir bugs.md pour l'historique complet des retours de test) :
+
+1. Un adaptateur générique déduisant la zone de réponse par proximité du
+   bouton d'envoi (premier bouton après le champ, puis remontée
+   d'ancêtres). Fonctionnait sur les fixtures, se trompait de zone de
+   réponse dès qu'un vrai composer avait plusieurs boutons avant celui
+   d'envoi (pièce jointe, sélecteur de modèle...).
+2. Des adaptateurs dédiés (`chatgpt.js`, `claude.js`) ciblant des sélecteurs
+   exacts relevés dans `docs/recherche/constat-*.md` (`#prompt-textarea`,
+   `#thread`, `div.ProseMirror`, `.group/conversation-turn`...). Toujours en
+   échec après test sur les vrais sites — sélecteurs périmés, Trusted
+   Types, ou structure plus mouvante que prévu, sans certitude sur la cause
+   exacte.
+
+Les deux généraient la même classe de problème : **deviner où chercher**.
+L'approche retenue à la place ne cherche plus de zone de réponse ni de
+bouton d'envoi du tout — voir « Flux » ci-dessous et `content.js`.
+`site-adapters/generic.js` ne garde donc qu'une interface réduite :
 
 ```js
-// Interface commune (JSDoc, pas de framework)
 // {
 //   matches(url): boolean
-//   getInputFields(): HTMLElement[]                    // un site n'a en général qu'un seul composer ;
-//                                                       // le pluriel accueille le cas générique multi-champs (fixtures)
-//   getSendTrigger(champ): HTMLElement | null           // bouton ou raccourci d'envoi propre à ce champ
-//   getResponseContainer(champ): HTMLElement | null     // zone de réponse associée à ce champ
-//   isStreaming(container): boolean                     // voir UC-002
-//   onStreamingEnd(container, callback): void            // voir UC-002 ; rappelé à chaque réponse, pas une seule fois
+//   getInputFields(): HTMLElement[]   // tout contenteditable/textarea de la page
 // }
 ```
 
-`generic.js` (repli par défaut pour tout site sans adaptateur dédié — voir
-« Travail restant » pour `chatgpt.js`/`claude.js`, déjà écrits)
-fournit une implémentation par défaut basée sur des heuristiques : tout
-`<textarea>`/`contenteditable` de la page qui n'est pas caché dans un
-`<details>` replié, un bouton d'envoi trouvé en cherchant le premier bouton
-qui suit le champ dans le document (en remontant les ancêtres du champ si
-nécessaire pour atteindre une zone de réponse plausible), une zone de
-réponse déduite du bouton d'envoi. Pour `isStreaming`/`onStreamingEnd`, le
-repli générique se fait par délai d'inactivité du `MutationObserver` sur la
-zone de réponse (pas de signal DOM spécifique à détecter, contrairement à
-un adaptateur dédié qui peut viser un élément précis du site — bouton
-"regénérer", disparition d'un curseur...).
+`getInputFields()` retourne tout `<textarea>`/`contenteditable` de la page
+qui n'est pas caché dans un `<details>` replié — « partout où on peut
+saisir du texte », sans chercher à distinguer LE composer d'un site.
 
 ## Modèle de données (`chrome.storage.local`)
 
@@ -217,17 +214,22 @@ partir de l'entité et du site courant :
    (« pseudonymisation à l'envoi ») est donc vestigial : aucun composant
    n'intervient à ce moment.
 
-**Réception (M-07, fail-closed, mécanisme simplifié — voir UC-002)**
-1. `content.js` appelle `reception.js` avec la zone de réponse associée à
-   chaque champ (`getResponseContainer(champ)`), qui y attache un
-   `MutationObserver`.
-2. **Marquage best-effort (pas requis)**, pendant que la réponse arrive :
-   dès qu'un tag `[TYP:CODE]` complet apparaît dans le texte (regex
-   partagée, voir `pseudonyme.js`), il est enveloppé dans un `<span>`
-   stylisé (même soulignement que M-05), sans remplacer le texte —
-   l'infobulle au survol montre le nom réel déjà résolu. fogbank peut
-   choisir de ne rien faire tant que la réponse n'est pas stable, sans que
-   ce soit considéré comme un défaut.
+**Réception (M-07, fail-closed, approche page entière — voir UC-002)**
+1. `content.js` pose un unique `MutationObserver` sur `document.body`
+   (`childList`, `subtree`, `characterData`) et **débounce** : chaque
+   mutation reporte un minuteur de 500 ms (`DELAI_STABILITE_MS`). Rien ne
+   se passe tant que la page bouge encore ; un premier passage est aussi
+   planifié inconditionnellement au chargement, pour couvrir une page déjà
+   entièrement rendue (conversation relue) que le observer ne verrait
+   jamais bouger.
+2. Une fois la page stable, `reception.js#traiterPage(document.body,
+   resoudre)` parcourt **tous les nœuds texte de la page** (`TreeWalker`) et
+   traite chaque tag `[TYP:CODE]` complet trouvé (regex partagée, voir
+   `pseudonyme.js`) — où qu'il soit, sans chercher à identifier une zone de
+   réponse. Exclusions : tout nœud dans un champ de saisie actif
+   (`[contenteditable="true"], textarea` — jamais touché, R-31) et tout
+   nœud dans l'UI flottante de fogbank lui-même (menu de mention, infobulle
+   de réception), pour ne pas se retraiter en boucle.
 3. **Résolution** : via `fogbank.annuaire`, en cherchant, **parmi les
    entités de type `type`**, celle dont un `aliasParSite[]` (n'importe quel
    site, actif ou dans l'historique) a pour alias ce `CODE`. La recherche
@@ -237,15 +239,16 @@ partir de l'entité et du site courant :
    quelle par M-12 (conversion manuelle d'un fichier hors contexte de
    site). Si aucune entité ne correspond (annuaire modifié entre-temps, tag
    halluciné), le tag reste affiché brut avec un style d'erreur distinct
-   (voir UC-002, Cas d'erreur) — pas de substitution finale.
-4. **Substitution finale (requise)**, déclenchée soit dès l'attache (cas
-   d'une conversation déjà rendue au chargement — voir UC-002 Points
-   ouverts), soit via `isStreaming`/`onStreamingEnd` de l'adaptateur (voir
-   Adaptateurs de site) une fois la réponse stable : le contenu textuel de
-   chaque span est remplacé par le nom réel ; le tag d'origine est
-   conservé en `data-*` pour une infobulle inversée (survol → réaffiche
-   `[TYP:CODE]`, utile en debug). Aucune écriture n'est réémise vers le
-   site IA : uniquement le DOM local est modifié.
+   (voir UC-002, Cas d'erreur) — pas de substitution.
+4. **Substitution**, dans le même passage (pas de phase intermédiaire où le
+   tag brut resterait affiché) : le tag est remplacé par un `<span>` dont le
+   contenu textuel est le nom réel, souligné (même style que M-05) ; le tag
+   d'origine est conservé en `data-*` pour une infobulle inversée (survol →
+   réaffiche `[TYP:CODE]`, utile en debug). Aucune écriture n'est réémise
+   vers le site IA : uniquement le DOM local est modifié. Un tag déjà
+   substitué (span déjà porteur de `data-fogbank-code`) est ignoré aux
+   passages suivants — le passage complet est rejoué à chaque stabilisation,
+   mais son coût reste négligeable même sur une conversation longue.
 
 **Rotation (M-08) — paresseuse, pas de tâche périodique**
 - Pas de `chrome.alarms` ni de balayage périodique de tout l'annuaire :
@@ -315,59 +318,36 @@ d'un content script.)
 | M-03, M-04, M-11 | `content/mention-menu.js` + `content/editor-handle/` |
 | M-05 | `content/display.js` |
 | M-06 | vestigial — aucun composant, voir Flux Envoi |
-| M-07 | `content/reception.js` + `site-adapters/*` |
+| M-07 | `content/reception.js` |
 | M-08 | `content/content.js`, inline lors de l'insertion du tag (rotation paresseuse, pas de composant dédié) |
 | M-09 | `fogbank.annuaire[].aliasParSite[].historique`, affiché via `options/` |
 | M-10 | logique partagée (`content/pseudonyme.js`, utilisé par `mention-menu.js`, `reception.js` et `options/`) |
 | M-12 | `options/` |
 | M-13 | `options/` + `vendor/xlsx.full.min.js` |
 
-## Travail restant : adaptateurs de site dédiés
+## Travail restant
 
-`chatgpt.js` et `claude.js` sont écrits (sélecteurs exacts relevés dans
-`docs/recherche/constat-chatgpt.md`/`constat-claude.md`, **non vérifiés en
-direct** — à reconfirmer avec la sonde §8 de chaque document si le
-comportement dévie). `content.js` choisit l'adaptateur par
-`ADAPTATEURS.find((a) => a.matches())`, `generic.js` restant le dernier
-recours (`matches()` toujours vrai) pour tout site sans adaptateur dédié —
-dont `copilot.js`, qui reste à écrire.
+`chatgpt.js`/`claude.js` (adaptateurs dédiés à sélecteurs exacts) ont été
+écrits puis mis de côté — toujours en échec après test sur les vrais sites
+(voir bugs.md et « Adaptateurs de site », ci-dessus, pour l'historique).
+Les fichiers ne sont plus chargés (retirés de `manifest.json`) mais restent
+sur le disque : le relevé de sélecteurs qu'ils encodent
+(`docs/recherche/constat-chatgpt.md`/`constat-claude.md`) reste utile si
+l'approche page-entière actuelle s'avère elle-même insuffisante et qu'il
+faut y revenir. Pas de `copilot.js` non plus, par le même raisonnement — le
+repli générique couvre déjà tous les sites, y compris Copilot.
 
-Ce que `chatgpt.js`/`claude.js` apportent par rapport au repli générique,
-même contrat (`getInputFields`, `getResponseContainer`, `isStreaming`,
-`onStreamingEnd`) :
+Cette réécriture (scan de toute la page, déclenché par stabilité —
+voir Flux, Réception) n'a pas encore été validée sur les vrais sites : elle
+répond au même besoin (« ça ne marche toujours pas ») avec un mécanisme
+plus simple à raisonner (un seul `MutationObserver` debouncé, aucun
+sélecteur à maintenir), mais reste à confirmer par test manuel sur
+Claude.ai/ChatGPT/Copilot avant de la considérer acquise.
 
-- **Sélecteurs exacts** au lieu d'heuristiques : `getInputFields` retourne
-  un seul champ ciblé par `id`/classe stable (`#prompt-textarea`,
-  `div.ProseMirror[contenteditable]`) plutôt que tout
-  `[contenteditable]`/`textarea` de la page.
-- **Zone de réponse directement ciblée** (`#thread` sur ChatGPT ; ancêtre
-  commun des `.group/conversation-turn` sur Claude.ai) plutôt que déduite
-  par proximité du bouton d'envoi — c'était la cause du bug « le texte
-  reste en fog » : le climbing du repli générique pouvait aboutir à un
-  élément qui ne recevait jamais la vraie réponse dès que le composer réel
-  contenait plusieurs boutons avant celui d'envoi.
-- **Signal `isStreaming`/`onStreamingEnd` dédié** plutôt que la seule
-  inactivité du `MutationObserver` : présence de
-  `[data-testid="stop-button"]` sur ChatGPT, attribut `data-is-streaming`
-  sur Claude.ai (ce dernier non confirmé — dégrade vers l'inactivité seule
-  si l'attribut est absent).
-- **`copilot.js`** resterait sur `<textarea>` natif, sans signal de fin de
-  streaming propre au site (voir `constat-copilot.md` §4.3) — l'apport
-  serait surtout des sélecteurs exacts, pas un meilleur signal.
-
-`content.js` compense aussi le montage tardif d'un composer SPA (React ne
-l'a peut-être pas encore monté à `document_idle`) et l'absence initiale
-d'une zone de réponse (nouvelle conversation sans aucun tour envoyé) : un
-`MutationObserver` sur `document.body` redéclenche `getInputFields()`/
-`getResponseContainer()` à chaque rafale de mutations (coalescé, ~200 ms),
-`WeakSet` par champ et par conteneur pour ne jamais câbler deux fois.
-
-Aucun de ces adaptateurs n'ajoute `transport`/`matchRecv` ni de champ
-réseau : ADR-007 a écarté le hook réseau entier pour M-07 (voir
-Conséquences), et il n'a jamais été retenu pour M-06 (fail-closed dès
-l'insertion). `tests/fixtures/mock-claude-site/` et `mock-copilot-site/`
-restent utiles pour `copilot.js` et pour les régressions génériques sans
-dépendre des vrais sites.
+N'ajoute `transport`/`matchRecv` ni aucun champ réseau : ADR-007 a écarté
+le hook réseau entier pour M-07 (voir Conséquences), et il n'a jamais été
+retenu pour M-06 (fail-closed dès l'insertion). `tests/fixtures/` restent
+utiles pour les régressions génériques sans dépendre des vrais sites.
 
 ## Statut
 

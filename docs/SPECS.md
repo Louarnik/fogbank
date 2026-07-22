@@ -327,13 +327,19 @@ texte de filtre.
 > **hook réseau entrant** (`fetch`/SSE en monde `MAIN`) sur ChatGPT et
 > Claude.ai pour cet UC (R-54 à R-56), avec repli `MutationObserver` réservé
 > à Copilot (R-58). **Décision : trop complexe pour le gain, non retenue.**
-> fogbank reste sur un **mécanisme DOM unique pour les trois sites**,
-> implémenté dans `src/content/reception.js` + `site-adapters/generic.js` :
-> marquage pendant le streaming best-effort (bonus, pas requis), substitution
-> finale garantie une fois la réponse stable — y compris au chargement d'une
-> conversation déjà rendue (voir Contraintes). Pas encore vérifié dans un
-> vrai Chrome chargé (unpacked) contre les fixtures. Voir
-> [ADR-007](adr/0007-fail-closed.md) Conséquences.
+>
+> **Deuxième simplification (retours de test sur les vrais sites, voir
+> bugs.md)** : ni le repli générique par proximité du bouton d'envoi, ni des
+> adaptateurs dédiés à sélecteurs exacts (`chatgpt.js`/`claude.js`, mis de
+> côté depuis) n'ont fonctionné de façon fiable — deviner une « zone de
+> réponse » précise, par heuristique ou par sélecteur, s'est révélé trop
+> fragile. **Décision : abandon de la notion même de zone de réponse.**
+> fogbank scanne désormais tout le texte de la page (`document.body`),
+> déclenché uniquement quand elle a cessé de bouger (`MutationObserver`
+> débouncé, ~500 ms) — un seul passage, marquage et substitution confondus,
+> pas de phase intermédiaire. Voir [ADR-007](adr/0007-fail-closed.md)
+> Conséquences et [ARCHITECTURE.md](ARCHITECTURE.md) § Adaptateurs de site.
+> Pas encore vérifié sur les vrais sites après cette réécriture.
 
 **Statut** : implémenté (fail-closed, mécanisme simplifié)
 **Macro-UC rattaché** : M-07 (Restauration automatique à la réception)
@@ -342,67 +348,56 @@ site IA depuis l'insertion — voir UC-001), M-10 (génération du code)
 
 **Déclencheur**
 L'utilisateur envoie un prompt contenant un ou plusieurs tags `[TYP:CODE]`
-insérés via le menu `&` (voir UC-001). Le site IA commence à retourner sa réponse dans
-la zone de réponse observée par l'adaptateur de site actif. La réponse peut
-contenir zéro, un ou plusieurs tags de la forme `[TYP:CODE]`.
+insérés via le menu `&` (voir UC-001). Le site IA affiche sa réponse
+quelque part dans la page — fogbank ne cherche plus à savoir où. La réponse
+peut contenir zéro, un ou plusieurs tags de la forme `[TYP:CODE]`.
 
 **Résultat attendu**
 
-Mécanisme **DOM uniquement** (`MutationObserver` sur
-`getResponseContainer()` de l'adaptateur actif), le même pour ChatGPT,
-Claude.ai et Copilot — pas de hook réseau (voir note de statut ci-dessus).
-Une seule étape est garantie ; le marquage pendant le streaming est un
-bonus optionnel.
+Mécanisme **DOM uniquement**, un seul `MutationObserver` sur
+`document.body` pour toute la page — le même pour ChatGPT, Claude.ai,
+Copilot et n'importe quel autre site, pas de hook réseau (voir note de
+statut ci-dessus) et plus de zone de réponse à identifier par site.
 
-*Pendant le streaming (best-effort, pas requis)*
-
-- fogbank peut ne rien faire tant que la réponse n'est pas stable — ce
-  n'est pas une régression, c'est le comportement de base accepté.
-- S'il est implémenté (comme c'est déjà le cas dans `content/reception.js`),
-  le marquage best-effort suit le même principe qu'avant : chaque tag
-  complet `[TYP:CODE]` repéré dans le texte streamé est stylisé en mention
-  interactive (soulignement discret, **mêmes tokens visuels que M-05**),
-  sans remplacer le texte ; l'infobulle au survol montre le nom réel déjà
-  résolu. Aucune garantie que ce marquage suive fidèlement chaque frappe du
-  modèle — c'est un confort, pas un contrat.
-
-*Une fois la réponse stable (requis)*
-
-- Détection : signal dédié de l'adaptateur (`isStreaming`/`onStreamingEnd`,
-  ex. disparition d'un bouton « stop ») si disponible, sinon repli par
-  délai d'inactivité du `MutationObserver` (déjà implémenté dans
-  `generic.js`, ~400 ms) — ou immédiatement si la réponse arrive d'un coup
-  (pas de streaming à observer).
-- Passage unique : chaque tag `[TYP:CODE]` complet est résolu via
-  l'annuaire (type + CODE, voir [ARCHITECTURE.md](ARCHITECTURE.md), flux
-  Réception) et remplacé dans le DOM par le **nom réel** correspondant.
-- Le nom réel remplacé reste stylisé (soulignement discret) pour indiquer
+- Chaque mutation reporte un minuteur de ~500 ms (`content.js`,
+  `DELAI_STABILITE_MS`) : tant que la page bouge, rien ne se passe. Un
+  premier passage est aussi planifié inconditionnellement au chargement
+  (couvre une conversation déjà rendue, sans aucune mutation à observer).
+- Une fois la page stable, un **unique passage** (pas de phase
+  intermédiaire « tag brut visible ») : `reception.js#traiterPage` parcourt
+  tous les nœuds texte de `document.body`, résout chaque tag `[TYP:CODE]`
+  complet trouvé via l'annuaire, et le remplace directement par le **nom
+  réel**, où que ce texte se trouve dans la page.
+- Exclusion explicite d'un champ de saisie actif
+  (`[contenteditable="true"], textarea`, R-31) : le tag y reste tel quel,
+  seul `fogbankDisplay` le décore en overlay sans jamais toucher au DOM du
+  champ — et de l'UI flottante de fogbank lui-même (menu de mention,
+  infobulle de réception), pour ne jamais se retraiter en boucle.
+- Le nom réel affiché reste stylisé (soulignement discret) pour indiquer
   qu'il s'agit d'une valeur restaurée par fogbank. Au **survol**, l'infobulle
-  affiche cette fois le **tag `[TYP:CODE]`** effectivement reçu — utile pour
-  vérifier/debug/expliquer (traçabilité).
+  affiche le **tag `[TYP:CODE]`** d'origine — utile pour vérifier/debug/
+  expliquer (traçabilité).
 
-Rationale : l'utilisateur veut lire la réponse dans son propre vocabulaire ;
-la substitution devient l'affichage par défaut dès que possible, sans
-exiger de mise en scène particulière pendant que ça streame encore.
+Rationale : deviner précisément où chercher (zone de réponse, signal de fin
+de streaming) s'est révélé être la source des échecs constatés sur les
+vrais sites (voir note de statut) ; scanner toute la page dès qu'elle
+cesse de bouger est plus simple à raisonner et ne dépend d'aucune
+particularité de site. Contrepartie assumée : le nom réel n'apparaît qu'une
+fois la réponse figée, jamais pendant qu'elle défile encore.
 
 **Données**
 
 Entrée :
-- Contenu textuel streamé dans la zone de réponse (`getResponseContainer()`
-  de l'adaptateur actif).
+- Tout le texte rendu de la page (`document.body`), hors champs de saisie
+  et UI fogbank.
 - Annuaire `fogbank.annuaire[]` en lecture pour la résolution
   `type + CODE → { nomReel, siteId d'origine }`.
 
 Sortie :
-- DOM de la zone de réponse modifié :
-  - Marquage best-effort (optionnel, pendant le streaming) : tags
-    remplacés par des `<span>` stylisés porteurs des attributs
-    `data-fogbank-type`, `data-fogbank-code`, `data-fogbank-nom` (utilisés
-    par l'infobulle et par la substitution finale).
-  - Substitution finale (requise, une fois la réponse stable) : contenu
-    textuel du span remplacé par `nomReel`, attribut `data-fogbank-tag`
-    ajouté avec la valeur `[TYP:CODE]` d'origine (pour l'infobulle
-    inversée).
+- DOM de la page modifié, où que le tag ait été trouvé : `<span>` dont le
+  contenu textuel est `nomReel`, souligné, porteur de `data-fogbank-code`
+  et `data-fogbank-tag` (`[TYP:CODE]` d'origine, pour l'infobulle inversée
+  et pour éviter tout retraitement aux passages suivants).
 - Aucune écriture vers le site IA (le DOM affiché est modifié localement,
   la substitution n'est **pas** réémise dans la conversation).
 
@@ -417,7 +412,7 @@ Non-écriture en storage :
 | Tag `[TYP:CODE]` reçu mais aucune entité correspondante dans l'annuaire (ex : annuaire modifié entre l'envoi et la réception, ou tag halluciné par le modèle) | Le tag reste affiché brut, soulignement discret différencié (ex : pointillé rouge), infobulle indiquant « pseudonyme inconnu ». Pas de substitution finale. Pas d'erreur bloquante. |
 | Type valide mais CODE inconnu pour ce type | Idem : traité comme un pseudonyme inconnu, aucun remplacement. |
 | Tag mal formé (ex : `[per:PDT]` en minuscule, `[PER:PD T]` avec espace) | Non détecté par la regex, laissé brut sans marquage. À documenter comme comportement attendu (pas de tentative de correction). |
-| Fin de streaming non détectée par l'adaptateur (ni signal dédié, ni inactivité) | La substitution finale ne s'exécute pas. L'utilisateur reste sur le texte brut (marqué ou non selon que le best-effort a eu lieu). Comportement dégradé mais fonctionnel. À logger pour diagnostic. |
+| La page ne cesse jamais de bouger (animation continue, polling du site) | Le minuteur de stabilité (~500 ms) ne se déclenche jamais, la substitution n'a pas lieu tant que ça dure. Comportement dégradé mais pas d'erreur ; se résout dès que la page se calme. |
 | Réponse ne contenant aucun tag | Aucune action de fogbank ; DOM inchangé. Pas de badge, pas de log. |
 | Utilisateur qui édite/répond avant fin du streaming | Substitution finale déclenchée quand même à la détection de fin du streaming courant. |
 | Modèle qui réécrit un tag corrompu (ex : `[PER-PDT]`) | Non détecté, laissé brut. Cas à surveiller en pratique. |
@@ -426,58 +421,43 @@ Non-écriture en storage :
 
 Décision (cette session) :
 - **Pas de hook réseau** pour M-07, contrairement à `docs/recherche/reco.md`
-  R-54 à R-56 (jugé trop complexe pour le gain). Le mécanisme DOM déjà
-  implémenté pour cet UC devient définitif, pour les trois sites — pas
-  seulement le repli Copilot. Corollaire assumé : un re-rendu React qui
-  écrase le marquage exige un nouveau passage du `MutationObserver` (déjà
-  prévu), et une conversation rechargée (page déjà rendue, aucune mutation
-  à observer) ne déclenche pas `onStreamingEnd` toute seule — voir Points
-  ouverts.
-- Le marquage pendant le streaming (ex-phase 1) est **best-effort, pas
-  requis** : simplifie l'implémentation, pas d'obligation de distinguer
-  précisément une mutation "texte en cours de streaming" d'une mutation
-  "fin de génération".
-- **Décision — historique/SPA** : deux cas distincts pour revenir sur une
-  conversation existante, traités différemment :
-  - **Rechargement réel de la page (F5)** : le content script se réinjecte
-    au chargement, ce qui *est* le signal — le passage initial déjà fait
-    par `reception.js` (aujourd'hui : marquage best-effort seulement) doit
-    aussi déclencher la substitution finale à ce moment-là.
-  - **Changement de conversation en SPA (`pushState`, sans reload)** :
-    ChatGPT, Claude.ai et Copilot ne rechargent jamais le document pour
-    changer de conversation (voir les constats) — le content script ne se
-    réinjecte pas, il n'y a donc rien à détecter de ce côté. **Décision :
-    rien de spécial** — on compte sur le `MutationObserver` déjà attaché à
-    `getResponseContainer()` pour capter le changement (valable si le site
-    garde le même conteneur et ne fait que remplacer ses enfants, ce qui
-    est le cas React le plus courant). Pas de surveillance dédiée de
-    `pushState`/`replaceState` comme R-16 le fait pour le champ de saisie —
-    à vérifier empiriquement par site ; si le conteneur est remplacé en
-    entier plutôt que ses enfants, ce cas resterait non couvert, à
-    reconsidérer alors.
+  R-54 à R-56 (jugé trop complexe pour le gain).
+- **Décision (retours de test) — abandon de la zone de réponse par site** :
+  ni le repli générique par proximité du bouton d'envoi, ni des adaptateurs
+  dédiés à sélecteurs exacts n'ont fonctionné de façon fiable sur les vrais
+  sites (voir bugs.md). Plutôt que d'essayer un troisième mécanisme pour
+  trouver LE bon conteneur, la notion même de zone de réponse est
+  abandonnée : `reception.js` scanne tout `document.body`. Corollaire
+  assumé : chaque stabilisation rejoue un passage complet sur tous les
+  nœuds texte de la page, pas seulement ceux qui ont changé — coût jugé
+  négligeable même sur une conversation longue (voir Performance), en
+  échange de ne plus dépendre d'aucune structure DOM particulière.
+- Plus de distinction marquage/substitution : un seul passage, déclenché
+  uniquement par l'inactivité du `MutationObserver` de `document.body`
+  (~500 ms, voir `content.js`, `DELAI_STABILITE_MS`). Simplifie
+  l'implémentation, pas d'obligation de distinguer une mutation "texte en
+  cours de streaming" d'une mutation "fin de génération".
+- **Historique/SPA** : un rechargement réel (F5) comme un changement de
+  conversation en SPA (`pushState`, sans reload) sont couverts par le même
+  mécanisme, sans traitement spécial — le passage de stabilisation
+  planifié inconditionnellement au chargement couvre une conversation déjà
+  rendue (aucune mutation à observer), et le `MutationObserver` sur
+  `document.body` capte tout changement de contenu quel que soit le
+  conteneur concerné, puisqu'aucun conteneur précis n'est plus identifié.
 
 Techniques :
-- Contrat d'adaptateur de site (voir [ARCHITECTURE.md](ARCHITECTURE.md),
-  § Adaptateurs de site), déjà implémenté dans `generic.js` :
-  ```
-  isStreaming(container): boolean
-  onStreamingEnd(container, callback): void
-  ```
-  Un adaptateur dédié (`chatgpt.js`, `claude.js`, `copilot.js`) peut fournir
-  un signal plus précis et plus rapide (ex : disparition d'un bouton
-  « stop », attribut `data-is-streaming`) ; `generic.js` reste sur le délai
-  d'inactivité `MutationObserver` (~400 ms), seul repli sans signal dédié.
 - Un tag est considéré complet quand la regex `\[(PER|ORG|LOC|PRJ|MISC):[A-Z0-9-]+\]`
   matche entièrement dans le texte. Éviter le marquage prématuré sur un tag
-  partiellement streamé (`[PER:PD` — pas encore de crochet fermant).
-- Les `<span>` insérés doivent survivre aux re-renders du site IA. Certains
-  sites (Claude.ai notamment) reconstruisent leur DOM au fil du streaming ;
-  le MutationObserver doit re-marquer si nécessaire. Point de vigilance non
-  résolu ici : insérer un `<span>` dans un sous-arbre rendu par React ajoute
-  un nœud, ce qui peut provoquer un `NotFoundError` au prochain re-rendu du
-  composant si React ne s'attend pas à cette structure (R-59 recommande de
-  ne remplacer que le contenu d'un nœud texte existant) — à surveiller lors
-  des tests, pas nécessairement à corriger dans cette itération.
+  partiellement streamé (`[PER:PD` — pas encore de crochet fermant) : sans
+  incidence pratique désormais, puisqu'on n'agit que sur une page stable,
+  donc un tag déjà entièrement arrivé.
+- Un span déjà substitué (porteur de `data-fogbank-code`) est ignoré aux
+  passages suivants — condition nécessaire pour que rejouer le passage
+  complet à chaque stabilisation reste idempotent.
+- Exclusion explicite (voir Résultat attendu) d'un champ de saisie actif et
+  de l'UI flottante de fogbank (menu de mention, infobulle de réception) :
+  sans elle, l'infobulle affichant le tag `[TYP:CODE]` en texte brut serait
+  elle-même retraitée au passage suivant.
 
 Cohérence visuelle :
 - Soulignement bleu **strictement identique** à M-05 (même couleur, même
@@ -496,31 +476,24 @@ Confidentialité :
   comportement souhaité pour un usage interne.
 
 Performance :
-- Marquage best-effort pendant le streaming : suffisamment léger pour ne pas
-  ralentir le streaming s'il est implémenté (réponses parfois longues,
-  mutations DOM fréquentes) — sinon, ne rien faire est toujours l'option la
-  plus légère.
-- Substitution finale : en un seul passage, pas de re-parsing continu.
+- Un passage complet sur tous les nœuds texte de `document.body` à chaque
+  stabilisation (pas de re-parsing continu pendant que la page bouge) :
+  accepté comme suffisamment léger même sur une conversation longue, à
+  confirmer empiriquement si une page réelle s'avère plus volumineuse que
+  prévu.
 
 Implémentation :
-- Le repli générique (`generic.js`) détecte la zone de réponse comme le
-  premier élément suivant le bouton d'envoi ne contenant lui-même aucun
-  contrôle de saisie ; `isStreaming`/`onStreamingEnd` reposent uniquement
-  sur un délai d'inactivité du `MutationObserver` (~400 ms), rappelé à
-  chaque fin de rafale de mutations (pas seulement la première réponse
-  d'une conversation).
+- `content.js` pose un unique `MutationObserver` sur `document.body`
+  (`childList`, `subtree`, `characterData`), débouncé à ~500 ms
+  (`DELAI_STABILITE_MS`) ; à la stabilisation, appelle
+  `reception.js#traiterPage(document.body, resoudre)`.
 - Testé contre
-  [tests/fixtures/mock-ai-site/index.html](../tests/fixtures/mock-ai-site/index.html)
-  (Scénario B, contenteditable), réception désormais automatique à l'envoi
-  (voir le harnais de la fixture) : substitution finale immédiate en mode
-  instantané, marquage best-effort puis substitution finale en mode
-  streaming (via `fogbank:streaming-end`/inactivité).
-- À étendre à
+  [tests/fixtures/mock-ai-site/index.html](../tests/fixtures/mock-ai-site/index.html),
   [mock-claude-site](../tests/fixtures/mock-claude-site/index.html) et
-  [mock-copilot-site](../tests/fixtures/mock-copilot-site/index.html)
-  (ajoutés depuis, mécanisme DOM identique par construction) et au
-  Scénario A (`<textarea>`) de `mock-ai-site`, maintenant dans le périmètre
-  de cet UC au même titre que UC-001.
+  [mock-copilot-site](../tests/fixtures/mock-copilot-site/index.html) —
+  mécanisme identique pour les trois, plus aucun code propre à une fixture.
+  Pas encore vérifié sur les vrais sites après cette réécriture (voir note
+  de statut en tête d'UC).
 
 **Points ouverts**
 
@@ -554,7 +527,8 @@ voit réellement ? » sans avoir à ré-envoyer un prompt.
 - Style spécifique en mode vision : les tags `[TYP:CODE]` doivent-ils être
   eux-mêmes stylisés (ex : fond gris pâle façon `<code>`) pour souligner
   qu'on regarde du contenu système ?
-- Interaction avec la phase 2 de UC-002 : le mode vision force le rollback
-  en phase 1, ou est un état parallèle indépendant.
+- Interaction avec la substitution de UC-002 : le mode vision force un
+  rollback vers le tag brut, ou est un état d'affichage parallèle
+  indépendant (le DOM substitué n'étant pas modifié en retour).
 - Raccourci clavier : à définir (proposition : `Alt+Maj+F` ou touche
   maintenue pour peek temporaire).
