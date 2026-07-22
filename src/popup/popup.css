@@ -39,6 +39,15 @@ section {
   color: #888;
   margin: 6px 0 0;
 }
+.aide code {
+  font-family: ui-monospace, monospace;
+  background: rgba(128, 128, 128, .15);
+  padding: 0 .25em;
+  border-radius: .2em;
+}
+
+#bouton-reparse { margin-top: 8px; }
+#statut-reparse { color: #2d6cdf; }
 
 button {
   font: inherit;

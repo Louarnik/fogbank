@@ -78,7 +78,7 @@ src/
 | `content/site-adapters/generic.js` | Détection des champs de saisie (`getInputFields`) — plus de zone de réponse ni de bouton d'envoi à identifier | M-01 |
 | `background/background.js` | Cycle de vie de l'extension, gestion des permissions de site à la demande | M-01 |
 | `options/` | Deux onglets : CRUD de l'annuaire (entités), CRUD des sites (`fogbank.sites`) — format de pseudonyme, durée de vie, actif/inactif | M-01, M-02, M-09, M-10, M-12 |
-| `popup/` | Statut du site de l'onglet actif (reconnu/non, actif/inactif) avec bascule directe, pause temporaire (`fogbank.pause`, sans recharger), liens vers les deux onglets de `options/` | M-01 |
+| `popup/` | Statut du site de l'onglet actif (reconnu/non, actif/inactif) avec bascule directe, pause temporaire (`fogbank.pause`, sans recharger), réanalyse manuelle immédiate (message `fogbank:reparse`), liens vers les deux onglets de `options/` | M-01 |
 | `vendor/xlsx.full.min.js` | Lecture/écriture de fichiers `.xlsx` en local (prévu, pas encore branché à `options/`) | M-13 |
 
 La page d'options (`options_page` dans `manifest.json`) s'ouvre dans son

@@ -195,4 +195,15 @@
     subtree: true,
     characterData: true,
   });
+
+  // Réanalyse manuelle (bouton « Réanalyser » de la popup) : redéclenche le
+  // scan de reception.js à la demande, sans attendre la stabilisation ni se
+  // laisser couper par la pause — un geste explicite de l'utilisateur passe
+  // devant, contrairement au déclenchement automatique.
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (!message || message.type !== 'fogbank:reparse') return;
+    traiterChamps();
+    window.fogbankReception.traiterPage(document.body, resoudre);
+    sendResponse({ ok: true });
+  });
 })();

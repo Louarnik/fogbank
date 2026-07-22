@@ -5,6 +5,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const statutSite = document.getElementById('statut-site');
   const boutonToggleSite = document.getElementById('bouton-toggle-site');
   const boutonPause = document.getElementById('bouton-pause');
+  const boutonReparse = document.getElementById('bouton-reparse');
+  const statutReparse = document.getElementById('statut-reparse');
 
   const [onglet] = await chrome.tabs.query({ active: true, currentWindow: true });
   const donnees = await chrome.storage.local.get(['fogbank.sites', 'fogbank.pause']);
@@ -31,6 +33,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       await chrome.storage.local.set({ 'fogbank.sites': sites });
       if (onglet && onglet.id) chrome.tabs.reload(onglet.id);
       window.close();
+    });
+  }
+
+  // Le content script ne s'exécute (et n'écoute ce message) que si le site
+  // est actif — voir content.js — donc pas la peine de proposer le bouton
+  // sinon : chrome.tabs.sendMessage échouerait faute d'écouteur.
+  if (site && site.actif && onglet && onglet.id) {
+    boutonReparse.hidden = false;
+    boutonReparse.addEventListener('click', async () => {
+      statutReparse.hidden = true;
+      try {
+        await chrome.tabs.sendMessage(onglet.id, { type: 'fogbank:reparse' });
+        statutReparse.textContent = 'Page réanalysée.';
+      } catch (err) {
+        statutReparse.textContent = 'Échec : le content script ne répond pas sur cet onglet (page rechargée depuis ?).';
+      }
+      statutReparse.hidden = false;
     });
   }
 
