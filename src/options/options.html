@@ -2,43 +2,78 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>fogbank — Annuaire</title>
+  <title>fogbank — Options</title>
   <link rel="stylesheet" href="options.css" />
 </head>
 <body>
   <header>
-    <h1>fogbank — Annuaire</h1>
-    <p class="sous-titre">
-      Entités reconnues par le déclencheur de mention (M-03/M-04). Les alias
-      par site sont générés automatiquement à l'usage (M-08/M-10) — non
-      modifiables ici, affichés à titre indicatif.
-    </p>
+    <h1>fogbank</h1>
+    <nav class="onglets">
+      <button id="onglet-bouton-annuaire" class="bouton-onglet" type="button" aria-selected="true">Annuaire</button>
+      <button id="onglet-bouton-sites" class="bouton-onglet" type="button" aria-selected="false">Sites</button>
+    </nav>
   </header>
 
   <main>
-    <div class="barre-outils">
-      <input id="filtre" type="search" placeholder="Filtrer par nom…" autocomplete="off" />
-      <button id="bouton-ajouter" class="bouton-primaire" type="button">+ Ajouter une entité</button>
-    </div>
+    <section id="onglet-annuaire">
+      <p class="sous-titre">
+        Entités reconnues par le déclencheur de mention (M-03/M-04). Les alias
+        par site sont générés automatiquement à l'usage (M-08/M-10) — non
+        modifiables ici, affichés à titre indicatif.
+      </p>
 
-    <table id="tableau-annuaire">
-      <thead>
-        <tr>
-          <th>Type</th>
-          <th>Nom réel</th>
-          <th>Email</th>
-          <th>Créée le</th>
-          <th>Alias par site</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody id="corps-tableau"></tbody>
-    </table>
+      <div class="barre-outils">
+        <input id="filtre" type="search" placeholder="Filtrer par nom…" autocomplete="off" />
+        <button id="bouton-ajouter" class="bouton-primaire" type="button">+ Ajouter une entité</button>
+      </div>
 
-    <p id="etat-vide" hidden>Aucune entité ne correspond.</p>
+      <table id="tableau-annuaire">
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Nom réel</th>
+            <th>Email</th>
+            <th>Créée le</th>
+            <th>Alias par site</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="corps-tableau"></tbody>
+      </table>
+
+      <p id="etat-vide" hidden>Aucune entité ne correspond.</p>
+    </section>
+
+    <section id="onglet-sites" hidden>
+      <p class="sous-titre">
+        Sites sur lesquels fogbank peut agir. Un site désactivé n'est jamais
+        câblé par le content script — voir aussi la popup pour un
+        activer/désactiver rapide sur l'onglet courant.
+      </p>
+
+      <div class="barre-outils">
+        <button id="bouton-ajouter-site" class="bouton-primaire" type="button">+ Ajouter un site</button>
+      </div>
+
+      <table id="tableau-sites">
+        <thead>
+          <tr>
+            <th>Domaine</th>
+            <th>Actif</th>
+            <th>Pré-activé</th>
+            <th>Durée de vie</th>
+            <th>Format</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="corps-tableau-sites"></tbody>
+      </table>
+
+      <p id="etat-vide-sites" hidden>Aucun site configuré.</p>
+    </section>
   </main>
 
-  <!-- Formulaire création/édition, superposé en dialogue modal -->
+  <!-- Formulaire création/édition d'entité, superposé en dialogue modal -->
   <dialog id="dialogue-formulaire">
     <form id="formulaire-entite" method="dialog">
       <h2 id="titre-formulaire">Ajouter une entité</h2>
@@ -69,6 +104,54 @@
       <div class="actions-formulaire">
         <button id="bouton-annuler" type="button" class="bouton-secondaire">Annuler</button>
         <button id="bouton-enregistrer" type="submit" class="bouton-primaire">Enregistrer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Formulaire création/édition de site -->
+  <dialog id="dialogue-formulaire-site">
+    <form id="formulaire-site" method="dialog">
+      <h2 id="titre-formulaire-site">Ajouter un site</h2>
+
+      <label>
+        Domaine
+        <input id="site-champ-domaine" type="text" required maxlength="200" autocomplete="off" placeholder="ex : chatgpt.com" />
+      </label>
+
+      <label class="ligne-case">
+        <input id="site-champ-actif" type="checkbox" />
+        Actif
+      </label>
+
+      <label class="ligne-case">
+        <input id="site-champ-pre-active" type="checkbox" />
+        Pré-activé (grand site IA suggéré par défaut)
+      </label>
+
+      <label>
+        Durée de vie du pseudonyme
+        <select id="site-champ-duree">
+          <option value="1s">1 semaine</option>
+          <option value="1t">1 trimestre</option>
+          <option value="1a">1 an</option>
+          <option value="infini">Infinie</option>
+        </select>
+      </label>
+
+      <label>
+        Format du pseudonyme
+        <select id="site-champ-format">
+          <option value="court">Court</option>
+          <option value="etendu">Étendu</option>
+          <option value="opaque">Opaque</option>
+        </select>
+      </label>
+
+      <p id="erreur-formulaire-site" class="erreur" hidden></p>
+
+      <div class="actions-formulaire">
+        <button id="site-bouton-annuler" type="button" class="bouton-secondaire">Annuler</button>
+        <button id="site-bouton-enregistrer" type="submit" class="bouton-primaire">Enregistrer</button>
       </div>
     </form>
   </dialog>

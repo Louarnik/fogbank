@@ -128,6 +128,12 @@ window.fogbankMentionMenu = (function () {
       // coréen) — réagir seulement une fois la frappe finalisée
       // (compositionend redéclenche un événement input sur Chromium).
       if (e.isComposing) return;
+      // Pause temporaire (bascule depuis la popup) : reprend sans recharger
+      // la page, contrairement à l'activation/désactivation par site.
+      if (options.estEnPause && options.estEnPause()) {
+        fermerMenu();
+        return;
+      }
 
       const mention = detecterMention(handle, options.caractereDeclencheur);
       if (!mention) {

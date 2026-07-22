@@ -40,6 +40,8 @@ donne la vue d'ensemble assemblée.
 ```
 src/
 ├── manifest.json
+├── shared/
+│   └── site-matching.js     # correspondance site/URL — partagée par content.js et popup.js
 ├── background/
 │   └── background.js       # service worker
 ├── content/
@@ -53,15 +55,15 @@ src/
 │   ├── reception.js          # restauration à la réception (M-07)
 │   └── site-adapters/
 │       └── generic.js        # seul adaptateur : ne fait plus que détecter les champs de saisie (voir « Travail restant »)
-├── options/                  # NOUVEAU — page de configuration complète
+├── options/                  # deux onglets : Annuaire (CRUD entités) et Sites (CRUD fogbank.sites)
 │   ├── options.html
 │   ├── options.js
 │   └── options.css
-├── popup/
+├── popup/                    # statut du site courant, activer/désactiver, pause temporaire, liens vers options/
 │   ├── popup.html
 │   ├── popup.js
 │   └── popup.css
-├── vendor/                   # NOUVEAU — dépendances tierces vendored
+├── vendor/                   # dépendances tierces vendored
 │   └── xlsx.full.min.js      # SheetJS CE, Apache-2.0 (voir ADR-006)
 └── icons/
 ```
@@ -75,13 +77,18 @@ src/
 | `content/pseudonyme.js` | Génération de code (M-10), résolution inverse, regex de tag partagée | M-10 |
 | `content/site-adapters/generic.js` | Détection des champs de saisie (`getInputFields`) — plus de zone de réponse ni de bouton d'envoi à identifier | M-01 |
 | `background/background.js` | Cycle de vie de l'extension, gestion des permissions de site à la demande | M-01 |
-| `options/` | Gestion de l'annuaire (CRUD), configuration des sites, format de pseudonyme, historique, export/import Excel, outil de conversion manuelle | M-01, M-02, M-09, M-10, M-12, M-13 |
-| `popup/` | Statut rapide (site actif ou non), raccourci vers la page d'options | — |
-| `vendor/xlsx.full.min.js` | Lecture/écriture de fichiers `.xlsx` en local | M-13 |
+| `options/` | Deux onglets : CRUD de l'annuaire (entités), CRUD des sites (`fogbank.sites`) — format de pseudonyme, durée de vie, actif/inactif | M-01, M-02, M-09, M-10, M-12 |
+| `popup/` | Statut du site de l'onglet actif (reconnu/non, actif/inactif) avec bascule directe, pause temporaire (`fogbank.pause`, sans recharger), liens vers les deux onglets de `options/` | M-01 |
+| `vendor/xlsx.full.min.js` | Lecture/écriture de fichiers `.xlsx` en local (prévu, pas encore branché à `options/`) | M-13 |
 
-La page d'options est déclarée en `open_in_tab: true` (onglet complet plutôt
-que popover) : les écrans d'annuaire et d'historique sont tabulaires et
-gagnent à disposer de tout l'espace d'un onglet.
+La page d'options (`options_page` dans `manifest.json`) s'ouvre dans son
+propre onglet plutôt qu'en popover : les tableaux d'annuaire et de sites
+gagnent à disposer de tout l'espace d'un onglet. La popup ouvre son onglet
+« Sites » via `chrome.tabs.create` (URL `options/options.html#sites`,
+lue par `options.js` au chargement) plutôt que par `openOptionsPage()`
+(qui ne permet pas de cibler un onglet interne précis) ; l'onglet
+« Annuaire » utilise `openOptionsPage()`, qui réutilise une page d'options
+déjà ouverte au lieu d'en dupliquer une.
 
 ### Adaptateurs de site — et pourquoi il n'y en a plus qu'un
 
@@ -119,7 +126,7 @@ saisir du texte », sans chercher à distinguer LE composer d'un site.
 ## Modèle de données (`chrome.storage.local`)
 
 Voir [ADR-005](adr/0005-stockage-local.md) pour la justification du choix
-de stockage. Trois clés racine :
+de stockage.
 
 ```js
 // fogbank.config
@@ -127,6 +134,11 @@ de stockage. Trois clés racine :
   caractereDeclencheur: "&",              // voir ADR-001
   formatParDefaut: "court" | "etendu" | "opaque"  // pré-rempli à la création d'un nouveau site (M-01) ; voir ADR-002
 }
+
+// fogbank.pause : boolean, absent = false. Bascule globale (pas par site)
+// posée par la popup — voir Flux. Lue une fois au chargement de
+// content.js puis suivie en direct via chrome.storage.onChanged (pas de
+// rechargement de page nécessaire, contrairement à fogbank.sites[].actif).
 
 // fogbank.sites[]
 {
@@ -313,8 +325,8 @@ d'un content script.)
 
 | Macro-UC | Composant(s) principal(aux) |
 |----------|------------------------------|
-| M-01 | `options/`, `background.js` (permissions à la demande) |
-| M-02 | `options/` |
+| M-01 | `options/` (onglet Sites, CRUD implémenté), `popup/` (bascule actif/inactif rapide sur le site courant) |
+| M-02 | `options/` (onglet Annuaire, CRUD implémenté) |
 | M-03, M-04, M-11 | `content/mention-menu.js` + `content/editor-handle/` |
 | M-05 | `content/display.js` |
 | M-06 | vestigial — aucun composant, voir Flux Envoi |
@@ -323,7 +335,7 @@ d'un content script.)
 | M-09 | `fogbank.annuaire[].aliasParSite[].historique`, affiché via `options/` |
 | M-10 | logique partagée (`content/pseudonyme.js`, utilisé par `mention-menu.js`, `reception.js` et `options/`) |
 | M-12 | `options/` |
-| M-13 | `options/` + `vendor/xlsx.full.min.js` |
+| M-13 | non implémenté — `vendor/xlsx.full.min.js` est vendored mais rien dans `options/` ne l'utilise encore |
 
 ## Travail restant
 
@@ -352,7 +364,10 @@ utiles pour les régressions génériques sans dépendre des vrais sites.
 ## Statut
 
 Composants communs (EditorHandle, calque de décoration, mention-menu,
-réception, orchestration multi-champs) implémentés pour UC-001/UC-002, pas
-encore vérifiés dans un vrai Chrome chargé (unpacked) contre les fixtures.
-Reste à faire : adaptateurs dédiés par site (section précédente), puis
-`options/`, `popup/`, M-01/M-02/M-08/M-09/M-12/M-13.
+réception, orchestration multi-champs) implémentés pour UC-001/UC-002 ;
+l'approche page entière (section précédente) n'est pas encore vérifiée sur
+les vrais sites. `options/` (CRUD annuaire + CRUD sites) et `popup/`
+(statut/toggle du site courant, pause temporaire) sont implémentés. Reste à
+faire : M-09 (historique de rotation, actuellement en storage mais pas
+affiché dans `options/`), M-13 (export/import Excel, `vendor/xlsx.full.min.js`
+vendored mais non branché).

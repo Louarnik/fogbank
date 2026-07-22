@@ -20,6 +20,7 @@
     {
       "matches": ["<all_urls>", "file:///*"],
       "js": [
+        "shared/site-matching.js",
         "content/site-adapters/generic.js",
         "content/pseudonyme.js",
         "content/editor-handle/textarea-handle.js",
@@ -36,5 +37,5 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "permissions": ["storage", "unlimitedStorage"]
+  "permissions": ["storage", "unlimitedStorage", "tabs"]
 }

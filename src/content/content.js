@@ -21,17 +21,28 @@
     'fogbank.config',
     'fogbank.sites',
     'fogbank.annuaire',
+    'fogbank.pause',
   ]);
   const config = donnees['fogbank.config'] || { caractereDeclencheur: '&' };
   const sites = donnees['fogbank.sites'] || [];
   const annuaire = donnees['fogbank.annuaire'] || [];
 
-  function siteCorrespond(site, href) {
-    const motif = site.domaine.replace(/^file:\/\//, '');
-    return href.includes(motif);
+  // Pause temporaire (bascule depuis la popup, voir docs/ARCHITECTURE.md) :
+  // contrairement à l'activation/désactivation par site (fogbank.sites[].actif,
+  // qui exige de recharger la page puisque déterminée une seule fois ici),
+  // la pause prend effet immédiatement sans recharger — voir estEnPause,
+  // vérifié à chaque frappe et à chaque stabilisation de la page.
+  let enPause = !!donnees['fogbank.pause'];
+  chrome.storage.onChanged.addListener((changements, zone) => {
+    if (zone === 'local' && changements['fogbank.pause']) {
+      enPause = !!changements['fogbank.pause'].newValue;
+    }
+  });
+  function estEnPause() {
+    return enPause;
   }
 
-  const siteCourant = sites.find((s) => s.actif && siteCorrespond(s, location.href));
+  const siteCourant = window.fogbankSiteMatching.trouverSiteActifPour(sites, location.href);
   if (!siteCourant) {
     // Site non reconnu dans fogbank.sites : comportement natif inchangé
     // (voir docs/SPECS.md, UC-001, Cas d'erreur). Pas d'enforcement de
@@ -127,6 +138,7 @@
         rechercherEntites,
         obtenirOuCreerAlias,
         creerRegexTag: window.fogbankPseudonyme.creerRegexTag,
+        estEnPause,
       });
 
       window.fogbankDisplay.attacher(champ, handle, { resoudre });
@@ -160,6 +172,9 @@
 
   function surPageStable() {
     traiterChamps();
+    // Câblage des champs toujours actif même en pause (permet de reprendre
+    // sans recharger) — seule l'action visible (substitution) est coupée.
+    if (estEnPause()) return;
     window.fogbankReception.traiterPage(document.body, resoudre);
   }
 

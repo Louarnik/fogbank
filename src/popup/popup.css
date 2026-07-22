@@ -1,25 +1,54 @@
+:root { color-scheme: light dark; }
+
 body {
   font-family: system-ui, sans-serif;
-  min-width: 220px;
+  min-width: 260px;
   padding: 12px;
+  color: #1f1f1f;
+  background: #fff;
+}
+@media (prefers-color-scheme: dark) {
+  body { color: #e8e8ea; background: #1c1c1e; }
 }
 
 h1 {
   font-size: 16px;
-  margin: 0 0 8px;
+  margin: 0 0 10px;
 }
 
-#status {
+section {
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(128, 128, 128, .25);
+}
+
+#section-liens {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-bottom: none;
+}
+
+#statut-site {
   font-size: 13px;
-  color: #444;
+  margin: 0 0 6px;
 }
 
-#bouton-annuaire {
+.aide {
+  font-size: 11px;
+  color: #888;
+  margin: 6px 0 0;
+}
+
+button {
   font: inherit;
   font-size: 13px;
   padding: 6px 10px;
   border: 1px solid #ccc;
   border-radius: 6px;
-  background: #fff;
+  background: transparent;
+  color: inherit;
   cursor: pointer;
+  width: 100%;
 }
+button:hover { background: rgba(128, 128, 128, .1); }

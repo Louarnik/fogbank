@@ -1,13 +1,45 @@
-// Page d'options — CRUD sur l'annuaire (fogbank.annuaire, M-12). Les alias
-// par site (aliasParSite) restent en lecture seule ici : ils ne sont
-// produits que par la rotation paresseuse (M-08/M-10) au fil de l'usage
-// dans un champ de saisie, jamais saisis à la main.
+// Page d'options — deux onglets, deux CRUD indépendants :
+// - Annuaire (fogbank.annuaire, M-12). Les alias par site (aliasParSite)
+//   restent en lecture seule ici : ils ne sont produits que par la rotation
+//   paresseuse (M-08/M-10) au fil de l'usage dans un champ de saisie,
+//   jamais saisis à la main.
+// - Sites (fogbank.sites, M-01). Un site désactivé n'est jamais câblé par
+//   le content script (voir content.js) ; la popup offre un raccourci pour
+//   basculer actif/inactif sur l'onglet en cours sans passer par ici.
 (function () {
+  const LIBELLES_DUREE = { '1s': '1 semaine', '1t': '1 trimestre', '1a': '1 an', infini: 'Infinie' };
+  const LIBELLES_FORMAT = { court: 'Court', etendu: 'Étendu', opaque: 'Opaque' };
+
   let annuaire = [];
   let sites = [];
   let filtreActif = '';
   let idEnEdition = null; // null = création, sinon id de l'entité éditée
+  let idSiteEnEdition = null; // null = création, sinon id du site édité
 
+  // --- Onglets ---------------------------------------------------------
+  const boutonOngletAnnuaire = document.getElementById('onglet-bouton-annuaire');
+  const boutonOngletSites = document.getElementById('onglet-bouton-sites');
+  const sectionAnnuaire = document.getElementById('onglet-annuaire');
+  const sectionSites = document.getElementById('onglet-sites');
+
+  function activerOnglet(nom) {
+    const estSites = nom === 'sites';
+    sectionAnnuaire.hidden = estSites;
+    sectionSites.hidden = !estSites;
+    boutonOngletAnnuaire.setAttribute('aria-selected', String(!estSites));
+    boutonOngletSites.setAttribute('aria-selected', String(estSites));
+  }
+  boutonOngletAnnuaire.addEventListener('click', () => {
+    location.hash = '';
+    activerOnglet('annuaire');
+  });
+  boutonOngletSites.addEventListener('click', () => {
+    location.hash = 'sites';
+    activerOnglet('sites');
+  });
+  activerOnglet(location.hash === '#sites' ? 'sites' : 'annuaire');
+
+  // --- Onglet Annuaire ---------------------------------------------------
   const corpsTableau = document.getElementById('corps-tableau');
   const etatVide = document.getElementById('etat-vide');
   const champFiltre = document.getElementById('filtre');
@@ -197,20 +229,6 @@
     });
   }
 
-  async function chargerEtRendre() {
-    const donnees = await chrome.storage.local.get(['fogbank.annuaire', 'fogbank.sites']);
-    annuaire = donnees['fogbank.annuaire'] || [];
-    sites = donnees['fogbank.sites'] || [];
-    rendreTableau();
-  }
-
-  chrome.storage.onChanged.addListener((changements, zone) => {
-    if (zone !== 'local') return;
-    if (changements['fogbank.annuaire'] || changements['fogbank.sites']) {
-      chargerEtRendre();
-    }
-  });
-
   champFiltre.addEventListener('input', () => {
     filtreActif = champFiltre.value;
     rendreTableau();
@@ -224,6 +242,194 @@
   // fermeture au clic extérieur classique — <dialog> ne le fait pas nativement.
   dialogue.addEventListener('click', (e) => {
     if (e.target === dialogue) fermerFormulaire();
+  });
+
+  // --- Onglet Sites -------------------------------------------------------
+  const corpsTableauSites = document.getElementById('corps-tableau-sites');
+  const etatVideSites = document.getElementById('etat-vide-sites');
+  const boutonAjouterSite = document.getElementById('bouton-ajouter-site');
+  const dialogueSite = document.getElementById('dialogue-formulaire-site');
+  const formulaireSite = document.getElementById('formulaire-site');
+  const titreFormulaireSite = document.getElementById('titre-formulaire-site');
+  const siteChampDomaine = document.getElementById('site-champ-domaine');
+  const siteChampActif = document.getElementById('site-champ-actif');
+  const siteChampPreActive = document.getElementById('site-champ-pre-active');
+  const siteChampDuree = document.getElementById('site-champ-duree');
+  const siteChampFormat = document.getElementById('site-champ-format');
+  const erreurFormulaireSite = document.getElementById('erreur-formulaire-site');
+  const siteBoutonAnnuler = document.getElementById('site-bouton-annuler');
+
+  function genererIdSite(domaine) {
+    const base = `site-${domaine.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-+|-+$)/g, '')}`;
+    if (!sites.some((s) => s.id === base)) return base;
+    let suffixe = 2;
+    while (sites.some((s) => s.id === `${base}-${suffixe}`)) suffixe += 1;
+    return `${base}-${suffixe}`;
+  }
+
+  function cocheOuTiret(valeur) {
+    return valeur ? '✓' : '—';
+  }
+
+  function rendreTableauSites() {
+    corpsTableauSites.textContent = '';
+    const listeSites = [...sites].sort((a, b) => a.domaine.localeCompare(b.domaine, 'fr'));
+    etatVideSites.hidden = listeSites.length > 0;
+
+    listeSites.forEach((site) => {
+      const ligne = document.createElement('tr');
+
+      const tdDomaine = document.createElement('td');
+      tdDomaine.textContent = site.domaine;
+      ligne.appendChild(tdDomaine);
+
+      const tdActif = document.createElement('td');
+      tdActif.textContent = cocheOuTiret(site.actif);
+      ligne.appendChild(tdActif);
+
+      const tdPreActive = document.createElement('td');
+      tdPreActive.textContent = cocheOuTiret(site.preActive);
+      ligne.appendChild(tdPreActive);
+
+      const tdDuree = document.createElement('td');
+      tdDuree.textContent = LIBELLES_DUREE[site.dureeViePseudonyme] || site.dureeViePseudonyme;
+      ligne.appendChild(tdDuree);
+
+      const tdFormat = document.createElement('td');
+      tdFormat.textContent = LIBELLES_FORMAT[site.formatPseudonyme] || site.formatPseudonyme;
+      ligne.appendChild(tdFormat);
+
+      const tdActions = document.createElement('td');
+      tdActions.className = 'col-actions';
+
+      const boutonEditer = document.createElement('button');
+      boutonEditer.type = 'button';
+      boutonEditer.className = 'bouton-icone';
+      boutonEditer.textContent = 'Modifier';
+      boutonEditer.addEventListener('click', () => ouvrirFormulaireSite(site));
+      tdActions.appendChild(boutonEditer);
+
+      const boutonSupprimer = document.createElement('button');
+      boutonSupprimer.type = 'button';
+      boutonSupprimer.className = 'bouton-icone danger';
+      boutonSupprimer.textContent = 'Supprimer';
+      boutonSupprimer.addEventListener('click', () => supprimerSite(site));
+      tdActions.appendChild(boutonSupprimer);
+
+      ligne.appendChild(tdActions);
+      corpsTableauSites.appendChild(ligne);
+    });
+  }
+
+  function ouvrirFormulaireSite(site) {
+    erreurFormulaireSite.hidden = true;
+    if (site) {
+      idSiteEnEdition = site.id;
+      titreFormulaireSite.textContent = 'Modifier le site';
+      siteChampDomaine.value = site.domaine;
+      siteChampActif.checked = site.actif;
+      siteChampPreActive.checked = site.preActive;
+      siteChampDuree.value = site.dureeViePseudonyme;
+      siteChampFormat.value = site.formatPseudonyme;
+    } else {
+      idSiteEnEdition = null;
+      titreFormulaireSite.textContent = 'Ajouter un site';
+      formulaireSite.reset();
+      siteChampActif.checked = true;
+      siteChampPreActive.checked = false;
+      siteChampDuree.value = '1a';
+      siteChampFormat.value = 'court';
+    }
+    dialogueSite.showModal();
+    siteChampDomaine.focus();
+  }
+
+  function fermerFormulaireSite() {
+    dialogueSite.close();
+    formulaireSite.reset();
+    idSiteEnEdition = null;
+  }
+
+  async function mettreAJourSites(mutateur) {
+    const donnees = await chrome.storage.local.get(['fogbank.sites']);
+    const actuel = donnees['fogbank.sites'] || [];
+    mutateur(actuel);
+    await chrome.storage.local.set({ 'fogbank.sites': actuel });
+  }
+
+  async function enregistrerFormulaireSite(e) {
+    e.preventDefault();
+    const domaine = siteChampDomaine.value.trim();
+    const actif = siteChampActif.checked;
+    const preActive = siteChampPreActive.checked;
+    const dureeViePseudonyme = siteChampDuree.value;
+    const formatPseudonyme = siteChampFormat.value;
+
+    if (!domaine) {
+      erreurFormulaireSite.textContent = 'Le domaine est obligatoire.';
+      erreurFormulaireSite.hidden = false;
+      return;
+    }
+
+    const idCible = idSiteEnEdition;
+    await mettreAJourSites((actuel) => {
+      if (idCible) {
+        const site = actuel.find((s) => s.id === idCible);
+        if (site) {
+          site.domaine = domaine;
+          site.actif = actif;
+          site.preActive = preActive;
+          site.dureeViePseudonyme = dureeViePseudonyme;
+          site.formatPseudonyme = formatPseudonyme;
+        }
+      } else {
+        actuel.push({
+          id: genererIdSite(domaine),
+          domaine,
+          actif,
+          preActive,
+          dureeViePseudonyme,
+          formatPseudonyme,
+        });
+      }
+    });
+
+    fermerFormulaireSite();
+  }
+
+  async function supprimerSite(site) {
+    const confirmation = confirm(
+      `Supprimer « ${site.domaine} » ? fogbank n'agira plus sur ce site. Les alias déjà attribués sur ce site dans l'annuaire ne seront pas supprimés, mais n'afficheront plus que son identifiant technique.`
+    );
+    if (!confirmation) return;
+    await mettreAJourSites((actuel) => {
+      const index = actuel.findIndex((s) => s.id === site.id);
+      if (index !== -1) actuel.splice(index, 1);
+    });
+  }
+
+  boutonAjouterSite.addEventListener('click', () => ouvrirFormulaireSite(null));
+  siteBoutonAnnuler.addEventListener('click', fermerFormulaireSite);
+  formulaireSite.addEventListener('submit', enregistrerFormulaireSite);
+
+  dialogueSite.addEventListener('click', (e) => {
+    if (e.target === dialogueSite) fermerFormulaireSite();
+  });
+
+  // --- Chargement partagé -------------------------------------------------
+  async function chargerEtRendre() {
+    const donnees = await chrome.storage.local.get(['fogbank.annuaire', 'fogbank.sites']);
+    annuaire = donnees['fogbank.annuaire'] || [];
+    sites = donnees['fogbank.sites'] || [];
+    rendreTableau();
+    rendreTableauSites();
+  }
+
+  chrome.storage.onChanged.addListener((changements, zone) => {
+    if (zone !== 'local') return;
+    if (changements['fogbank.annuaire'] || changements['fogbank.sites']) {
+      chargerEtRendre();
+    }
   });
 
   chargerEtRendre();

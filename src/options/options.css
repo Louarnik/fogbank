@@ -22,8 +22,31 @@ body {
   --fond-alterne: rgba(255, 255, 255, .04);
 }
 
-h1 { font-size: 1.35rem; margin-bottom: .25rem; }
+h1 { font-size: 1.35rem; margin-bottom: .75rem; }
 .sous-titre { color: #6b6b70; max-width: 60ch; margin-top: 0; }
+
+.onglets {
+  display: flex;
+  gap: .25rem;
+  border-bottom: 1px solid var(--bordure);
+  margin-bottom: 1.25rem;
+}
+
+.bouton-onglet {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: .5rem .25rem;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  color: #6b6b70;
+  font-size: .95rem;
+}
+.bouton-onglet[aria-selected="true"] {
+  color: inherit;
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
 
 .barre-outils {
   display: flex;
@@ -101,7 +124,7 @@ code {
 .alias-site code { color: var(--accent); }
 .alias-vide { color: #999; font-style: italic; }
 
-#etat-vide { color: #6b6b70; text-align: center; padding: 2rem 0; }
+#etat-vide, #etat-vide-sites { color: #6b6b70; text-align: center; padding: 2rem 0; }
 
 dialog {
   border: none;
@@ -116,7 +139,8 @@ dialog {
 }
 dialog::backdrop { background: rgba(0, 0, 0, .4); }
 
-#formulaire-entite {
+#formulaire-entite,
+#formulaire-site {
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
@@ -124,9 +148,11 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
   min-width: 320px;
 }
 
-#formulaire-entite h2 { margin: 0 0 .25rem; font-size: 1.1rem; }
+#formulaire-entite h2,
+#formulaire-site h2 { margin: 0 0 .25rem; font-size: 1.1rem; }
 
-#formulaire-entite label {
+#formulaire-entite label,
+#formulaire-site label {
   display: flex;
   flex-direction: column;
   gap: .3rem;
@@ -134,14 +160,29 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
   color: #6b6b70;
 }
 
+#formulaire-entite label.ligne-case,
+#formulaire-site label.ligne-case {
+  flex-direction: row;
+  align-items: center;
+  gap: .5rem;
+}
+.ligne-case input[type="checkbox"] { width: auto; }
+
 #formulaire-entite input,
-#formulaire-entite select {
+#formulaire-entite select,
+#formulaire-site input,
+#formulaire-site select {
   font: inherit;
   padding: .5rem .625rem;
   border: 1px solid var(--bordure);
   border-radius: .375rem;
   background: transparent;
   color: inherit;
+}
+
+#formulaire-site input[type="checkbox"] {
+  padding: 0;
+  border: none;
 }
 
 .erreur { color: #d33; font-size: .85rem; margin: 0; }

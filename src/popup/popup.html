@@ -7,8 +7,23 @@
 </head>
 <body>
   <h1>fogbank</h1>
-  <p id="status">Hello world</p>
-  <button id="bouton-annuaire" type="button">Ouvrir l’annuaire</button>
+
+  <section id="section-site">
+    <p id="statut-site">Vérification du site…</p>
+    <button id="bouton-toggle-site" type="button" hidden></button>
+  </section>
+
+  <section id="section-pause">
+    <button id="bouton-pause" type="button">…</button>
+    <p class="aide">Coupe l’insertion de mention et la restauration à la réception sans recharger la page — pratique pour vérifier si un comportement du site vient de fogbank.</p>
+  </section>
+
+  <nav id="section-liens">
+    <button id="bouton-annuaire" type="button">Annuaire (entités)</button>
+    <button id="bouton-sites" type="button">Annuaire des sites</button>
+  </nav>
+
+  <script src="../shared/site-matching.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>
