@@ -104,5 +104,13 @@ window.fogbankPseudonyme = (function () {
     );
   }
 
-  return { genererCodeUnique, resoudreEntite };
+  // Regex de tag partagée (UC-001 calque, UC-002 restauration, M-12) — voir
+  // docs/SPECS.md. Une factory plutôt qu'une constante : une regex globale
+  // (`g`) porte un `lastIndex` mutable, dangereux à partager entre appelants
+  // qui l'utilisent en parallèle ou de façon imbriquée.
+  function creerRegexTag() {
+    return /\[(PER|ORG|LIE|PRJ):([A-Z0-9]+(?:-\d+)?)\]/g;
+  }
+
+  return { genererCodeUnique, resoudreEntite, creerRegexTag };
 })();

@@ -1,18 +1,12 @@
-// TODO(debug demain) : jamais vérifié dans un vrai Chrome chargé (unpacked)
-// contre tests/fixtures/mock-ai-site/index.html — seulement relu/tracé à la
-// main. À tester : bouton "Simuler la réception" (phase 2 immédiate, pas de
-// phase 1 visible) et "Simuler une réponse progressive (streaming)" (phase 1
-// puis phase 2 déclenchée par l'inactivité MutationObserver de generic.js).
-//
-// Restauration à la réception (M-07 / UC-002) — voir docs/SPECS.md.
-// Phase 1 (pendant le streaming) : chaque tag [TYP:CODE] complet est
-// enveloppé dans un span stylisé (mêmes tokens visuels que M-05), tag brut
-// laissé visible, infobulle au survol montrant le nom réel déjà résolu.
-// Phase 2 (fin du streaming, signalée par l'adaptateur de site) : le
-// contenu du span est remplacé par le nom réel, tag d'origine conservé en
-// data-* pour une infobulle inversée.
+// Restauration à la réception (M-07 / UC-002, fail-closed) — voir
+// docs/SPECS.md. Mécanisme DOM uniquement (pas de hook réseau, voir
+// ADR-007) : le marquage pendant le streaming est du best-effort (chaque
+// tag [TYP:CODE] complet est enveloppé dans un span stylisé, tag brut
+// laissé visible, infobulle au survol montrant le nom réel déjà résolu) ;
+// seule la substitution finale, une fois la réponse stable, est garantie
+// (contenu du span remplacé par le nom réel, tag d'origine conservé en
+// data-* pour une infobulle inversée).
 window.fogbankReception = (function () {
-  const REGEX_TAG = /\[(PER|ORG|LIE|PRJ):([A-Z0-9-]+)\]/g;
   const DELAI_INFOBULLE_MS = 150;
 
   let elementInfobulle = null;
@@ -97,8 +91,11 @@ window.fogbankReception = (function () {
     const parent = noeud.parentNode;
     if (!parent) return;
 
-    REGEX_TAG.lastIndex = 0;
-    let correspondance = REGEX_TAG.exec(texte);
+    // Regex partagée (docs/SPECS.md) — une factory plutôt qu'une constante
+    // pour ne jamais partager le `lastIndex` mutable d'une regex globale
+    // entre appels, y compris imbriqués (voir pseudonyme.js).
+    const regex = window.fogbankPseudonyme.creerRegexTag();
+    let correspondance = regex.exec(texte);
     if (!correspondance) return;
 
     const fragment = document.createDocumentFragment();
@@ -110,7 +107,7 @@ window.fogbankReception = (function () {
       }
       fragment.appendChild(creerSpanTag(type, code, tagComplet, resoudre));
       dernierIndex = correspondance.index + tagComplet.length;
-      correspondance = REGEX_TAG.exec(texte);
+      correspondance = regex.exec(texte);
     }
     if (dernierIndex < texte.length) {
       fragment.appendChild(document.createTextNode(texte.slice(dernierIndex)));
@@ -174,8 +171,14 @@ window.fogbankReception = (function () {
     observateur.observe(container, { childList: true, subtree: true, characterData: true });
 
     // Passage initial : couvre le cas d'une réponse déjà entièrement
-    // présente (ex : injection instantanée, pas de streaming à observer).
+    // présente au moment de l'attache (rechargement de page, conversation
+    // déjà rendue — voir docs/SPECS.md UC-002, Contraintes). Comme aucune
+    // mutation ne se produit dans ce cas, l'inactivité du MutationObserver
+    // ci-dessus ne se déclencherait jamais toute seule : la substitution
+    // finale est donc aussi lancée ici, pas seulement le marquage
+    // best-effort, sans attendre un hypothétique onStreamingEnd.
     traiterNoeudAjoute(container, resoudre);
+    substituerNomsReels(container);
 
     if (typeof adaptateur.onStreamingEnd === 'function') {
       adaptateur.onStreamingEnd(container, () => substituerNomsReels(container));

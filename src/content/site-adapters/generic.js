@@ -1,7 +1,8 @@
 // Adaptateur générique (fallback) pour un site sans adaptateur dédié.
-// Heuristiques volontairement simples : premier champ contenteditable de
-// la page, et le premier bouton qui le suit dans l'ordre du document.
-// UC-001 se limite au contenteditable (voir docs/SPECS.md, UC-001).
+// Heuristiques volontairement simples. Fail-closed (ADR-007, voir
+// docs/SPECS.md UC-001) : couvre `<textarea>` et `contenteditable`
+// indifféremment (l'EditorHandle unifie les deux), pas seulement
+// contenteditable comme dans l'ancienne version fail-open.
 //
 // UC-002 (restauration à la réception) ajoute getResponseContainer et le
 // couple isStreaming/onStreamingEnd. Contrairement à un adaptateur dédié
@@ -16,13 +17,21 @@ window.fogbankGenericAdapter = {
     return true;
   },
 
-  getInputField() {
-    return document.querySelector('[contenteditable="true"]');
+  // Un site réel n'a qu'un seul composer ; ce repli générique en supporte
+  // plusieurs indépendamment (utile notamment pour la fixture de test, qui
+  // présente un scénario <textarea> et un scénario contenteditable sur la
+  // même page). Exclut les champs dans un <details> non ouvert : un panneau
+  // de contrôle replié n'est pas un composer actif (heuristique volontaire,
+  // pas seulement pour la fixture — un vrai composer de chat n'est jamais
+  // caché dans une divulgation repliée).
+  getInputFields() {
+    const candidats = Array.from(
+      document.querySelectorAll('[contenteditable="true"], textarea')
+    );
+    return candidats.filter((el) => !el.closest('details:not([open])'));
   },
 
-  getSendTrigger() {
-    const champ = this.getInputField();
-    if (!champ) return null;
+  getSendTrigger(champ) {
     const boutons = Array.from(document.querySelectorAll('button'));
     return (
       boutons.find(
@@ -33,22 +42,26 @@ window.fogbankGenericAdapter = {
     );
   },
 
-  // Heuristique : le premier élément qui suit le bouton d'envoi dans le
-  // document et qui ne contient lui-même aucun contrôle de saisie (bouton,
-  // champ...) — ce qui exclut aussi bien le bouton d'envoi que d'éventuels
-  // panneaux de contrôle placés après la zone de réponse.
-  // TODO(debug demain) : heuristique non vérifiée en vrai navigateur — à
-  // rejouer contre le Scénario B de la fixture (vérifier qu'elle retombe
-  // bien sur .zone-reponse et pas sur le panneau payload-log juste après).
-  getResponseContainer() {
-    const bouton = this.getSendTrigger();
-    if (!bouton) return null;
-    let element = bouton.nextElementSibling;
-    while (element) {
-      if (!element.querySelector('button, textarea, input, [contenteditable="true"]')) {
-        return element;
+  // Heuristique : en partant du bouton d'envoi de ce champ, cherche le
+  // premier élément qui le suit dans le document et qui ne contient
+  // lui-même aucun contrôle de saisie (bouton, champ...) — ce qui exclut
+  // aussi bien le bouton d'envoi que d'éventuels panneaux de contrôle
+  // placés après la zone de réponse. Si le bouton n'a pas de frère
+  // exploitable (parce qu'il est lui-même imbriqué dans un conteneur du
+  // composer — barre d'actions, fieldset — aux côtés d'autres contrôles),
+  // remonte d'un niveau et recommence : la zone de réponse est alors une
+  // sœur de ce conteneur, pas du bouton lui-même.
+  getResponseContainer(champ) {
+    let ancre = this.getSendTrigger(champ);
+    while (ancre && ancre !== document.body) {
+      let element = ancre.nextElementSibling;
+      while (element) {
+        if (!element.querySelector('button, textarea, input, [contenteditable="true"]')) {
+          return element;
+        }
+        element = element.nextElementSibling;
       }
-      element = element.nextElementSibling;
+      ancre = ancre.parentElement;
     }
     return null;
   },
@@ -60,7 +73,7 @@ window.fogbankGenericAdapter = {
   // Repli générique par délai d'inactivité (voir en-tête de fichier) :
   // callback rappelé à chaque fin de rafale de mutations, pas seulement la
   // première fois — une conversation reçoit plusieurs réponses au fil du
-  // temps, chacune doit déclencher sa propre phase 2 (UC-002).
+  // temps, chacune doit déclencher sa propre substitution finale (UC-002).
   onStreamingEnd(container, callback) {
     if (!container) return;
     let minuteur = null;

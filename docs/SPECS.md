@@ -18,10 +18,10 @@ jamais envoyer de données personnelles/sensibles aux services IA tiers.
 > nom n'est **jamais écrit dans l'éditeur** ; il n'est que **décoré** à
 > l'affichage (soulignement, infobulle, légende), dans une couche cloisonnée
 > qui ne dépose rien dans le DOM du site. La mécanique ci-dessous décrit
-> cette cible, déjà réécrite dans **UC-001**. **UC-002 reste à refondre** :
-> son code, déjà implémenté, décrit encore l'ancien modèle fail-open — voir
-> la note de statut en tête de son UC. Le code source (`src/`) des deux UC
-> n'est pas encore aligné sur cette cible.
+> cette cible, implémentée pour **UC-001** et **UC-002** (`src/content/`) —
+> voir la note de statut en tête de chaque UC. Pas encore vérifié dans un
+> vrai Chrome chargé (unpacked) contre les fixtures, seulement relu/tracé à
+> la main.
 
 Quatre types d'entités sont pris en charge, chacun identifié par un
 trigramme : **PER** (personne), **ORG** (organisation), **LIE** (lieu),
@@ -167,22 +167,22 @@ applicables à ce cas d'usage._
 
 | ID     | Titre | Statut |
 |--------|-------|--------|
-| UC-001 | Mention `&` et insertion du tag `[TYP:CODE]` (fail-closed) | brouillon (fail-closed) — code (`src/`) encore fail-open, non aligné |
-| UC-002 | Restauration à la réception (affichage lisible + traçabilité) | brouillon (fail-closed, mécanisme simplifié) — code (`src/`) encore fail-open, non aligné |
+| UC-001 | Mention `&` et insertion du tag `[TYP:CODE]` (fail-closed) | implémenté (fail-closed) |
+| UC-002 | Restauration à la réception (affichage lisible + traçabilité) | implémenté (fail-closed, mécanisme simplifié) |
 
 ---
 
 ### UC-001 — Mention `&` et insertion du tag `[TYP:CODE]` (fail-closed)
 
-> **Réécrit selon [ADR-007](adr/0007-fail-closed.md)** — remplace la
+> **Implémenté selon [ADR-007](adr/0007-fail-closed.md)** — remplace la
 > précédente version de cet UC (fail-open : l'entité restait affichée en
-> clair, substituée par son tag juste avant l'envoi). Le code actuel
-> (`src/content/mention-menu.js`, `content.js`) implémente encore cette
-> ancienne version et n'est pas aligné sur ce qui suit — refonte de code à
-> faire, voir `docs/recherche/reco.md` §J pour l'ordre d'implémentation
-> proposé (EditorHandle et calque d'abord, contre la fixture `<textarea>`).
+> clair, substituée par son tag juste avant l'envoi). Code :
+> `src/content/editor-handle/` (façade de saisie), `src/content/display.js`
+> (calque de décoration), `src/content/mention-menu.js` (insertion du tag),
+> `src/content/content.js` (orchestration). Pas encore vérifié dans un vrai
+> Chrome chargé (unpacked) contre les fixtures — voir Contraintes.
 
-**Statut** : brouillon (fail-closed)
+**Statut** : implémenté (fail-closed)
 **Macro-UC rattaché** : M-03, M-04 (sélection seulement), M-05, M-10
 **Dépendances** : aucune
 
@@ -304,15 +304,15 @@ texte de filtre.
 > **hook réseau entrant** (`fetch`/SSE en monde `MAIN`) sur ChatGPT et
 > Claude.ai pour cet UC (R-54 à R-56), avec repli `MutationObserver` réservé
 > à Copilot (R-58). **Décision : trop complexe pour le gain, non retenue.**
-> fogbank reste sur un **mécanisme DOM unique pour les trois sites** —
-> sensiblement ce qu'implémente déjà `content/reception.js` (fail-open), à
-> confirmer/étendre plutôt qu'à remplacer. Autre changement : le marquage
-> pendant le streaming (phase 1 ci-dessous) devient un **bonus best-effort**,
-> pas un requis — fogbank peut ne rien faire tant que la réponse n'est pas
-> stable. Voir [ADR-007](adr/0007-fail-closed.md) Conséquences.
+> fogbank reste sur un **mécanisme DOM unique pour les trois sites**,
+> implémenté dans `src/content/reception.js` + `site-adapters/generic.js` :
+> marquage pendant le streaming best-effort (bonus, pas requis), substitution
+> finale garantie une fois la réponse stable — y compris au chargement d'une
+> conversation déjà rendue (voir Contraintes). Pas encore vérifié dans un
+> vrai Chrome chargé (unpacked) contre les fixtures. Voir
+> [ADR-007](adr/0007-fail-closed.md) Conséquences.
 
-**Statut** : brouillon (fail-closed, mécanisme simplifié) — proche du code
-actuel (`src/content/reception.js`), à valider/étendre aux trois sites
+**Statut** : implémenté (fail-closed, mécanisme simplifié)
 **Macro-UC rattaché** : M-07 (Restauration automatique à la réception)
 **Dépendances** : M-04 (le tag `[TYP:CODE]` est ce qui part réellement au
 site IA depuis l'insertion — voir UC-001), M-10 (génération du code)

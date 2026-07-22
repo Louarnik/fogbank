@@ -1,70 +1,13 @@
-// Menu de mention déclenché par le caractère configuré (M-03/M-04/M-05).
-// UC-001 : sélection uniquement parmi l'annuaire existant, pas de création
-// à la volée (voir docs/SPECS.md, UC-001, Contraintes). Scope limité au
-// contenteditable.
+// Menu de mention déclenché par le caractère configuré (M-03/M-04).
+// Fail-closed (ADR-007, voir docs/SPECS.md UC-001) : la sélection insère le
+// tag [TYP:CODE] directement dans le champ via EditorHandle.replaceRange —
+// jamais le vrai nom. Aucun marquage DOM ici : la décoration (soulignement,
+// infobulle, légende) est prise en charge séparément par fogbankDisplay, qui
+// parse le texte du champ en continu plutôt que de dépendre d'un span posé
+// à l'insertion.
 window.fogbankMentionMenu = (function () {
   let etatMenu = null; // { mention, resultats, elementMenu }
   let indexSurligne = 0;
-
-  // Infobulle custom : le délai natif du `title` HTML (~1s, non
-  // configurable) est trop lent, on le remplace par un délai court réglable.
-  const DELAI_INFOBULLE_MS = 150;
-  let elementInfobulle = null;
-  let minuteurInfobulle = null;
-
-  function afficherInfobulle(span, texte) {
-    clearTimeout(minuteurInfobulle);
-    minuteurInfobulle = setTimeout(() => {
-      if (!elementInfobulle) {
-        elementInfobulle = document.createElement('div');
-        elementInfobulle.className = 'fogbank-infobulle';
-        Object.assign(elementInfobulle.style, {
-          position: 'fixed',
-          zIndex: '2147483647',
-          background: '#222',
-          color: '#fff',
-          padding: '3px 8px',
-          borderRadius: '4px',
-          fontSize: '12px',
-          fontFamily: 'system-ui, sans-serif',
-          pointerEvents: 'none',
-        });
-        document.body.appendChild(elementInfobulle);
-      }
-      elementInfobulle.textContent = texte;
-      const rect = span.getBoundingClientRect();
-      elementInfobulle.style.left = `${rect.left}px`;
-      elementInfobulle.style.top = `${rect.bottom + 4}px`;
-      elementInfobulle.style.display = 'block';
-    }, DELAI_INFOBULLE_MS);
-  }
-
-  function masquerInfobulle() {
-    clearTimeout(minuteurInfobulle);
-    if (elementInfobulle) elementInfobulle.style.display = 'none';
-  }
-
-  function texteAvantCaret() {
-    const sel = window.getSelection();
-    if (!sel || sel.rangeCount === 0) return null;
-    const range = sel.getRangeAt(0);
-    if (range.startContainer.nodeType !== Node.TEXT_NODE) return null;
-    return {
-      noeud: range.startContainer,
-      offset: range.startOffset,
-      texte: range.startContainer.textContent.slice(0, range.startOffset),
-    };
-  }
-
-  function detecterMention(caractereDeclencheur) {
-    const info = texteAvantCaret();
-    if (!info) return null;
-    const debut = info.texte.lastIndexOf(caractereDeclencheur);
-    if (debut === -1) return null;
-    const filtre = info.texte.slice(debut + 1);
-    if (/\s/.test(filtre)) return null; // un espace abandonne la mention en cours
-    return { noeud: info.noeud, debut, fin: info.offset, filtre };
-  }
 
   function fermerMenu() {
     if (etatMenu && etatMenu.elementMenu) {
@@ -73,9 +16,8 @@ window.fogbankMentionMenu = (function () {
     etatMenu = null;
   }
 
-  function positionnerMenu(elementMenu) {
-    const sel = window.getSelection();
-    const rect = sel.getRangeAt(0).getBoundingClientRect();
+  function positionnerMenu(elementMenu, handle) {
+    const rect = handle.getCaretRect();
     elementMenu.style.left = `${rect.left}px`;
     elementMenu.style.top = `${rect.bottom + 4}px`;
   }
@@ -117,47 +59,62 @@ window.fogbankMentionMenu = (function () {
     return el;
   }
 
-  async function inserer(mention, entite, options) {
-    const { noeud, debut, fin } = mention;
-    const texteComplet = noeud.textContent;
-    const avant = texteComplet.slice(0, debut);
-    const apres = texteComplet.slice(fin);
-
-    const code = await options.obtenirOuCreerAlias(entite);
-
-    const span = document.createElement('span');
-    span.setAttribute('contenteditable', 'false');
-    span.dataset.fogbankEntityId = entite.id;
-    span.dataset.fogbankType = entite.type;
-    span.textContent = entite.nomReel;
-    Object.assign(span.style, {
-      textDecoration: 'underline',
-      textDecorationColor: '#2d6cdf',
-      textDecorationThickness: '2px',
-      cursor: 'default',
-    });
-    const texteInfobulle = `[${entite.type}:${code}]`;
-    span.addEventListener('mouseenter', () => afficherInfobulle(span, texteInfobulle));
-    span.addEventListener('mouseleave', masquerInfobulle);
-
-    const parent = noeud.parentNode;
-    const noeudApres = document.createTextNode(apres);
-    const noeudAvant = document.createTextNode(avant);
-    parent.replaceChild(noeudApres, noeud);
-    parent.insertBefore(span, noeudApres);
-    parent.insertBefore(noeudAvant, span);
-
-    const range = document.createRange();
-    range.setStart(noeudApres, 0);
-    range.collapse(true);
-    const sel = window.getSelection();
-    sel.removeAllRanges();
-    sel.addRange(range);
+  function detecterMention(handle, caractereDeclencheur) {
+    const { fin } = handle.getSelection();
+    const avantCaret = handle.getText().slice(0, fin);
+    const debut = avantCaret.lastIndexOf(caractereDeclencheur);
+    if (debut === -1) return null;
+    const filtre = avantCaret.slice(debut + 1);
+    if (/\s/.test(filtre)) return null; // un espace abandonne la mention en cours
+    return { debut, fin, filtre };
   }
 
-  function attacher(champ, options) {
-    champ.addEventListener('input', () => {
-      const mention = detecterMention(options.caractereDeclencheur);
+  // Insère le tag [TYP:CODE] — jamais le vrai nom (fail-closed). Si
+  // l'entité n'a pas encore d'alias pour le site courant, un nouvel alias
+  // est généré immédiatement (M-10) pour que le tag inséré soit déjà correct.
+  function inserer(mention, entite, handle, options) {
+    const code = options.obtenirOuCreerAlias(entite);
+    const tag = `[${entite.type}:${code}]`;
+    handle.replaceRange(mention.debut, mention.fin, tag);
+    const position = mention.debut + tag.length;
+    handle.setSelection(position, position);
+  }
+
+  // Suppression quasi atomique (R-49) : si le curseur est au bord ou à
+  // l'intérieur d'un tag, Backspace/Delete supprime le tag entier d'un
+  // coup, pour éviter les fragments `[PER:PD` qui ne révèlent rien mais
+  // polluent le prompt et cassent la détection par regex du calque.
+  function supprimerTagAtomique(e, handle, options) {
+    const { debut, fin } = handle.getSelection();
+    if (debut !== fin) return; // sélection non vide : comportement natif
+    const texte = handle.getText();
+    const regex = options.creerRegexTag();
+    let m = regex.exec(texte);
+    while (m) {
+      const zoneDebut = m.index;
+      const zoneFin = m.index + m[0].length;
+      const curseurDansTag =
+        e.key === 'Backspace'
+          ? debut > zoneDebut && debut <= zoneFin
+          : debut >= zoneDebut && debut < zoneFin;
+      if (curseurDansTag) {
+        e.preventDefault();
+        handle.replaceRange(zoneDebut, zoneFin, '');
+        handle.setSelection(zoneDebut, zoneDebut);
+        return;
+      }
+      m = regex.exec(texte);
+    }
+  }
+
+  function attacher(champ, handle, options) {
+    champ.addEventListener('input', (e) => {
+      // R-13 : neutraliser pendant la composition IME (japonais/chinois/
+      // coréen) — réagir seulement une fois la frappe finalisée
+      // (compositionend redéclenche un événement input sur Chromium).
+      if (e.isComposing) return;
+
+      const mention = detecterMention(handle, options.caractereDeclencheur);
       if (!mention) {
         fermerMenu();
         return;
@@ -168,34 +125,46 @@ window.fogbankMentionMenu = (function () {
 
       indexSurligne = 0;
       const elementMenu = creerElementMenu(resultats, (entite) => {
-        inserer(mention, entite, options);
+        inserer(mention, entite, handle, options);
         fermerMenu();
       });
       document.body.appendChild(elementMenu);
-      positionnerMenu(elementMenu);
+      positionnerMenu(elementMenu, handle);
       surligner(elementMenu, indexSurligne);
       etatMenu = { mention, resultats, elementMenu };
     });
 
     champ.addEventListener('keydown', (e) => {
-      if (!etatMenu) return;
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        fermerMenu();
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        indexSurligne = Math.min(indexSurligne + 1, etatMenu.resultats.length - 1);
-        surligner(etatMenu.elementMenu, indexSurligne);
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        indexSurligne = Math.max(indexSurligne - 1, 0);
-        surligner(etatMenu.elementMenu, indexSurligne);
-      } else if (e.key === 'Enter' || e.key === 'Tab') {
-        e.preventDefault();
-        const { mention, resultats } = etatMenu;
-        const entite = resultats[indexSurligne];
-        fermerMenu();
-        inserer(mention, entite, options);
+      if (etatMenu) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          fermerMenu();
+          return;
+        }
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          indexSurligne = Math.min(indexSurligne + 1, etatMenu.resultats.length - 1);
+          surligner(etatMenu.elementMenu, indexSurligne);
+          return;
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          indexSurligne = Math.max(indexSurligne - 1, 0);
+          surligner(etatMenu.elementMenu, indexSurligne);
+          return;
+        }
+        if (e.key === 'Enter' || e.key === 'Tab') {
+          e.preventDefault();
+          const { mention, resultats } = etatMenu;
+          const entite = resultats[indexSurligne];
+          fermerMenu();
+          inserer(mention, entite, handle, options);
+          return;
+        }
+      }
+
+      if (e.key === 'Backspace' || e.key === 'Delete') {
+        supprimerTagAtomique(e, handle, options);
       }
     });
   }

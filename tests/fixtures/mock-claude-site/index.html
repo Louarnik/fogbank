@@ -51,12 +51,6 @@
     padding: 4px 2px;
   }
   .ProseMirror p { margin: 0; }
-  .barre-composer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 8px;
-  }
   button {
     cursor: pointer;
     border: 1px solid #444;
@@ -163,10 +157,7 @@
        enterkeyhint="enter" aria-label="Write your prompt to Claude">
     <p data-placeholder="How can I help you today?"><br></p>
   </div>
-  <div class="barre-composer">
-    <button class="secondaire" data-role="basculer-langue" type="button">FR / EN (aria-label)</button>
-    <button data-role="envoyer" aria-label="Send message" type="button">Envoyer</button>
-  </div>
+  <button data-role="envoyer" aria-label="Send message" type="button">Envoyer</button>
 </fieldset>
 
 <div class="zone-reponse">
@@ -185,6 +176,7 @@
   <textarea id="reponse-simulee" placeholder="Bonjour [PER:PDT], voici le rapport demandé."></textarea>
   <button class="secondaire" data-role="simuler-reponse" type="button">Simuler la réception de cette réponse</button>
   <button class="secondaire" data-role="simuler-streaming" type="button">Simuler une réponse progressive (streaming)</button>
+  <button class="secondaire" data-role="basculer-langue" type="button">FR / EN (aria-label)</button>
 </details>
 
 <script>

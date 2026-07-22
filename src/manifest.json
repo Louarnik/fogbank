@@ -21,6 +21,9 @@
       "js": [
         "content/site-adapters/generic.js",
         "content/pseudonyme.js",
+        "content/editor-handle/textarea-handle.js",
+        "content/editor-handle/contenteditable-handle.js",
+        "content/display.js",
         "content/mention-menu.js",
         "content/reception.js",
         "content/content.js"

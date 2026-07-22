@@ -31,11 +31,6 @@
     font-size: 14px;
     margin-bottom: 8px;
   }
-  .barre-composer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
   button {
     cursor: pointer;
     border: 1px solid #444;
@@ -121,10 +116,7 @@
 
 <label for="composer-copilot">Champ de saisie du prompt</label>
 <textarea id="composer-copilot" class="champ-saisie" placeholder="Ask me anything..."></textarea>
-<div class="barre-composer">
-  <button class="secondaire" data-role="basculer-langue" type="button">FR / EN (placeholder)</button>
-  <button data-role="envoyer" type="submit">Envoyer</button>
-</div>
+<button data-role="envoyer" type="submit">Envoyer</button>
 
 <div class="zone-reponse">
   <strong>Réponse</strong>
@@ -142,6 +134,7 @@
   <textarea id="reponse-simulee" placeholder="Bonjour [PER:PDT], voici le rapport demandé."></textarea>
   <button class="secondaire" data-role="simuler-reponse" type="button">Simuler la réception de cette réponse</button>
   <button class="secondaire" data-role="simuler-streaming" type="button">Simuler une réponse progressive (streaming, sans signal de fin)</button>
+  <button class="secondaire" data-role="basculer-langue" type="button">FR / EN (placeholder)</button>
 </details>
 
 <script>

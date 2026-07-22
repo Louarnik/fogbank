@@ -1,7 +1,13 @@
-// Point d'entrée du content script (UC-001 : voir docs/SPECS.md).
-// Orchestration : charge l'annuaire/config depuis chrome.storage.local,
-// détermine le site courant, attache le menu de mention (M-03/M-04/M-05)
-// et la substitution à l'envoi (M-06), avec rotation paresseuse (M-08).
+// Point d'entrée du content script — fail-closed (ADR-007, voir
+// docs/SPECS.md UC-001/UC-002). Charge l'annuaire/config depuis
+// chrome.storage.local, détermine le site courant, puis pour chaque champ
+// de saisie détecté : attache l'insertion de tag (M-03/M-04) via un
+// EditorHandle et le calque de décoration (M-05), avec rotation paresseuse
+// (M-08) au moment de l'insertion. Aucune substitution à l'envoi (M-06
+// devient vestigial : le tag est déjà ce qui est inséré dans le champ dès
+// la sélection dans le menu, rien à réécrire plus tard). La restauration à
+// la réception (M-07) est attachée séparément par champ, sur la zone de
+// réponse associée.
 
 (async function () {
   const DUREE_EN_JOURS = { '1s': 7, '1t': 91, '1a': 365 };
@@ -29,12 +35,6 @@
   }
 
   const adaptateur = window.fogbankGenericAdapter;
-  const champ = adaptateur.getInputField();
-  if (!champ || champ.getAttribute('contenteditable') !== 'true') {
-    // UC-001 est scopé au contenteditable (voir Contraintes de l'UC).
-    return;
-  }
-  const boutonEnvoi = adaptateur.getSendTrigger();
 
   function aujourdHuiISO() {
     return new Date().toISOString().slice(0, 10);
@@ -54,10 +54,11 @@
     });
   }
 
-  // M-10 (génération) + M-08 (rotation paresseuse) : synchrone sur le
-  // cache en mémoire, persistance déclenchée en arrière-plan. Doit rester
-  // synchrone pour pouvoir s'exécuter avant qu'un gestionnaire natif ne
-  // lise le contenu du champ à l'envoi (voir substituerMentions).
+  // M-10 (génération) + M-08 (rotation paresseuse) : vérifié à chaque
+  // insertion d'un tag — sans geste de substitution à l'envoi (fail-closed),
+  // c'est le seul point d'ancrage retenu pour la rotation (voir UC-001,
+  // Contraintes). Synchrone sur le cache en mémoire, persistance déclenchée
+  // en arrière-plan.
   function obtenirOuCreerAlias(entite) {
     const aujourdHui = aujourdHuiISO();
     let entree = entite.aliasParSite.find((a) => a.siteId === siteCourant.id);
@@ -92,47 +93,38 @@
     return annuaire.filter((e) => e.nomReel.toLowerCase().includes(f));
   }
 
-  window.fogbankMentionMenu.attacher(champ, {
-    caractereDeclencheur: config.caractereDeclencheur || '&',
-    rechercherEntites,
-    obtenirOuCreerAlias,
-  });
+  function resoudre(type, code) {
+    return window.fogbankPseudonyme.resoudreEntite(annuaire, type, code);
+  }
 
-  // TODO(debug demain) : ne substitue que dans `champ`, le seul champ
-  // contenteditable trouvé une fois au chargement — faire le remplacement
-  // dans tous les champs de la page (y compris un contenteditable recréé/
-  // re-rendu après coup), pas seulement celui capturé à l'attache initiale.
-  // À valider après la validation (clic envoyer) sur un site qui reconstruit
-  // son champ de saisie entre deux messages.
-  function substituerMentions() {
-    const spans = Array.from(
-      champ.querySelectorAll('span[data-fogbank-entity-id]')
-    );
-    spans.forEach((span) => {
-      const entite = annuaire.find((e) => e.id === span.dataset.fogbankEntityId);
-      if (!entite) {
-        console.warn('[fogbank] entité introuvable pour la mention, non substituée :', span.dataset.fogbankEntityId);
-        return;
-      }
-      const code = obtenirOuCreerAlias(entite);
-      span.replaceWith(document.createTextNode(`[${entite.type}:${code}]`));
+  function creerHandle(champ) {
+    return champ.tagName === 'TEXTAREA'
+      ? window.fogbankTextareaHandle.creer(champ)
+      : window.fogbankContentEditableHandle.creer(champ);
+  }
+
+  const champs = adaptateur.getInputFields ? adaptateur.getInputFields() : [];
+
+  champs.forEach((champ) => {
+    const handle = creerHandle(champ);
+
+    window.fogbankMentionMenu.attacher(champ, handle, {
+      caractereDeclencheur: config.caractereDeclencheur || '&',
+      rechercherEntites,
+      obtenirOuCreerAlias,
+      creerRegexTag: window.fogbankPseudonyme.creerRegexTag,
     });
-  }
 
-  if (boutonEnvoi) {
-    // capture:true : s'exécute avant tout gestionnaire natif du site,
-    // pour que le DOM soit déjà substitué quand celui-ci lit le champ.
-    boutonEnvoi.addEventListener('click', substituerMentions, { capture: true });
-  }
+    window.fogbankDisplay.attacher(champ, handle, { resoudre });
 
-  // UC-002 : restauration à la réception (M-07).
-  // TODO(debug demain) : câblage jamais exécuté dans un vrai Chrome — si la
-  // phase 1/2 ne se déclenche pas, vérifier ici en premier que zoneReponse
-  // n'est pas null (voir TODO dans generic.js).
-  const zoneReponse = adaptateur.getResponseContainer ? adaptateur.getResponseContainer() : null;
-  if (zoneReponse) {
-    window.fogbankReception.observer(zoneReponse, adaptateur, (type, code) =>
-      window.fogbankPseudonyme.resoudreEntite(annuaire, type, code)
-    );
-  }
+    // UC-002 : restauration à la réception (M-07), une zone de réponse par
+    // champ détecté (voir generic.js — utile notamment pour la fixture qui
+    // présente deux scénarios de saisie indépendants sur la même page).
+    const zoneReponse = adaptateur.getResponseContainer
+      ? adaptateur.getResponseContainer(champ)
+      : null;
+    if (zoneReponse) {
+      window.fogbankReception.observer(zoneReponse, adaptateur, resoudre);
+    }
+  });
 })();
