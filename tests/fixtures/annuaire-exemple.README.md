@@ -16,6 +16,24 @@ contre un fichier généré par M-13 lui-même, pas contre un exemple statique.
 Aucun nom réel : "Pierre Dupont", "Acme Corporation", "Paris"... sont des
 exemples génériques, pas des personnes/organisations réelles.
 
+## Chargement automatique
+
+Ce fichier n'est pas lu directement par l'extension (`tests/` est hors de
+l'arborescence `src/` chargée par le navigateur). Une copie fonctionnellement
+identique vit dans
+[`src/background/donnees-test.js`](../../src/background/donnees-test.js) :
+`background.js` la charge dans `chrome.storage.local` au premier démarrage
+(`chrome.runtime.onInstalled`), **seulement si aucune donnée n'existe déjà**
+— un rechargement de l'extension pendant le développement n'écrase donc pas
+des modifications faites depuis (via la page d'options, une fois M-01/M-02
+construits). Charger l'extension "unpacked" suffit à pouvoir tester tout de
+suite, sans étape manuelle dans la console.
+
+**À retirer avant toute release réelle** (voir le commentaire en tête de
+`donnees-test.js`) : ce mécanisme n'a de sens que pour le développement.
+Si ce fichier JSON évolue, reporter le changement à la main dans
+`donnees-test.js` — pas de génération automatique entre les deux.
+
 ## Couverture
 
 - Les **5 types** d'entités (PER, ORG, LOC, PRJ, MISC — voir
@@ -24,8 +42,13 @@ exemples génériques, pas des personnes/organisations réelles.
   (voir [ADR-002](../../docs/adr/0002-format-pseudonyme.md)) : `court` sur
   `site-chatgpt`, `etendu` sur `site-claude`, `opaque` sur
   `site-local-test` (`fogbank.sites[].formatPseudonyme`).
-- Les **3 durées de vie** de site (`1a`, `infini`, `1s` — mêmes trois
-  sites).
+- Les **3 durées de vie** de site (`1a`, `infini`, `1s`), réparties sur
+  **5 sites** au total : les trois grands sites IA (`site-chatgpt`,
+  `site-claude`) plus les trois fixtures locales
+  (`site-local-test` → `mock-ai-site`, `site-local-test-claude` →
+  `mock-claude-site`, `site-local-test-copilot` → `mock-copilot-site`),
+  toutes **pré-activées de base par `background.js`** (voir plus bas) pour
+  tester sans étape manuelle de whitelist.
 - Une entité mentionnée sur **deux sites, avec deux styles différents**
   (`ent-01`, Pierre Dupont : `PDT-2` sur `site-chatgpt` — format court,
   avec rotation — et `PIDU` sur `site-claude` — format étendu). Illustre

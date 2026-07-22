@@ -35,6 +35,13 @@ pseudonyme, la rotation et la collision d'alias — voir
 pour le détail et les hypothèses de modélisation. À utiliser pour
 développer M-02, M-08, M-09, M-10 et M-13 sans données réelles.
 
+**Pré-chargé automatiquement** : `src/background/background.js` peuple
+`chrome.storage.local` avec cet annuaire (et la whitelist des trois
+fixtures locales) au premier démarrage de l'extension — charger
+l'extension "unpacked" suffit, aucune saisie manuelle dans la console.
+Détail dans `annuaire-exemple.README.md`, section « Chargement
+automatique ».
+
 Pas d'équivalent `.xlsx` maintenu à côté : un fixture binaire à retenir en
 phase avec le JSON à chaque évolution du modèle (comme le renommage des
 types ci-dessus) coûte plus qu'il n'apporte. Le format d'export/import

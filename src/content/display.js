@@ -2,7 +2,7 @@
 // UC-001. Le champ contient le tag [TYP:CODE] en clair, jamais le vrai nom ;
 // ce module se contente de le RÉVÉLER à l'affichage, sans jamais rien écrire
 // dans le champ ni dans le DOM du site (règle cardinale, R-31) :
-// - une légende sous le champ (base, R-43) : une ligne par tag présent ;
+// - une légende au-dessus du champ (base, R-43) : une ligne par tag présent ;
 // - une infobulle au survol (raffinement, R-34/R-38) ;
 // - un soulignement peint par-dessus le texte (R-32/R-33), positionné via
 //   EditorHandle.getRangeRects — identique pour <textarea> et
@@ -21,14 +21,6 @@
 window.fogbankDisplay = (function () {
   const DELAI_OUVERTURE_MS = 180;
   const DELAI_FERMETURE_MS = 100;
-
-  const LIBELLES_TYPE = {
-    PER: 'Personne',
-    ORG: 'Organisation',
-    LOC: 'Lieu',
-    PRJ: 'Projet',
-    MISC: 'Divers',
-  };
 
   let racineOmbre = null;
 
@@ -61,7 +53,8 @@ window.fogbankDisplay = (function () {
       }
       .fb-bulle {
         position: fixed;
-        max-width: 20rem;
+        max-width: 16rem;
+        white-space: nowrap;
         padding: .5rem .625rem;
         border-radius: .5rem;
         font: 500 12.5px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -76,13 +69,17 @@ window.fogbankDisplay = (function () {
         -webkit-backdrop-filter: blur(14px) saturate(160%);
         backdrop-filter: blur(14px) saturate(160%);
       }
-      .fb-bulle div { margin: 0; }
       .fb-bulle[data-ouvert] { opacity: 1; transform: none; }
       .fb-legende {
         position: fixed;
         pointer-events: none;
         font: 12px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
-        color: #555;
+        color: #333;
+        background: rgba(255, 255, 255, .97);
+        border: 1px solid rgba(0, 0, 0, .12);
+        border-radius: .375rem;
+        padding: .375rem .5rem;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, .12);
       }
       .fb-legende div { white-space: nowrap; }
       .fb-legende code {
@@ -139,17 +136,19 @@ window.fogbankDisplay = (function () {
         bulle.className = 'fb-bulle';
         racine.appendChild(bulle);
       }
-      bulle.textContent = '';
-      const lignes = zone.entite
-        ? [zone.entite.nomReel, LIBELLES_TYPE[zone.type], zone.entite.email].filter(Boolean)
-        : ['Pseudonyme inconnu'];
-      lignes.forEach((texteLigne) => {
-        const ligne = document.createElement('div');
-        ligne.textContent = texteLigne;
-        bulle.appendChild(ligne);
-      });
+      // Seulement le nom réel : type et email allongeaient inutilement
+      // l'infobulle (la légende reste l'endroit pour le détail complet).
+      bulle.textContent = zone.entite ? zone.entite.nomReel : 'Pseudonyme inconnu';
+      // Placement sous le trait, bascule au-dessus si la place manque en
+      // bas de la fenêtre (R-40) : sans ça, un tag proche du bas du
+      // viewport pousse l'infobulle hors écran plutôt que de l'afficher.
+      const hauteurBulle = bulle.offsetHeight;
+      const placeSousLeTrait = window.innerHeight - rect.bottom - 4;
+      bulle.style.top =
+        hauteurBulle > placeSousLeTrait && rect.top - hauteurBulle - 4 > 0
+          ? `${rect.top - hauteurBulle - 4}px`
+          : `${rect.bottom + 4}px`;
       bulle.style.left = `${Math.max(0, rect.left)}px`;
-      bulle.style.top = `${rect.bottom + 4}px`;
       bulle.setAttribute('data-ouvert', '');
     }
 
@@ -179,7 +178,17 @@ window.fogbankDisplay = (function () {
         return;
       }
       legende.style.display = 'block';
+      // Une ligne par ENTITÉ, pas par occurrence : `zones` porte un élément
+      // par tag trouvé dans le texte (nécessaire pour positionner chaque
+      // soulignement individuellement, voir rendreTraits) — la même
+      // personne mentionnée deux fois y apparaît donc deux fois, mais la
+      // légende ne doit la lister qu'une fois.
+      const dejaListes = new Set();
       zones.forEach((zone) => {
+        const cle = `${zone.type}:${zone.code}`;
+        if (dejaListes.has(cle)) return;
+        dejaListes.add(cle);
+
         const ligne = document.createElement('div');
         if (!zone.entite) ligne.className = 'fb-inconnu';
         const code = document.createElement('code');
@@ -193,7 +202,12 @@ window.fogbankDisplay = (function () {
       });
       const rect = champ.getBoundingClientRect();
       legende.style.left = `${rect.left}px`;
-      legende.style.top = `${rect.bottom + 6}px`;
+      // Toujours au-dessus du champ, sans condition : un composer de site
+      // de chat réel est presque systématiquement ancré près du bas du
+      // viewport (voir mock-claude-site), donc "en dessous" ne sert
+      // jamais en pratique — autant y renoncer plutôt que de garder une
+      // bascule qui ne bascule jamais dans le bon sens.
+      legende.style.top = `${rect.top - legende.offsetHeight - 6}px`;
     }
 
     function rendreTraits() {

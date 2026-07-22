@@ -16,10 +16,25 @@ window.fogbankMentionMenu = (function () {
     etatMenu = null;
   }
 
+  // Placement sous le curseur, bascule au-dessus si la place manque en bas
+  // de la fenêtre (même principe que l'infobulle de fogbankDisplay) : sans
+  // ça, un champ proche du bas du viewport (composer ancré en bas de
+  // page, cas courant des vrais sites de chat) pousse le menu hors écran
+  // plutôt que de l'afficher lisiblement. `elementMenu` est déjà inséré
+  // dans le DOM à cet instant : sa hauteur réelle (offsetHeight) est
+  // mesurable avant de choisir où le placer.
   function positionnerMenu(elementMenu, handle) {
     const rect = handle.getCaretRect();
-    elementMenu.style.left = `${rect.left}px`;
-    elementMenu.style.top = `${rect.bottom + 4}px`;
+    const hauteurMenu = elementMenu.offsetHeight;
+    const placeSousLeCurseur = window.innerHeight - rect.bottom - 4;
+    elementMenu.style.top =
+      hauteurMenu > placeSousLeCurseur && rect.top - hauteurMenu - 4 > 0
+        ? `${rect.top - hauteurMenu - 4}px`
+        : `${rect.bottom + 4}px`;
+
+    const largeurMenu = elementMenu.offsetWidth;
+    const gauche = Math.min(rect.left, window.innerWidth - largeurMenu - 4);
+    elementMenu.style.left = `${Math.max(0, gauche)}px`;
   }
 
   function surligner(elementMenu, index) {
@@ -134,27 +149,42 @@ window.fogbankMentionMenu = (function () {
       etatMenu = { mention, resultats, elementMenu };
     });
 
+    // capture:true + stopPropagation() : défense utile contre un
+    // gestionnaire natif attaché plus haut dans l'arbre (ex. un <form> qui
+    // soumet sur Entrée en phase de bouillonnement) — mais insuffisante
+    // contre un éditeur comme ProseMirror (Claude.ai), qui attache sa
+    // propre écoute native `keydown` DIRECTEMENT sur le même champ que
+    // nous : pour un même élément cible, les écouteurs s'exécutent dans
+    // leur ORDRE D'ATTACHE, capture ou non — le sien, posé au montage de
+    // l'éditeur bien avant que ce content script ne s'exécute, gagne
+    // toujours la course sur Entrée. Espace n'a pas cet adversaire (aucun
+    // éditeur ne s'en sert pour envoyer) : on l'accepte donc en plus comme
+    // touche de confirmation, plus fiable qu'Entrée sur un vrai site.
     champ.addEventListener('keydown', (e) => {
       if (etatMenu) {
         if (e.key === 'Escape') {
           e.preventDefault();
+          e.stopPropagation();
           fermerMenu();
           return;
         }
         if (e.key === 'ArrowDown') {
           e.preventDefault();
+          e.stopPropagation();
           indexSurligne = Math.min(indexSurligne + 1, etatMenu.resultats.length - 1);
           surligner(etatMenu.elementMenu, indexSurligne);
           return;
         }
         if (e.key === 'ArrowUp') {
           e.preventDefault();
+          e.stopPropagation();
           indexSurligne = Math.max(indexSurligne - 1, 0);
           surligner(etatMenu.elementMenu, indexSurligne);
           return;
         }
-        if (e.key === 'Enter' || e.key === 'Tab') {
+        if (e.key === 'Enter' || e.key === 'Tab' || e.key === ' ') {
           e.preventDefault();
+          e.stopPropagation();
           const { mention, resultats } = etatMenu;
           const entite = resultats[indexSurligne];
           fermerMenu();
@@ -166,7 +196,7 @@ window.fogbankMentionMenu = (function () {
       if (e.key === 'Backspace' || e.key === 'Delete') {
         supprimerTagAtomique(e, handle, options);
       }
-    });
+    }, { capture: true });
   }
 
   return { attacher };

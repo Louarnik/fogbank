@@ -42,9 +42,11 @@ que le constat décrit pour Copilot :
 
 ## Utilisation
 
-Identique à [`mock-ai-site/README.md`](../mock-ai-site/README.md) : ouvrir
-`index.html` en `file://`, autoriser l'accès aux URL de fichiers pour
-l'extension, puis ajouter la page à la whitelist une fois M-01 implémenté.
+Identique à [`mock-ai-site/README.md`](../mock-ai-site/README.md) : charger
+l'extension "unpacked", autoriser l'accès aux URL de fichiers, ouvrir
+`index.html` en `file://`. La whitelist de cette fixture (`site-local-test-copilot`)
+est déjà pré-chargée par `background.js` au premier démarrage — pas d'étape
+manuelle.
 
 ## Fiabilité
 

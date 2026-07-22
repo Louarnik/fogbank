@@ -198,7 +198,7 @@ texte de filtre.
 1. Un menu de sélection s'ouvre sous le curseur, listant les entités de
    `fogbank.annuaire` dont le nom réel correspond au texte tapé après `&`
    (filtrage insensible à la casse, sous-chaîne).
-2. La sélection d'une entité (clic ou Entrée) remplace `&filtre` par son
+2. La sélection d'une entité (clic, Entrée, Tab ou Espace) remplace `&filtre` par son
    tag `[TYP:CODE]`, inséré via `EditorHandle.replaceRange` (primitive
    `document.execCommand('insertText')`, seule à traverser le modèle
    interne de ProseMirror comme le tracker React d'un `<textarea>` — voir
@@ -215,14 +215,35 @@ texte de filtre.
 4. Le calque de décoration (racine shadow DOM fermée, voir ADR-007) marque
    le tag inséré. Deux mécanismes de lisibilité, l'un base, l'autre
    raffinement :
-   - **Légende sous le champ** (base, R-43) : une ligne par tag
-     actuellement présent dans le champ, au format
-     `[TYP:CODE] → Nom réel`, mise à jour à chaque frappe. Ne dépend
-     d'aucune mesure géométrique — reste lisible même si le calque de
-     soulignement échoue à se positionner.
+   - **Légende** (base, R-43) : une ligne par **entité** actuellement
+     mentionnée dans le champ (dédupliquée — la même personne taguée deux
+     fois n'apparaît qu'une fois), au format `[TYP:CODE] → Nom réel`, mise
+     à jour à chaque frappe. Ne dépend d'aucune mesure géométrique — reste
+     lisible même si le calque de soulignement échoue à se positionner.
+     **Toujours au-dessus du champ**, sans bascule conditionnelle : un
+     composer de site de chat réel est presque systématiquement ancré près
+     du bas du viewport (testé contre `mock-claude-site`), donc « en
+     dessous » ne sert jamais en pratique.
    - **Infobulle au survol du tag** (raffinement) : délai court (~180 ms),
-     affiche le nom réel, le type en clair et l'email le cas échéant (3
-     lignes maximum) ; verre dépoli, thème détecté depuis le site.
+     affiche **uniquement le nom réel** (le type et l'email allongeaient
+     inutilement l'infobulle — le détail complet reste dans la légende) ;
+     verre dépoli, thème détecté depuis le site. Placée sous le tag par
+     défaut, bascule au-dessus si la place manque en bas du viewport.
+     Même bascule pour le menu `&` lui-même (étape 2).
+
+   Confirmation du menu par clavier : Entrée, Tab **ou Espace**, au choix.
+   `capture: true` + `stopPropagation()` sur l'écouteur keydown protègent
+   contre un gestionnaire natif attaché plus haut dans l'arbre (ex. un
+   `<form>` qui soumettrait sur Entrée en phase de bouillonnement) — mais
+   **pas** contre un éditeur comme ProseMirror (Claude.ai), qui attache sa
+   propre écoute `keydown` directement sur le même champ que nous : pour un
+   même élément cible, les écouteurs s'exécutent dans leur ordre d'attache
+   quelle que soit la phase (capture ou non), et celui de ProseMirror, posé
+   au montage de l'éditeur bien avant ce content script, gagne toujours la
+   course sur Entrée (observé sur Claude.ai — Entrée envoie le prompt au
+   lieu de sélectionner). D'où **Espace comme touche de confirmation
+   fiable** : aucun éditeur ne s'en sert pour envoyer, donc pas d'adversaire
+   à cette course.
    - Soulignement bleu sur le tag lui-même : même token visuel que la
      version fail-open précédente (couleur, épaisseur) — c'est la mention
      qui change de support (le tag plutôt que le nom réel), pas le style.

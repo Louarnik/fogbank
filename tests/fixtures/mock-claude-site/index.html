@@ -10,6 +10,9 @@
     margin: 24px auto;
     padding: 0 16px;
     color: #222;
+    /* Laisse la place au composer ancré en bas du viewport (voir
+       .composer-ancre) pour que le reste du contenu ne passe pas dessous. */
+    padding-bottom: 160px;
   }
   h1 { font-size: 20px; }
   .banniere {
@@ -42,6 +45,24 @@
     border-radius: 10px;
     padding: 12px;
     margin: 0 0 24px;
+  }
+  /* Claude.ai (comme la plupart des sites de chat) ancre son composer en
+     bas du viewport plutôt que dans le flux normal de la page — ce qui
+     rapproche systématiquement le curseur du bord bas de la fenêtre.
+     Reproduit ici à dessein : le menu "&" et l'infobulle du calque de
+     décoration doivent basculer au-dessus quand la place manque en bas
+     (voir docs/SPECS.md UC-001, testé contre ce cas précis). */
+  .composer-ancre {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 0;
+    width: 100%;
+    max-width: 820px;
+    box-sizing: border-box;
+    background: #fff;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
+    margin: 0;
   }
   legend { font-size: 13px; color: #666; padding: 0 6px; }
   .ProseMirror {
@@ -137,6 +158,10 @@
   envoyé entre deux blocs de texte de remplissage (Lorem ipsum). Le panneau
   replié "🧪 Contrôles de test" reste disponible pour composer une réponse
   arbitraire (tag inconnu, tag cassé...).
+  <br /><strong>Composer ancré en bas du viewport</strong>, comme sur le
+  vrai Claude.ai : sert à vérifier que le menu "&amp;" et l'infobulle du
+  calque de décoration basculent bien au-dessus du curseur quand la place
+  manque en dessous, plutôt que de partir hors écran.
 </div>
 
 <!-- Decoy volontaire : Claude.ai a plusieurs div.ProseMirror simultanément
@@ -151,7 +176,7 @@
   </div>
 </div>
 
-<fieldset>
+<fieldset class="composer-ancre">
   <legend>Composer</legend>
   <div class="ProseMirror" id="composer-claude" contenteditable="true" translate="no"
        enterkeyhint="enter" aria-label="Write your prompt to Claude">

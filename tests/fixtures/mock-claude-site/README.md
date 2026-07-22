@@ -11,7 +11,11 @@ que le constat décrit pour Claude.ai :
 
 - **Composer** : `div.ProseMirror[contenteditable]` dans un `<fieldset>`,
   bouton d'envoi porteur d'un `aria-label` traduit selon la langue de
-  l'interface.
+  l'interface. **Ancré en bas du viewport** (`position: fixed`), comme sur
+  le vrai Claude.ai — reproduit le cas où le menu `&` et l'infobulle du
+  calque de décoration doivent basculer au-dessus du curseur plutôt que de
+  partir hors écran (bug trouvé en testant contre cette fixture, voir
+  `docs/SPECS.md` UC-001).
 - **Piège volontaire** : un deuxième `div.ProseMirror[contenteditable]`
   hors composer (« Renommer la conversation »), pour vérifier qu'un
   adaptateur qualifie bien le champ via son conteneur plutôt que de prendre
@@ -43,9 +47,11 @@ que le constat décrit pour Claude.ai :
 
 ## Utilisation
 
-Identique à [`mock-ai-site/README.md`](../mock-ai-site/README.md) : ouvrir
-`index.html` en `file://`, autoriser l'accès aux URL de fichiers pour
-l'extension, puis ajouter la page à la whitelist une fois M-01 implémenté.
+Identique à [`mock-ai-site/README.md`](../mock-ai-site/README.md) : charger
+l'extension "unpacked", autoriser l'accès aux URL de fichiers, ouvrir
+`index.html` en `file://`. La whitelist de cette fixture (`site-local-test-claude`)
+est déjà pré-chargée par `background.js` au premier démarrage — pas d'étape
+manuelle.
 
 ## Fiabilité
 

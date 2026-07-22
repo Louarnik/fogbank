@@ -41,14 +41,16 @@ Pour chaque scénario :
 
 ## Utilisation
 
-1. Ouvrir `index.html` directement dans Chrome (double-clic, ou
+1. Charger l'extension "unpacked" (`src/`) depuis `chrome://extensions` —
+   `background.js` pré-charge automatiquement l'annuaire de test et la
+   whitelist des trois fixtures locales au premier démarrage (voir
+   [annuaire-exemple.README.md](../annuaire-exemple.README.md), section
+   « Chargement automatique »). Pas d'étape manuelle supplémentaire.
+2. Sur la carte de l'extension **fogbank**, cliquer sur **Détails** puis
+   activer **Autoriser l'accès aux URL de fichiers** (nécessaire pour
+   qu'un content script s'exécute sur une page `file://`).
+3. Ouvrir `index.html` directement dans Chrome (double-clic, ou
    `file:///.../tests/fixtures/mock-ai-site/index.html`).
-2. Dans `chrome://extensions`, sur la carte de l'extension **fogbank**,
-   cliquer sur **Détails** puis activer **Autoriser l'accès aux URL de
-   fichiers** (nécessaire pour qu'un content script s'exécute sur une page
-   `file://`).
-3. Une fois M-01 implémenté, ajouter cette page à la liste des sites
-   autorisés (whitelist) pour que l'extension s'y active.
 
 ## Pourquoi cette fixture reste "bête"
 

@@ -9,7 +9,7 @@
   "fogbank.sites": [
     {
       "id": "site-chatgpt",
-      "domaine": "chat.openai.com",
+      "domaine": "chatgpt.com",
       "preActive": true,
       "actif": true,
       "dureeViePseudonyme": "1a",
@@ -30,6 +30,22 @@
       "actif": true,
       "dureeViePseudonyme": "1s",
       "formatPseudonyme": "opaque"
+    },
+    {
+      "id": "site-local-test-claude",
+      "domaine": "file://tests/fixtures/mock-claude-site/",
+      "preActive": false,
+      "actif": true,
+      "dureeViePseudonyme": "infini",
+      "formatPseudonyme": "etendu"
+    },
+    {
+      "id": "site-local-test-copilot",
+      "domaine": "file://tests/fixtures/mock-copilot-site/",
+      "preActive": false,
+      "actif": true,
+      "dureeViePseudonyme": "1a",
+      "formatPseudonyme": "court"
     }
   ],
 

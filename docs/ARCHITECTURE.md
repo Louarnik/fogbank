@@ -133,7 +133,7 @@ de stockage. Trois clés racine :
 // fogbank.sites[]
 {
   id: string,
-  domaine: string,                         // ex: "chat.openai.com"
+  domaine: string,                         // ex: "chatgpt.com"
   preActive: boolean,                      // true pour les grands sites IA (ADR-004)
   actif: boolean,
   dureeViePseudonyme: "1s" | "1t" | "1a" | "infini",  // M-08
