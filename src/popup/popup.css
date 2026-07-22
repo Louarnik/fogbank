@@ -13,3 +13,13 @@ h1 {
   font-size: 13px;
   color: #444;
 }
+
+#bouton-annuaire {
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}

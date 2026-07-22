@@ -3,4 +3,8 @@
 document.addEventListener('DOMContentLoaded', () => {
   const status = document.getElementById('status');
   status.textContent = 'fogbank prêt.';
+
+  document.getElementById('bouton-annuaire').addEventListener('click', () => {
+    chrome.runtime.openOptionsPage();
+  });
 });

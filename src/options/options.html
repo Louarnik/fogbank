@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>fogbank — Annuaire</title>
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <header>
+    <h1>fogbank — Annuaire</h1>
+    <p class="sous-titre">
+      Entités reconnues par le déclencheur de mention (M-03/M-04). Les alias
+      par site sont générés automatiquement à l'usage (M-08/M-10) — non
+      modifiables ici, affichés à titre indicatif.
+    </p>
+  </header>
+
+  <main>
+    <div class="barre-outils">
+      <input id="filtre" type="search" placeholder="Filtrer par nom…" autocomplete="off" />
+      <button id="bouton-ajouter" class="bouton-primaire" type="button">+ Ajouter une entité</button>
+    </div>
+
+    <table id="tableau-annuaire">
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Nom réel</th>
+          <th>Email</th>
+          <th>Créée le</th>
+          <th>Alias par site</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="corps-tableau"></tbody>
+    </table>
+
+    <p id="etat-vide" hidden>Aucune entité ne correspond.</p>
+  </main>
+
+  <!-- Formulaire création/édition, superposé en dialogue modal -->
+  <dialog id="dialogue-formulaire">
+    <form id="formulaire-entite" method="dialog">
+      <h2 id="titre-formulaire">Ajouter une entité</h2>
+
+      <label>
+        Type
+        <select id="champ-type" required>
+          <option value="PER">Personne (PER)</option>
+          <option value="ORG">Organisation (ORG)</option>
+          <option value="LOC">Lieu (LOC)</option>
+          <option value="PRJ">Projet (PRJ)</option>
+          <option value="MISC">Divers (MISC)</option>
+        </select>
+      </label>
+
+      <label>
+        Nom réel
+        <input id="champ-nom" type="text" required maxlength="200" autocomplete="off" />
+      </label>
+
+      <label>
+        Email (optionnel)
+        <input id="champ-email" type="email" maxlength="200" autocomplete="off" />
+      </label>
+
+      <p id="erreur-formulaire" class="erreur" hidden></p>
+
+      <div class="actions-formulaire">
+        <button id="bouton-annuler" type="button" class="bouton-secondaire">Annuler</button>
+        <button id="bouton-enregistrer" type="submit" class="bouton-primaire">Enregistrer</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="options.js"></script>
+</body>
+</html>
