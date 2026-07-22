@@ -20,6 +20,8 @@
       "matches": ["<all_urls>", "file:///*"],
       "js": [
         "content/site-adapters/generic.js",
+        "content/site-adapters/chatgpt.js",
+        "content/site-adapters/claude.js",
         "content/pseudonyme.js",
         "content/editor-handle/textarea-handle.js",
         "content/editor-handle/contenteditable-handle.js",

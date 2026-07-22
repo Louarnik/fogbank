@@ -34,7 +34,15 @@
     return;
   }
 
-  const adaptateur = window.fogbankGenericAdapter;
+  // Adaptateurs dédiés d'abord (sélecteurs exacts, voir docs/recherche/) —
+  // le repli générique matches() toujours vrai sert de dernier recours pour
+  // tout site sans adaptateur dédié.
+  const ADAPTATEURS = [
+    window.fogbankChatgptAdapter,
+    window.fogbankClaudeAdapter,
+    window.fogbankGenericAdapter,
+  ].filter(Boolean);
+  const adaptateur = ADAPTATEURS.find((a) => a.matches()) || window.fogbankGenericAdapter;
 
   function aujourdHuiISO() {
     return new Date().toISOString().slice(0, 10);
@@ -103,28 +111,91 @@
       : window.fogbankContentEditableHandle.creer(champ);
   }
 
-  const champs = adaptateur.getInputFields ? adaptateur.getInputFields() : [];
+  // Résilience (SPA) : un composer React (ChatGPT, Claude.ai...) peut se
+  // monter après ce premier passage — ce content script ne s'exécute
+  // qu'une fois, à document_idle — et une zone de réponse peut elle-même
+  // ne pas encore exister (nouvelle conversation sans aucun tour envoyé).
+  // Sans repasser périodiquement sur getInputFields()/getResponseContainer,
+  // ces cas ne seraient jamais câblés du tout. `champsTraites` /
+  // `champsAvecReception` évitent tout double câblage à chaque repassage.
+  const champsTraites = new WeakSet();
+  const champsAvecReception = new WeakSet();
+  // Dédoublonnage par conteneur (pas seulement par champ) : plusieurs champs
+  // détectés peuvent résoudre à la même zone de réponse (ex. la fixture
+  // mock-claude-site, qui a un second contenteditable — renommage de
+  // conversation — dont l'ancêtre climbing de generic.js aboutit au même
+  // conteneur que le vrai composer). Sans ce dédoublonnage, un même
+  // conteneur recevrait un MutationObserver par champ, chacun retraitant le
+  // même contenu.
+  const conteneursAvecReception = new WeakSet();
 
-  champs.forEach((champ) => {
-    const handle = creerHandle(champ);
+  // Isolation : un champ en échec (sélecteur inattendu, EditorHandle qui
+  // lève...) ne doit pas empêcher le câblage des autres champs détectés
+  // dans la même passe.
+  function attacherChamp(champ) {
+    try {
+      const handle = creerHandle(champ);
 
-    window.fogbankMentionMenu.attacher(champ, handle, {
-      caractereDeclencheur: config.caractereDeclencheur || '&',
-      rechercherEntites,
-      obtenirOuCreerAlias,
-      creerRegexTag: window.fogbankPseudonyme.creerRegexTag,
-    });
+      window.fogbankMentionMenu.attacher(champ, handle, {
+        caractereDeclencheur: config.caractereDeclencheur || '&',
+        rechercherEntites,
+        obtenirOuCreerAlias,
+        creerRegexTag: window.fogbankPseudonyme.creerRegexTag,
+      });
 
-    window.fogbankDisplay.attacher(champ, handle, { resoudre });
-
-    // UC-002 : restauration à la réception (M-07), une zone de réponse par
-    // champ détecté (voir generic.js — utile notamment pour la fixture qui
-    // présente deux scénarios de saisie indépendants sur la même page).
-    const zoneReponse = adaptateur.getResponseContainer
-      ? adaptateur.getResponseContainer(champ)
-      : null;
-    if (zoneReponse) {
-      window.fogbankReception.observer(zoneReponse, adaptateur, resoudre);
+      window.fogbankDisplay.attacher(champ, handle, { resoudre });
+    } catch (err) {
+      console.error('[fogbank] échec du câblage d’un champ, les autres champs ne sont pas affectés :', err);
     }
+  }
+
+  function attacherReception(champ) {
+    try {
+      // UC-002 : restauration à la réception (M-07), une zone de réponse
+      // par champ détecté (utile notamment pour la fixture qui présente
+      // deux scénarios de saisie indépendants sur la même page).
+      const zoneReponse = adaptateur.getResponseContainer
+        ? adaptateur.getResponseContainer(champ)
+        : null;
+      if (zoneReponse) {
+        champsAvecReception.add(champ);
+        if (!conteneursAvecReception.has(zoneReponse)) {
+          conteneursAvecReception.add(zoneReponse);
+          window.fogbankReception.observer(zoneReponse, adaptateur, resoudre);
+        }
+      }
+    } catch (err) {
+      console.error('[fogbank] échec du câblage de la réception pour un champ :', err);
+    }
+  }
+
+  function traiterChamps() {
+    const champs = adaptateur.getInputFields ? adaptateur.getInputFields() : [];
+    champs.forEach((champ) => {
+      if (!champsTraites.has(champ)) {
+        champsTraites.add(champ);
+        attacherChamp(champ);
+      }
+      if (!champsAvecReception.has(champ)) {
+        attacherReception(champ);
+      }
+    });
+  }
+
+  traiterChamps();
+
+  // Repassage à chaque rafale de mutations du document (composer monté
+  // tardivement, premier message envoyé qui fait apparaître la zone de
+  // réponse...) — coalescé pour ne pas repasser sur getInputFields() à
+  // chaque nœud individuel pendant un streaming de réponse.
+  let repassagePlanifie = false;
+  const observateurDom = new MutationObserver(() => {
+    if (repassagePlanifie) return;
+    repassagePlanifie = true;
+    setTimeout(() => {
+      repassagePlanifie = false;
+      traiterChamps();
+    }, 200);
   });
+  observateurDom.observe(document.body, { childList: true, subtree: true });
 })();

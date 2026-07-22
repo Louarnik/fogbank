@@ -52,10 +52,10 @@ src/
 │   ├── pseudonyme.js         # génération/résolution de code + regex de tag partagée (M-10)
 │   ├── reception.js          # restauration à la réception (M-07)
 │   └── site-adapters/        # un adaptateur par site IA (sélecteurs DOM spécifiques)
-│       ├── chatgpt.js        # PRÉVU, pas encore implémenté — voir « Travail restant »
-│       ├── claude.js         # PRÉVU, pas encore implémenté
-│       ├── copilot.js        # PRÉVU, pas encore implémenté
-│       └── generic.js        # repli pour un site ajouté manuellement (seul adaptateur existant)
+│       ├── chatgpt.js        # sélecteurs exacts (#prompt-textarea, #thread...)
+│       ├── claude.js         # sélecteurs exacts (div.ProseMirror, .group/conversation-turn...)
+│       ├── copilot.js        # PRÉVU, pas encore implémenté — voir « Travail restant »
+│       └── generic.js        # repli heuristique pour tout site sans adaptateur dédié
 ├── options/                  # NOUVEAU — page de configuration complète
 │   ├── options.html
 │   ├── options.js
@@ -106,7 +106,8 @@ représenté par un adaptateur avec une interface commune :
 // }
 ```
 
-`generic.js` (seul adaptateur existant à ce jour, voir « Travail restant »)
+`generic.js` (repli par défaut pour tout site sans adaptateur dédié — voir
+« Travail restant » pour `chatgpt.js`/`claude.js`, déjà écrits)
 fournit une implémentation par défaut basée sur des heuristiques : tout
 `<textarea>`/`contenteditable` de la page qui n'est pas caché dans un
 `<details>` replié, un bouton d'envoi trouvé en cherchant le premier bouton
@@ -323,37 +324,50 @@ d'un content script.)
 
 ## Travail restant : adaptateurs de site dédiés
 
-`generic.js` est aujourd'hui le **seul** adaptateur : ChatGPT, Claude.ai et
-Copilot tournent tous dessus, avec les limites que ça implique (repli par
-heuristiques DOM plutôt que sélecteurs exacts, pas de qualification par
-conteneur — voir le décoy de `mock-claude-site`). Écrire `chatgpt.js`,
-`claude.js` et `copilot.js` reste à faire. Ce que chacun apporterait par
-rapport au repli générique, contrat déjà en place (`getInputFields`,
-`getSendTrigger`, `getResponseContainer`, `isStreaming`, `onStreamingEnd`) :
+`chatgpt.js` et `claude.js` sont écrits (sélecteurs exacts relevés dans
+`docs/recherche/constat-chatgpt.md`/`constat-claude.md`, **non vérifiés en
+direct** — à reconfirmer avec la sonde §8 de chaque document si le
+comportement dévie). `content.js` choisit l'adaptateur par
+`ADAPTATEURS.find((a) => a.matches())`, `generic.js` restant le dernier
+recours (`matches()` toujours vrai) pour tout site sans adaptateur dédié —
+dont `copilot.js`, qui reste à écrire.
+
+Ce que `chatgpt.js`/`claude.js` apportent par rapport au repli générique,
+même contrat (`getInputFields`, `getResponseContainer`, `isStreaming`,
+`onStreamingEnd`) :
 
 - **Sélecteurs exacts** au lieu d'heuristiques : `getInputFields` retourne
-  un seul champ ciblé par `id`/`data-testid` plutôt que tout
-  `[contenteditable]`/`textarea` de la page (voir
-  `docs/recherche/constat-*.md` pour les sélecteurs relevés par site).
-- **Qualification du champ par son conteneur** (`form:has(#prompt-textarea)`
-  sur ChatGPT, par ex.) — nécessaire sur Claude.ai où plusieurs éditeurs
-  ProseMirror coexistent (composer, renommage, édition d'un message).
-- **Signal `isStreaming`/`onStreamingEnd` dédié** plutôt que l'heuristique
-  d'inactivité générique : ex. présence de `[data-testid="stop-button"]`
-  sur ChatGPT, attribut `data-is-streaming` sur Claude.ai — plus précis et
-  plus rapide, mais toujours du DOM, pas de hook réseau (voir ADR-007).
-- **`copilot.js`** reste sur `<textarea>` natif, sans signal de fin de
+  un seul champ ciblé par `id`/classe stable (`#prompt-textarea`,
+  `div.ProseMirror[contenteditable]`) plutôt que tout
+  `[contenteditable]`/`textarea` de la page.
+- **Zone de réponse directement ciblée** (`#thread` sur ChatGPT ; ancêtre
+  commun des `.group/conversation-turn` sur Claude.ai) plutôt que déduite
+  par proximité du bouton d'envoi — c'était la cause du bug « le texte
+  reste en fog » : le climbing du repli générique pouvait aboutir à un
+  élément qui ne recevait jamais la vraie réponse dès que le composer réel
+  contenait plusieurs boutons avant celui d'envoi.
+- **Signal `isStreaming`/`onStreamingEnd` dédié** plutôt que la seule
+  inactivité du `MutationObserver` : présence de
+  `[data-testid="stop-button"]` sur ChatGPT, attribut `data-is-streaming`
+  sur Claude.ai (ce dernier non confirmé — dégrade vers l'inactivité seule
+  si l'attribut est absent).
+- **`copilot.js`** resterait sur `<textarea>` natif, sans signal de fin de
   streaming propre au site (voir `constat-copilot.md` §4.3) — l'apport
   serait surtout des sélecteurs exacts, pas un meilleur signal.
 
-Aucun de ces trois adaptateurs n'ajoute `transport`/`matchRecv` ni de champ
+`content.js` compense aussi le montage tardif d'un composer SPA (React ne
+l'a peut-être pas encore monté à `document_idle`) et l'absence initiale
+d'une zone de réponse (nouvelle conversation sans aucun tour envoyé) : un
+`MutationObserver` sur `document.body` redéclenche `getInputFields()`/
+`getResponseContainer()` à chaque rafale de mutations (coalescé, ~200 ms),
+`WeakSet` par champ et par conteneur pour ne jamais câbler deux fois.
+
+Aucun de ces adaptateurs n'ajoute `transport`/`matchRecv` ni de champ
 réseau : ADR-007 a écarté le hook réseau entier pour M-07 (voir
 Conséquences), et il n'a jamais été retenu pour M-06 (fail-closed dès
 l'insertion). `tests/fixtures/mock-claude-site/` et `mock-copilot-site/`
-existent déjà pour développer ces deux adaptateurs sans dépendre des vrais
-sites — voir `docs/recherche/reco.md` §J pour l'ordre d'implémentation
-suggéré à l'origine (désormais partiellement caduc : EditorHandle, couche
-d'affichage et mécanisme de réception sont déjà faits).
+restent utiles pour `copilot.js` et pour les régressions génériques sans
+dépendre des vrais sites.
 
 ## Statut
 
