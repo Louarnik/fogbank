@@ -5,6 +5,16 @@ macro-UC de [SPECS.md](SPECS.md). Les décisions structurantes avec
 alternatives sont détaillées dans les ADR (`docs/adr/`) ; ce document en
 donne la vue d'ensemble assemblée.
 
+> **⚠ À refondre ([ADR-007](adr/0007-fail-closed.md))** : ce document décrit
+> encore, pour l'essentiel, l'architecture fail-open telle qu'implémentée
+> pour UC-001/UC-002 (substitution du vrai nom par le tag juste avant
+> l'envoi, restauration par `MutationObserver` générique). ADR-007 redéfinit
+> la cible en mode fail-closed — voir la section « Cible fail-closed
+> (ADR-007) » ci-dessous et le détail technique dans
+> [docs/recherche/reco.md](recherche/reco.md) (R-01 à R-63). Le reste du
+> document (jusqu'à cette section) reste la description de l'état actuel du
+> code, à faire évoluer en même temps que UC-001/UC-002.
+
 ## Principes directeurs
 
 - **Tout local** : aucun backend applicatif, aucun appel réseau sortant
@@ -19,6 +29,11 @@ donne la vue d'ensemble assemblée.
   (voir [private/README.md](../private/README.md)) et n'a aucun rapport
   avec le stockage runtime de l'extension chez l'utilisateur final (qui vit
   dans `chrome.storage.local`, propre à chaque installation).
+- **Fail-closed ([ADR-007](adr/0007-fail-closed.md))** : le tag `[TYP:CODE]`
+  est la source de vérité dans l'éditeur, jamais le vrai nom. Aucune
+  réécriture du champ n'a lieu à l'envoi ; le vrai nom n'est que décoré à
+  l'affichage, dans une couche cloisonnée (shadow root fermé) qui ne dépose
+  rien dans le DOM du site.
 
 ## Composants de l'extension (Manifest V3)
 
@@ -237,8 +252,9 @@ partir de l'entité et du site courant :
 {
   "permissions": ["storage", "unlimitedStorage"],
   "host_permissions": [
-    "*://chat.openai.com/*",
-    "*://claude.ai/*"
+    "*://chatgpt.com/*",
+    "*://claude.ai/*",
+    "*://copilot.microsoft.com/*"
   ],
   "optional_host_permissions": ["*://*/*"]
 }
@@ -247,23 +263,146 @@ partir de l'entité et du site courant :
 (Pas de permission `alarms` : la rotation des pseudonymes est paresseuse,
 déclenchée à l'usage plutôt que par une tâche périodique — voir M-08.)
 
-(Liste des grands sites IA pré-activés à affiner avant implémentation —
-domaines exacts à vérifier au moment du code, voir ADR-004.)
+(Domaines mis à jour suite au relevé factuel — voir
+[docs/recherche/](recherche/) : `chat.openai.com` redirige vers
+`chatgpt.com` mais n'a jamais été le domaine effectif ; `copilot.microsoft.com`
+ajouté suite à [ADR-007](adr/0007-fail-closed.md) (Copilot grand public
+maintenu au périmètre). Domaines exacts à revérifier au moment du code via
+les sondes de `docs/recherche/constat-*.md`.)
 
-## Correspondance macro-UC → composants (synthèse)
+(Cible ADR-007, R-03 : sites ajoutés manuellement restent en
+`optional_host_permissions`, demandés via `chrome.permissions.request()`
+depuis un geste utilisateur dans la page d'options, puis enregistrés via
+`chrome.scripting.registerContentScripts({ …, world: 'MAIN' })` depuis le
+service worker pour les hooks réseau de M-07 — voir section suivante.)
+
+## Correspondance macro-UC → composants (synthèse, état actuel fail-open)
 
 | Macro-UC | Composant(s) principal(aux) |
 |----------|------------------------------|
 | M-01 | `options/`, `background.js` (permissions à la demande) |
 | M-02 | `options/` |
 | M-03, M-04, M-05, M-11 | `content/mention-menu.js` |
-| M-06, M-07 | `content/content.js` + `site-adapters/` |
+| M-06, M-07 | `content/content.js` + `content/reception.js` + `site-adapters/` |
 | M-08 | `content/content.js`, inline lors de la substitution à l'envoi (rotation paresseuse, pas de composant dédié) |
 | M-09 | `fogbank.annuaire[].aliasParSite[].historique`, affiché via `options/` |
-| M-10 | logique partagée (module de génération de pseudonyme, utilisé par `mention-menu.js` et `options/`) |
+| M-10 | logique partagée (`content/pseudonyme.js`, utilisé par `mention-menu.js`, `reception.js` et `options/`) |
 | M-12 | `options/` |
 | M-13 | `options/` + `vendor/xlsx.full.min.js` |
 
+Cette table reflète le code tel qu'implémenté pour UC-001/UC-002 (fail-open).
+Voir la section suivante pour ce qui change avec ADR-007.
+
+## Cible fail-closed (ADR-007)
+
+Détail technique complet dans [docs/recherche/reco.md](recherche/reco.md)
+(R-01 à R-63, §J pour l'ordre d'implémentation recommandé). Résumé de ce qui change dans
+l'arborescence et les flux :
+
+```
+src/content/
+├── editor-handle/              # NOUVEAU — façade de saisie (R-08 → R-18)
+│   ├── textarea-handle.js      #   <textarea> et <input> ; mesure par miroir (R-19 → R-24)
+│   └── contenteditable-handle.js  # Range natif, pas de miroir nécessaire
+├── display/                    # NOUVEAU — calque de décoration (R-25 → R-46)
+│   └── ...                     #   racine shadow DOM fermée, calque, infobulle, légende
+├── site-adapters/
+│   ├── chatgpt.js               # NOUVEAU — remplace le repli generic.js sur ce site
+│   ├── claude.js                 # NOUVEAU
+│   ├── copilot.js                # NOUVEAU — périmètre étendu par ADR-007
+│   └── generic.js               # repli DOM seul ; UI doit annoncer l'absence de garantie de restauration (R-07)
+├── mention-menu.js              # M-03/M-04 : insère le tag via EditorHandle.replaceRange, plus le vrai nom
+├── pseudonyme.js                # inchangé (génération + résolution de code)
+├── reception.js                 # M-07 : bascule vers un hook réseau (ChatGPT/Claude) + repli MutationObserver (Copilot)
+└── content.js                   # orchestration ; perd la substitution à l'envoi, gagne le garde-fou (M-06)
+```
+
+**Contrat d'adaptateur cible** (remplace `getInputField`/`getSendTrigger`/
+`isStreaming(container)`/`onStreamingEnd(container, cb)` actuels — voir R-04
+à R-07) :
+
+```js
+export const chatgpt = {
+  id: 'chatgpt',
+  matches: (url) => /^https:\/\/chatgpt\.com\//.test(url),
+
+  // --- saisie
+  inputKind: 'contenteditable',              // 'textarea' | 'contenteditable' — déclaré, jamais deviné (R-05)
+  getComposer:   () => document.querySelector('form:has(#prompt-textarea)'),
+  getInputField: () => document.querySelector('#prompt-textarea'),
+  getSendTrigger:() => document.querySelector('#composer-submit-button'),
+
+  // --- réponse (affichage, pour le calque de décoration)
+  getResponseContainer: () => document.querySelector('#thread'),
+  getMessageNodes: (r) => r.querySelectorAll('[data-message-author-role]'),
+  isStreaming: () => !!document.querySelector('[data-testid="stop-button"]'),
+
+  // --- réception réseau (M-07 uniquement, absent sur l'adaptateur Copilot
+  // qui reste sur le repli MutationObserver, R-58)
+  transport: 'fetch',                        // 'fetch' | 'websocket' | null
+  matchRecv: (url) => /\/backend-api\/(f\/)?conversation/.test(url),
+};
+```
+
+`generic.js` perd toute prétention à la restauration réseau : il reste un
+repli DOM pur (`getResponseContainer` + `MutationObserver` par inactivité,
+déjà implémenté), avec `transport: null`. L'UI doit annoncer explicitement,
+pour un site ajouté manuellement, que fogbank n'y garantit pas la
+restauration (R-07).
+
+**Façade `EditorHandle`** (R-08 à R-18) : plus aucun code fogbank ne touche
+l'élément de saisie brut. Deux implémentations (`TextareaHandle`,
+`ContentEditableHandle`), une primitive d'écriture unique
+(`document.execCommand('insertText')`, avec repli setter-de-prototype sur
+`<textarea>` pour rester visible du tracker React — R-10/R-11), gestion de
+l'IME (R-13), re-résolution du champ au changement de route SPA (R-16).
+
+**Couche d'affichage** (R-25 à R-46) : une racine shadow DOM **fermée**,
+accrochée à `document.documentElement`, hôte anodin (pas d'`id`/`class`
+identifiable, R-27), sans ressource externe (R-28), stylée par
+`adoptedStyleSheets` (R-29). Elle porte le miroir de mesure (`<textarea>`
+seulement), le calque de soulignement (peinture seule — `background`,
+`box-shadow`, jamais de propriété qui décale les glyphes, R-32/R-33),
+l'infobulle (verre dépoli, thème du site détecté par luminance de fond,
+R-34/R-35) et la légende sous le champ (base non dépendante de la mesure
+géométrique, à livrer avant le calque si un choix doit être fait — R-43).
+
+**Flux Envoi (cible)** — remplace M-06 « pseudonymisation à l'envoi » :
+1. M-04 insère le tag `[TYP:CODE]` via `EditorHandle.replaceRange`, jamais
+   le vrai nom.
+2. En continu (sur `input`, pas seulement à l'envoi), détection d'un vrai
+   nom déclaré resté en clair dans le champ (R-50) : souligné en
+   avertissement, bouton « convertir » proposé (R-51) — jamais de
+   substitution silencieuse.
+3. À l'envoi (`Enter` ou clic), le garde-fou bloque la soumission si un vrai
+   nom connu ou un tag cassé (`[PER:PDT` non refermé, code inconnu de
+   l'annuaire) subsiste, et affiche la raison (R-48/R-52). C'est le seul
+   endroit où fogbank annule un événement.
+
+**Flux Réception (cible)** — M-07, mécanisme redéfini par site :
+1. **ChatGPT et Claude.ai** : hook réseau entrant en monde `MAIN`
+   (`fetch`/SSE), `TransformStream` avec report du texte à cheval sur deux
+   chunks (R-55), échappement JSON du nom réel substitué (R-56), couverture
+   du rechargement d'historique (R-57). Le monde `MAIN` ne transporte que du
+   texte à résoudre via `postMessage` vers le monde `ISOLATED` qui seul
+   détient l'annuaire (R-01) — jamais l'inverse.
+2. **Copilot** : repli `MutationObserver` assumé (R-58), sensiblement ce
+   qu'implémente déjà `content/reception.js` pour UC-002 — acceptable ici
+   car une restauration ratée en réception n'est pas une fuite (au pire un
+   pseudonyme reste affiché tel quel), contrairement à l'envoi.
+3. Dans les deux cas : idempotence (ne jamais restaurer deux fois, ni le
+   texte en cours de frappe de l'utilisateur, R-60) et jamais de mutation de
+   structure DOM dans un sous-arbre React — remplacer le contenu d'un nœud
+   texte, jamais ajouter/retirer d'enfants (R-59).
+
+**Fixtures** : `tests/fixtures/mock-ai-site/` garde ses deux scénarios
+(`<textarea>` / `contenteditable`, R-63) pour exercer les deux
+`EditorHandle` indépendamment des trois sites réels.
+
 ## Statut
 
-Brouillon à valider avant de passer au développement UC par UC.
+Brouillon à valider avant de passer au développement UC par UC. La section
+« Cible fail-closed (ADR-007) » ci-dessus est la direction retenue ; le
+reste du document décrit encore le code fail-open actuellement implémenté
+(UC-001/UC-002), à faire converger vers cette cible — voir
+`docs/recherche/reco.md` §J pour l'ordre proposé.

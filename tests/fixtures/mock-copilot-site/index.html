@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<title>Copilot factice — fixture de test fogbank</title>
+<style>
+  body {
+    font-family: system-ui, sans-serif;
+    max-width: 820px;
+    margin: 24px auto;
+    padding: 0 16px;
+    color: #222;
+  }
+  h1 { font-size: 20px; }
+  .banniere {
+    background: #fff3cd;
+    border: 1px solid #ffe58f;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 24px;
+  }
+  .banniere code { font-size: 12px; }
+  .champ-saisie {
+    width: 100%;
+    min-height: 60px;
+    box-sizing: border-box;
+    border: 1px solid #bbb;
+    border-radius: 6px;
+    padding: 8px;
+    font-size: 14px;
+    margin-bottom: 8px;
+  }
+  .barre-composer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  button {
+    cursor: pointer;
+    border: 1px solid #444;
+    background: #222;
+    color: #fff;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  button.secondaire {
+    background: #fff;
+    color: #222;
+  }
+  .zone-reponse {
+    margin-top: 16px;
+    border-top: 1px dashed #ccc;
+    padding-top: 12px;
+  }
+  [data-content="ai-message"] {
+    background: #f2f2f2;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+  .group\/ai-message-item { white-space: pre-wrap; }
+  .typing-indicator {
+    display: inline-block;
+    font-size: 13px;
+    color: #888;
+    font-style: italic;
+    margin-bottom: 8px;
+  }
+  .payload-log {
+    background: #0d1117;
+    color: #c9d1d9;
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    padding: 10px;
+    border-radius: 6px;
+    max-height: 160px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+  }
+  .harnais {
+    margin-top: 12px;
+    padding: 10px;
+    background: #eef6ff;
+    border: 1px dashed #8fbcf4;
+    border-radius: 6px;
+  }
+  .harnais summary { cursor: pointer; font-size: 13px; font-weight: 600; }
+  .harnais textarea {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 50px;
+    font-size: 13px;
+    margin: 8px 0;
+  }
+  label { font-size: 12px; color: #555; display: block; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<h1>Copilot factice — fixture de test fogbank</h1>
+<div class="banniere">
+  Reproduit la structure DOM relevée dans
+  <code>docs/recherche/constat-copilot.md</code> (Copilot grand public,
+  <code>copilot.microsoft.com</code> : composer <code>&lt;textarea&gt;</code>
+  natif, réponse <code>div[data-content="ai-message"]</code>). N'envoie rien
+  à un vrai serveur. **Aucun signal de fin de streaming n'est simulé** :
+  le vrai site n'en expose pas non plus (constat, §4.3) — la détection s'y
+  fait uniquement par stabilité du texte (~2,5 s sans mutation), exactement
+  ce que le repli `MutationObserver` générique de fogbank doit couvrir.
+  Sélecteurs non revérifiés en direct (voir le constat, §8 pour la sonde de
+  validation à rejouer avant implémentation).
+</div>
+
+<label for="composer-copilot">Champ de saisie du prompt</label>
+<textarea id="composer-copilot" class="champ-saisie" placeholder="Ask me anything..."></textarea>
+<div class="barre-composer">
+  <button class="secondaire" data-role="basculer-langue" type="button">FR / EN (placeholder)</button>
+  <button data-role="envoyer" type="submit">Envoyer</button>
+</div>
+
+<div class="zone-reponse">
+  <strong>Réponse</strong>
+  <div id="fil" data-role="fil"></div>
+</div>
+
+<div>
+  <strong>Payload envoyé au "serveur"</strong>
+  <div id="payload" class="payload-log">(rien envoyé pour l'instant)</div>
+</div>
+
+<details class="harnais">
+  <summary>🧪 Contrôles de test (harnais, pas partie du site factice)</summary>
+  <label for="reponse-simulee">Réponse IA à simuler (peut contenir un tag [TYP:CODE], ex: [PER:PDT])</label>
+  <textarea id="reponse-simulee" placeholder="Bonjour [PER:PDT], voici le rapport demandé."></textarea>
+  <button class="secondaire" data-role="simuler-reponse" type="button">Simuler la réception de cette réponse</button>
+  <button class="secondaire" data-role="simuler-streaming" type="button">Simuler une réponse progressive (streaming, sans signal de fin)</button>
+</details>
+
+<script>
+  // Fixture volontairement "bête" : ne connaît rien de fogbank. Simule le
+  // comportement du vrai site aux yeux d'un content script : lecture du
+  // champ au clic sur "Envoyer", affichage de ce qui aurait été transmis,
+  // message assistant ajouté au même format que le vrai DOM.
+
+  const composer = document.getElementById('composer-copilot');
+  const boutonEnvoyer = document.querySelector('[data-role="envoyer"]');
+  const fil = document.getElementById('fil');
+  const payload = document.getElementById('payload');
+
+  function horodatage() {
+    return new Date().toLocaleTimeString('fr-FR');
+  }
+
+  boutonEnvoyer.addEventListener('click', () => {
+    const contenu = composer.value;
+    const ligne = `[${horodatage()}] ${contenu || '(champ vide)'}\n`;
+    payload.textContent = payload.textContent.startsWith('(rien')
+      ? ligne
+      : payload.textContent + ligne;
+  });
+
+  // Bascule placeholder FR/EN : constat-copilot.md §2.2 relève que le
+  // placeholder est traduit — un sélecteur `[placeholder*="Ask" i]` ne
+  // matche plus en UI française.
+  let langueAnglaise = true;
+  document.querySelector('[data-role="basculer-langue"]').addEventListener('click', () => {
+    langueAnglaise = !langueAnglaise;
+    composer.placeholder = langueAnglaise ? 'Ask me anything...' : 'Posez-moi une question...';
+  });
+
+  function ajouterMessageAssistant() {
+    const message = document.createElement('div');
+    message.dataset.content = 'ai-message';
+    message.dataset.messageAuthor = 'bot';
+    const corps = document.createElement('div');
+    corps.className = 'group/ai-message-item';
+    message.appendChild(corps);
+    fil.appendChild(message);
+    return corps;
+  }
+
+  document.querySelector('[data-role="simuler-reponse"]').addEventListener('click', () => {
+    const texte = document.getElementById('reponse-simulee').value;
+    if (!texte) return;
+    const corps = ajouterMessageAssistant();
+    corps.textContent = texte;
+  });
+
+  // Pas d'attribut ni d'événement de fin de streaming exposé ici, à
+  // dessein (voir bannière) : seule la stabilité du texte permet de
+  // détecter la fin, comme sur le vrai Copilot.
+  const TAILLE_CHUNK = 3;
+  const DELAI_CHUNK_MS = 60;
+
+  document.querySelector('[data-role="simuler-streaming"]').addEventListener('click', () => {
+    const texte = document.getElementById('reponse-simulee').value;
+    if (!texte) return;
+    const corps = ajouterMessageAssistant();
+    const indicateur = document.createElement('span');
+    indicateur.className = 'typing-indicator';
+    indicateur.textContent = '● en train d\'écrire…';
+    corps.parentNode.insertBefore(indicateur, corps);
+
+    let position = 0;
+    const intervalle = setInterval(() => {
+      position += TAILLE_CHUNK;
+      corps.textContent = texte.slice(0, position);
+      if (position >= texte.length) {
+        clearInterval(intervalle);
+        indicateur.remove();
+      }
+    }, DELAI_CHUNK_MS);
+  });
+</script>
+
+</body>
+</html>

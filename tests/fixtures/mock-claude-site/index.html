@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<title>Claude.ai factice — fixture de test fogbank</title>
+<style>
+  body {
+    font-family: system-ui, sans-serif;
+    max-width: 820px;
+    margin: 24px auto;
+    padding: 0 16px;
+    color: #222;
+  }
+  h1 { font-size: 20px; }
+  .banniere {
+    background: #fff3cd;
+    border: 1px solid #ffe58f;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-bottom: 24px;
+  }
+  .banniere code { font-size: 12px; }
+  .decoy {
+    border: 1px dashed #c99;
+    background: #fdf2f2;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 20px;
+    font-size: 13px;
+  }
+  .decoy .ProseMirror {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 6px 8px;
+    background: #fff;
+    min-height: 22px;
+    margin-top: 6px;
+  }
+  fieldset {
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 12px;
+    margin: 0 0 24px;
+  }
+  legend { font-size: 13px; color: #666; padding: 0 6px; }
+  .ProseMirror {
+    min-height: 60px;
+    outline: none;
+    font-size: 14px;
+    padding: 4px 2px;
+  }
+  .ProseMirror p { margin: 0; }
+  .barre-composer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+  }
+  button {
+    cursor: pointer;
+    border: 1px solid #444;
+    background: #222;
+    color: #fff;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  button.secondaire {
+    background: #fff;
+    color: #222;
+  }
+  .group\/conversation-turn { margin-bottom: 10px; }
+  [data-testid="user-message"] {
+    background: #eef2ff;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+  .font-claude-response {
+    background: #f2f2f2;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 14px;
+    white-space: pre-wrap;
+  }
+  [data-message-action-bar] {
+    margin-top: 6px;
+    display: flex;
+    gap: 6px;
+  }
+  [data-message-action-bar] button {
+    background: #fff;
+    color: #222;
+    border-color: #ccc;
+    padding: 2px 8px;
+    font-size: 11px;
+  }
+  .payload-log {
+    background: #0d1117;
+    color: #c9d1d9;
+    font-family: ui-monospace, monospace;
+    font-size: 12px;
+    padding: 10px;
+    border-radius: 6px;
+    max-height: 160px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    margin-top: 6px;
+  }
+  .harnais {
+    margin-top: 16px;
+    padding: 10px;
+    background: #eef6ff;
+    border: 1px dashed #8fbcf4;
+    border-radius: 6px;
+  }
+  .harnais summary { cursor: pointer; font-size: 13px; font-weight: 600; }
+  .harnais textarea {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 50px;
+    font-size: 13px;
+    margin: 8px 0;
+  }
+  label { font-size: 12px; color: #555; display: block; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<h1>Claude.ai factice — fixture de test fogbank</h1>
+<div class="banniere">
+  Reproduit la structure DOM relevée dans
+  <code>docs/recherche/constat-claude.md</code> (composer ProseMirror dans un
+  <code>&lt;fieldset&gt;</code>, tour de conversation
+  <code>.group/conversation-turn</code>, <code>data-is-streaming</code> porté
+  par le message assistant). N'envoie rien à un vrai serveur — sert à
+  développer/tester un futur adaptateur <code>claude.js</code> sans dépendre
+  du vrai site. Sélecteurs non revérifiés en direct (voir le constat, §8 pour
+  la sonde de validation à rejouer avant implémentation).
+</div>
+
+<!-- Decoy volontaire : Claude.ai a plusieurs div.ProseMirror simultanément
+     présentes (composer, renommage, édition d'un message) — voir constat,
+     §2.2 et ADR/reco R-17. Un adaptateur qui ne qualifie pas le champ par
+     getComposer() risquerait de cibler celui-ci par erreur. -->
+<div class="decoy">
+  <strong>Renommer la conversation</strong> (piège volontaire — un deuxième
+  <code>div.ProseMirror[contenteditable]</code> hors composer, voir R-17)
+  <div class="ProseMirror" contenteditable="true" translate="no" aria-label="Rename conversation">
+    <p>Conversation sans titre</p>
+  </div>
+</div>
+
+<fieldset>
+  <legend>Composer</legend>
+  <div class="ProseMirror" id="composer-claude" contenteditable="true" translate="no"
+       enterkeyhint="enter" aria-label="Write your prompt to Claude">
+    <p data-placeholder="How can I help you today?"><br></p>
+  </div>
+  <div class="barre-composer">
+    <button class="secondaire" data-role="basculer-langue" type="button">FR / EN (aria-label)</button>
+    <button data-role="envoyer" aria-label="Send message" type="button">Envoyer</button>
+  </div>
+</fieldset>
+
+<div class="zone-reponse">
+  <strong>Fil de conversation</strong>
+  <div id="fil" data-role="fil"></div>
+</div>
+
+<div>
+  <strong>Payload envoyé au "serveur"</strong>
+  <div id="payload" class="payload-log">(rien envoyé pour l'instant)</div>
+</div>
+
+<details class="harnais">
+  <summary>🧪 Contrôles de test (harnais, pas partie du site factice)</summary>
+  <label for="reponse-simulee">Réponse IA à simuler (peut contenir un tag [TYP:CODE], ex: [PER:PDT])</label>
+  <textarea id="reponse-simulee" placeholder="Bonjour [PER:PDT], voici le rapport demandé."></textarea>
+  <button class="secondaire" data-role="simuler-reponse" type="button">Simuler la réception de cette réponse</button>
+  <button class="secondaire" data-role="simuler-streaming" type="button">Simuler une réponse progressive (streaming)</button>
+</details>
+
+<script>
+  // Fixture volontairement "bête" : ne connaît rien de fogbank. Simule le
+  // comportement du vrai site aux yeux d'un content script : lecture du
+  // champ au clic sur "Envoyer", affichage de ce qui aurait été transmis,
+  // tours de conversation ajoutés au fil au même format que le vrai DOM.
+
+  const composer = document.getElementById('composer-claude');
+  const boutonEnvoyer = document.querySelector('[data-role="envoyer"]');
+  const fil = document.getElementById('fil');
+  const payload = document.getElementById('payload');
+
+  function horodatage() {
+    return new Date().toLocaleTimeString('fr-FR');
+  }
+
+  boutonEnvoyer.addEventListener('click', () => {
+    const contenu = composer.textContent;
+    const ligne = `[${horodatage()}] ${contenu || '(champ vide)'}\n`;
+    payload.textContent = payload.textContent.startsWith('(rien')
+      ? ligne
+      : payload.textContent + ligne;
+
+    const tour = document.createElement('div');
+    tour.className = 'group/conversation-turn';
+    const msg = document.createElement('div');
+    msg.dataset.testid = 'user-message';
+    msg.textContent = contenu;
+    tour.appendChild(msg);
+    fil.appendChild(tour);
+  });
+
+  // Bascule aria-label FR/EN : constat-claude.md §2.2 relève que les
+  // aria-label sont traduits selon la langue de l'interface — un sélecteur
+  // qui ne matche que l'anglais échoue silencieusement en UI française.
+  let langueAnglaise = true;
+  document.querySelector('[data-role="basculer-langue"]').addEventListener('click', () => {
+    langueAnglaise = !langueAnglaise;
+    boutonEnvoyer.setAttribute('aria-label', langueAnglaise ? 'Send message' : 'Envoyer le message');
+  });
+
+  function ajouterTourAssistant() {
+    const tour = document.createElement('div');
+    tour.className = 'group/conversation-turn';
+    const message = document.createElement('div');
+    message.className = 'font-claude-response';
+    message.dataset.isStreaming = 'false';
+    const barre = document.createElement('div');
+    barre.setAttribute('data-message-action-bar', '');
+    const boutonCopier = document.createElement('button');
+    boutonCopier.dataset.testid = 'action-bar-copy';
+    boutonCopier.textContent = 'Copier';
+    barre.appendChild(boutonCopier);
+    const corps = document.createElement('div');
+    message.appendChild(barre);
+    message.appendChild(corps);
+    tour.appendChild(message);
+    fil.appendChild(tour);
+    return { message, corps };
+  }
+
+  document.querySelector('[data-role="simuler-reponse"]').addEventListener('click', () => {
+    const texte = document.getElementById('reponse-simulee').value;
+    if (!texte) return;
+    const { corps } = ajouterTourAssistant();
+    corps.textContent = texte;
+  });
+
+  // data-is-streaming porté PAR LE MESSAGE lui-même (constat-claude.md §4.2),
+  // contrairement au signal générique de mock-ai-site (attribut sur la zone
+  // de réponse entière) — plus précis, à exploiter par un futur claude.js.
+  const TAILLE_CHUNK = 3;
+  const DELAI_CHUNK_MS = 60;
+
+  document.querySelector('[data-role="simuler-streaming"]').addEventListener('click', () => {
+    const texte = document.getElementById('reponse-simulee').value;
+    if (!texte) return;
+    const { message, corps } = ajouterTourAssistant();
+    message.dataset.isStreaming = 'true';
+
+    let position = 0;
+    const intervalle = setInterval(() => {
+      position += TAILLE_CHUNK;
+      corps.textContent = texte.slice(0, position);
+      if (position >= texte.length) {
+        clearInterval(intervalle);
+        message.dataset.isStreaming = 'false';
+      }
+    }, DELAI_CHUNK_MS);
+  });
+</script>
+
+</body>
+</html>

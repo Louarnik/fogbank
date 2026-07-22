@@ -12,6 +12,17 @@ entités sensibles citées dans un prompt destiné à une IA, puis de restaurer
 automatiquement leurs valeurs réelles dans la réponse reçue — afin de ne
 jamais envoyer de données personnelles/sensibles aux services IA tiers.
 
+> **Mode fail-closed (voir [ADR-007](adr/0007-fail-closed.md))** : le tag
+> `[TYP:CODE]` est ce que l'utilisateur tape et voit réellement dans le
+> champ de saisie — c'est la source de vérité, jamais le vrai nom. Le vrai
+> nom n'est **jamais écrit dans l'éditeur** ; il n'est que **décoré** à
+> l'affichage (soulignement, infobulle, légende), dans une couche cloisonnée
+> qui ne dépose rien dans le DOM du site. La mécanique ci-dessous décrit
+> cette cible ; **UC-001 et UC-002, déjà implémentés, décrivent encore
+> l'ancien modèle fail-open (substitution du vrai nom par le tag juste avant
+> l'envoi) et doivent être refondus en conséquence** — voir la note de
+> statut au début de chacun.
+
 Quatre types d'entités sont pris en charge, chacun identifié par un
 trigramme : **PER** (personne), **ORG** (organisation), **LIE** (lieu),
 **PRJ** (projet). Le type est choisi manuellement par l'utilisateur au
@@ -20,18 +31,23 @@ conserve toujours le trigramme de type en clair (voir plus bas) afin que
 l'IA comprenne la nature de l'objet substitué, même sans en connaître
 l'identité réelle.
 
-Mécanique générale :
+Mécanique générale (cible fail-closed, ADR-007) :
 - Dans un champ de saisie d'un site autorisé, taper `&` ouvre un menu de
   sélection d'une entité (annuaire privé ou saisie libre d'une nouvelle
   entrée, avec choix du type). Voir [ADR-001](adr/0001-caractere-declencheur.md)
   pour le choix de ce caractère (et pourquoi ce n'est pas `@`).
-- L'entité sélectionnée reste affichée en clair dans le champ, mise en
-  évidence (soulignement bleu) ; au survol, une infobulle montre le
-  pseudonyme qui sera réellement envoyé.
-- Au moment de l'envoi, les mentions marquées sont substituées par leur
-  pseudonyme avant transmission au site IA.
+- L'entité sélectionnée insère son tag `[TYP:CODE]` **directement dans le
+  champ** — c'est ce qui part réellement au site IA, sans étape de
+  substitution ultérieure. Une couche de décoration (calque + infobulle +
+  légende sous le champ) souligne le tag et révèle le vrai nom au survol,
+  sans jamais le déposer dans le DOM du site (voir ADR-007).
+- Si un vrai nom déclaré dans l'annuaire est tapé en clair (au lieu d'être
+  sélectionné via `&`), un garde-fou le signale et **bloque l'envoi** tant
+  qu'il n'a pas été converti en tag — plus de substitution silencieuse à
+  l'envoi.
 - À la réception de la réponse, les pseudonymes détectés sont automatiquement
-  remplacés par les valeurs réelles correspondantes pour l'affichage.
+  remplacés par les valeurs réelles correspondantes pour l'affichage (M-07,
+  inchangé dans son objectif — voir ADR-007 pour le changement de mécanisme).
 - Le pseudonyme est toujours tagué avec son type sous la forme
   `[TYP:CODE]`, `TYP` étant un trigramme (ex: `[PER:PDT]`, `[ORG:ACM]`)
   afin que l'IA reconnaisse la nature de l'entité malgré la substitution —
@@ -57,9 +73,17 @@ Mécanique générale :
 
 Périmètre : liste blanche uniquement (pas de mode liste noire). Par défaut,
 l'extension n'est active nulle part, à l'exception des grands sites IA
-connus (ChatGPT, Claude.ai, ...) pré-activés à l'installation. L'utilisateur
+connus — **ChatGPT, Claude.ai, Copilot grand public**
+(`copilot.microsoft.com`) — pré-activés à l'installation. L'utilisateur
 peut ajouter volontairement d'autres sites. Voir
 [ADR-004](adr/0004-portee-permissions.md).
+
+**Microsoft 365 Copilot reste hors périmètre pour l'instant** : produit
+distinct de Copilot grand public (domaines et backend différents), dont le
+corpus tenant (documents, mails, messages) est interrogé en grande partie
+hors du prompt lui-même — voir
+[docs/recherche/constat-copilot.md](recherche/constat-copilot.md) §0 et §6,
+et [ADR-007](adr/0007-fail-closed.md).
 
 En complément du flux automatique (`&` → envoi → réponse affichée), un
 fichier généré par l'IA et téléchargé (ex: `.md`, `.csv`, `.txt`) peut
@@ -90,10 +114,10 @@ ci-dessous. Chaque macro-UC deviendra un ou plusieurs UC-XXX.
 | M-01 | Gestion de la liste de sites autorisés | Configurer la whitelist des sites sur lesquels l'extension s'active (grands sites IA pré-activés + ajout manuel), avec pour chaque site sa durée de vie (M-08) et son format de pseudonyme (M-10) |
 | M-02 | Gestion de l'annuaire privé | Créer/modifier/supprimer les entités (personne, organisation, lieu, projet) de l'annuaire, stocké localement dans le navigateur ([ADR-005](adr/0005-stockage-local.md)) ; une entité a un alias indépendant par site (voir [ARCHITECTURE.md](ARCHITECTURE.md)) et, pour une personne, un email facultatif |
 | M-03 | Déclenchement du menu `&` | Ouvrir le menu de sélection à la frappe de `&` dans un champ autorisé (voir [ADR-001](adr/0001-caractere-declencheur.md)) |
-| M-04 | Ajout à la volée depuis `&` | Créer une nouvelle entité directement depuis le menu si elle n'existe pas encore dans l'annuaire, avec sélection manuelle obligatoire de son type |
-| M-05 | Marquage visuel de la mention | Afficher l'entité en clair, soulignée, avec infobulle montrant le pseudonyme (tag `[TYP:CODE]`) au survol |
-| M-06 | Pseudonymisation à l'envoi | Substituer les mentions marquées par leur pseudonyme juste avant l'envoi du prompt |
-| M-07 | Restauration automatique à la réception | Détecter les pseudonymes dans la réponse affichée et les remplacer par les noms réels |
+| M-04 | Ajout à la volée depuis `&` | Créer une nouvelle entité directement depuis le menu si elle n'existe pas encore dans l'annuaire, avec sélection manuelle obligatoire de son type ; **insère le tag `[TYP:CODE]` dans le champ, pas le vrai nom** (fail-closed, [ADR-007](adr/0007-fail-closed.md)) |
+| M-05 | Calque de décoration de la mention | **Redéfini par ADR-007** : le champ contient le tag `[TYP:CODE]` en clair ; une couche de décoration (soulignement, infobulle, légende sous le champ) révèle le vrai nom au survol, sans jamais l'écrire dans le DOM du site — l'inverse du comportement fail-open initial |
+| M-06 | Garde-fou à l'envoi | **Redéfini par ADR-007** : détecter un vrai nom déclaré resté en clair dans le champ (comparaison continue, pas seulement à l'envoi) et **bloquer l'envoi** tant qu'il n'a pas été converti en tag. Plus aucune écriture/substitution dans l'éditeur au moment de l'envoi |
+| M-07 | Restauration automatique à la réception | Détecter les pseudonymes dans la réponse et les remplacer par les noms réels. Inchangé dans son objectif ; mécanisme cible : hook réseau entrant sur ChatGPT/Claude.ai, repli `MutationObserver` sur Copilot (voir ADR-007) |
 | M-08 | Durée de vie / rotation du pseudonyme | Générer un nouveau pseudonyme quand l'alias est utilisé après expiration de la durée configurée pour le site concerné (M-01) — rotation paresseuse à l'usage, pas de tâche périodique |
 | M-09 | Historique des alias | Conserver la trace de tous les pseudonymes jamais attribués à chaque entité, **par site**, y compris expirés |
 | M-10 | Génération du pseudonyme | Générer le pseudonyme `[TYP:CODE]` selon le format configuré **pour le site courant** (M-01, commun aux 4 types sur ce site) : reconnaissable (initiales, plusieurs variantes) ou opaque (aléatoire), avec suffixe numérique automatique en cas de collision |
@@ -142,14 +166,29 @@ applicables à ce cas d'usage._
 
 | ID     | Titre | Statut |
 |--------|-------|--------|
-| UC-001 | Mention `&` et pseudonymisation à l'envoi (contenteditable) | implémenté |
-| UC-002 | Restauration à la réception (affichage lisible + traçabilité) | implémenté |
+| UC-001 | Mention `&` et pseudonymisation à l'envoi (contenteditable) | implémenté (fail-open) — à refondre, [ADR-007](adr/0007-fail-closed.md) |
+| UC-002 | Restauration à la réception (affichage lisible + traçabilité) | implémenté (fail-open) — à refondre, [ADR-007](adr/0007-fail-closed.md) |
 
 ---
 
 ### UC-001 — Mention `&` et pseudonymisation à l'envoi (contenteditable)
 
-**Statut** : implémenté
+> **⚠ À refondre ([ADR-007](adr/0007-fail-closed.md))** : cet UC décrit le
+> modèle fail-open — l'entité choisie reste affichée en clair dans le champ
+> et n'est substituée par son tag qu'au moment de l'envoi (§4 ci-dessous).
+> C'est exactement le point de défaillance unique et invisible qu'ADR-007
+> écarte : sur ChatGPT/Claude.ai (ProseMirror), une réécriture DOM juste
+> avant l'envoi peut ne pas atteindre le modèle interne de l'éditeur, et le
+> vrai nom part alors en clair sans avertissement (voir
+> [docs/recherche/constat-chatgpt.md](recherche/constat-chatgpt.md) §2.3).
+> Cible fail-closed : M-04 insère le **tag** dans le champ dès la sélection
+> (pas le vrai nom), M-05 devient un calque de décoration en lecture seule,
+> M-06 devient un garde-fou qui bloque l'envoi si un vrai nom reste en
+> clair — plus aucune substitution à l'envoi. Corps de l'UC conservé
+> ci-dessous tel qu'implémenté, à réécrire à la prochaine session (voir
+> `docs/recherche/reco.md` §J pour l'ordre d'implémentation).
+
+**Statut** : implémenté (fail-open) — à refondre
 **Macro-UC rattaché** : M-03, M-04 (sélection seulement), M-05, M-06, M-10
 **Dépendances** : aucune
 
@@ -219,7 +258,20 @@ site autorisé, suivi de texte de filtre.
 
 ### UC-002 — Restauration à la réception (affichage lisible + traçabilité)
 
-**Statut** : implémenté
+> **⚠ À refondre ([ADR-007](adr/0007-fail-closed.md))** : l'objectif de cet
+> UC (afficher le vrai nom à la place des tags reçus, avec traçabilité) ne
+> change pas, mais son mécanisme le doit. L'implémentation actuelle marque
+> les tags par analyse du texte déjà **rendu** dans le DOM
+> (`MutationObserver` générique + heuristique d'inactivité). La cible
+> ADR-007 privilégie un **hook réseau entrant** (`fetch`/SSE) sur ChatGPT et
+> Claude.ai — réécrire le flux de réponse plutôt que le DOM rendu, ce qui
+> couvre aussi le rechargement d'historique et les blocs CodeMirror/artefacts
+> (voir `docs/recherche/reco.md` R-54 à R-60) — et réserve l'approche
+> `MutationObserver` de cet UC au seul repli Copilot, où une restauration
+> ratée n'est pas considérée comme une fuite (R-58). Corps de l'UC conservé
+> ci-dessous tel qu'implémenté, à réécrire à la prochaine session.
+
+**Statut** : implémenté (fail-open) — à refondre
 **Macro-UC rattaché** : M-07 (Restauration automatique à la réception)
 **Dépendances** : M-06 (substitution à l'envoi), M-05 (marquage visuel de la mention à l'envoi)
 

@@ -98,6 +98,12 @@
     obtenirOuCreerAlias,
   });
 
+  // TODO(debug demain) : ne substitue que dans `champ`, le seul champ
+  // contenteditable trouvé une fois au chargement — faire le remplacement
+  // dans tous les champs de la page (y compris un contenteditable recréé/
+  // re-rendu après coup), pas seulement celui capturé à l'attache initiale.
+  // À valider après la validation (clic envoyer) sur un site qui reconstruit
+  // son champ de saisie entre deux messages.
   function substituerMentions() {
     const spans = Array.from(
       champ.querySelectorAll('span[data-fogbank-entity-id]')
