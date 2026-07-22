@@ -112,6 +112,11 @@
   ce que le repli `MutationObserver` générique de fogbank doit couvrir.
   Sélecteurs non revérifiés en direct (voir le constat, §8 pour la sonde de
   validation à rejouer avant implémentation).
+  <br /><strong>La réception est automatique</strong> : cliquer sur "Envoyer"
+  déclenche seul une réponse simulée en streaming qui reprend le contenu
+  envoyé entre deux blocs de texte de remplissage (Lorem ipsum). Le panneau
+  replié "🧪 Contrôles de test" reste disponible pour composer une réponse
+  arbitraire (tag inconnu, tag cassé...).
 </div>
 
 <label for="composer-copilot">Champ de saisie du prompt</label>
@@ -154,12 +159,29 @@
     return new Date().toLocaleTimeString('fr-FR');
   }
 
+  // Réponse simulée automatiquement à l'envoi (voir plus bas) : le contenu
+  // réellement envoyé est repris tel quel entre deux blocs de texte de
+  // remplissage — pratique pour vérifier la restauration d'un tag
+  // [TYP:CODE] sans ressaisir la réponse à la main à chaque essai.
+  const LOREM =
+    'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod ' +
+    'tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim ' +
+    'veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea ' +
+    'commodo consequat.';
+
+  function texteReponseAuto(contenuEnvoye) {
+    return `${LOREM}\n${contenuEnvoye}\n${LOREM}`;
+  }
+
   boutonEnvoyer.addEventListener('click', () => {
     const contenu = composer.value;
     const ligne = `[${horodatage()}] ${contenu || '(champ vide)'}\n`;
     payload.textContent = payload.textContent.startsWith('(rien')
       ? ligne
       : payload.textContent + ligne;
+
+    // Réception automatique : plus besoin du harnais pour le cas courant.
+    if (contenu) demarrerStreaming(texteReponseAuto(contenu));
   });
 
   // Bascule placeholder FR/EN : constat-copilot.md §2.2 relève que le
@@ -195,9 +217,7 @@
   const TAILLE_CHUNK = 3;
   const DELAI_CHUNK_MS = 60;
 
-  document.querySelector('[data-role="simuler-streaming"]').addEventListener('click', () => {
-    const texte = document.getElementById('reponse-simulee').value;
-    if (!texte) return;
+  function demarrerStreaming(texte) {
     const corps = ajouterMessageAssistant();
     const indicateur = document.createElement('span');
     indicateur.className = 'typing-indicator';
@@ -213,6 +233,12 @@
         indicateur.remove();
       }
     }, DELAI_CHUNK_MS);
+  }
+
+  document.querySelector('[data-role="simuler-streaming"]').addEventListener('click', () => {
+    const texte = document.getElementById('reponse-simulee').value;
+    if (!texte) return;
+    demarrerStreaming(texte);
   });
 </script>
 

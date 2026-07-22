@@ -17,22 +17,27 @@ Pour chaque scénario :
   permet de vérifier que l'extension a bien substitué les mentions par
   leur pseudonyme `[TYP:CODE]` **avant** ce clic (M-06) — si le panneau
   affiche encore le nom réel, la substitution n'a pas eu lieu à temps.
+- **La réception est automatique** : ce même clic déclenche seul une
+  réponse simulée en streaming qui reprend le contenu envoyé, entouré de
+  deux blocs de texte de remplissage (Lorem ipsum) — pratique pour vérifier
+  la restauration d'un tag `[TYP:CODE]` sans ressaisir de réponse à la main
+  à chaque essai. Le texte révélé par petits blocs (3 caractères toutes les
+  60 ms) exerce les deux phases de UC-002 :
+  - pendant le streaming, la zone de réponse porte l'attribut
+    `data-streaming="true"` ;
+  - à la fin, cet attribut est retiré et un événement
+    `fogbank:streaming-end` (avec `bubbles: true`) est déclenché sur la
+    zone — c'est le signal qu'un adaptateur de site (`isStreaming` /
+    `onStreamingEnd`, voir [ARCHITECTURE.md](../../../docs/ARCHITECTURE.md))
+    peut utiliser pour détecter la fin de génération.
 - Un panneau replié **"🧪 Contrôles de test"** (harnais, ne fait pas partie
-  du "site" simulé) avec un champ pour taper une fausse réponse IA
-  (éventuellement avec un tag `[PER:PDT]`) et deux boutons pour l'injecter
-  dans la zone de réponse :
+  du "site" simulé) reste disponible pour composer une réponse arbitraire
+  (tag inconnu, tag cassé, texte sans rapport avec l'envoi...), avec les deux
+  mêmes mécanismes d'injection :
   - **Simuler la réception de cette réponse** — injection instantanée,
     texte complet d'un coup.
-  - **Simuler une réponse progressive (streaming)** — révèle le texte par
-    petits blocs (3 caractères toutes les 60 ms), pour tester les deux
-    phases de UC-002 :
-    - pendant le streaming, la zone de réponse porte l'attribut
-      `data-streaming="true"` ;
-    - à la fin, cet attribut est retiré et un événement
-      `fogbank:streaming-end` (avec `bubbles: true`) est déclenché sur la
-      zone — c'est le signal qu'un adaptateur de site (`isStreaming` /
-      `onStreamingEnd`, voir [ARCHITECTURE.md](../../../docs/ARCHITECTURE.md))
-      peut utiliser pour détecter la fin de génération.
+  - **Simuler une réponse progressive (streaming)** — même mécanisme que la
+    réception automatique, mais avec un texte choisi librement.
 
 ## Utilisation
 

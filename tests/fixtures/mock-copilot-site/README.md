@@ -24,14 +24,21 @@ que le constat décrit pour Copilot :
 
 ## Contrôles de test
 
+- **La réception est automatique** : cliquer sur "Envoyer" déclenche seul
+  une réponse simulée en streaming qui reprend le contenu envoyé entre deux
+  blocs de texte de remplissage (Lorem ipsum) — pratique pour vérifier la
+  restauration d'un tag `[TYP:CODE]` sans ressaisir de réponse à la main.
+  Comme sur le vrai site, aucun attribut ni événement ne signale la fin :
+  seul un indicateur « ● en train d'écrire… » transitoire accompagne le
+  streaming, à dessein, pour exercer une détection par inactivité plutôt
+  que par signal explicite.
 - **FR / EN (placeholder)** : bascule le `placeholder` du champ entre
   `Ask me anything...` et `Posez-moi une question...`, pour vérifier qu'un
   sélecteur `textarea[placeholder*="Ask" i]` ne casse pas silencieusement en
   UI française (piège documenté dans le constat).
-- Panneau replié **🧪 Contrôles de test** : réception instantanée, ou
-  streaming avec un indicateur « ● en train d'écrire… » transitoire mais
-  **sans** attribut ni événement de fin — à dessein, pour exercer une
-  détection par inactivité plutôt que par signal explicite.
+- Panneau replié **🧪 Contrôles de test** : reste disponible pour composer
+  une réponse arbitraire (tag inconnu, tag cassé...), instantanée ou en
+  streaming.
 
 ## Utilisation
 

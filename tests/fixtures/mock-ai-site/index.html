@@ -102,10 +102,15 @@
 <div class="banniere">
   Cette page n'envoie rien à un vrai serveur. Elle sert uniquement à
   vérifier, en local, ce que l'extension enverrait réellement (panneau
-  "Payload envoyé") et comment elle restaure une réponse simulée contenant
-  des pseudonymes — instantanément ou progressivement (streaming), pour
-  tester les deux phases de UC-002. Deux scénarios de champ de saisie sont
-  fournis car les sites réels utilisent l'un ou l'autre.
+  "Payload envoyé") et comment elle restaure une réponse contenant des
+  pseudonymes. <strong>La réception est automatique</strong> : cliquer sur
+  "Envoyer" déclenche seul une réponse simulée en streaming qui reprend le
+  contenu envoyé entre deux blocs de texte de remplissage (Lorem ipsum) —
+  pratique pour tester les deux phases de UC-002 sans ressaisir de réponse
+  à la main. Le panneau replié "🧪 Contrôles de test" reste disponible pour
+  composer une réponse arbitraire (tag inconnu, tag cassé...). Deux
+  scénarios de champ de saisie sont fournis car les sites réels utilisent
+  l'un ou l'autre.
 </div>
 
 <!-- ===================== SCÉNARIO A — textarea ===================== -->
@@ -179,6 +184,50 @@
     return new Date().toLocaleTimeString('fr-FR');
   }
 
+  // Réponse simulée automatiquement à l'envoi (voir plus bas) : le contenu
+  // réellement envoyé (donc déjà substitué par son tag [TYP:CODE] si
+  // l'extension est active) est repris tel quel entre deux blocs de texte
+  // de remplissage — pratique pour vérifier la restauration d'un tag sans
+  // ressaisir la réponse à la main à chaque essai.
+  const LOREM =
+    'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod ' +
+    'tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim ' +
+    'veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea ' +
+    'commodo consequat.';
+
+  function texteReponseAuto(contenuEnvoye) {
+    return `${LOREM}\n${contenuEnvoye}\n${LOREM}`;
+  }
+
+  // Simulation d'une réponse progressive (streaming), pour tester UC-002
+  // (phase 1 pendant le streaming / phase 2 à la fin). Signal de fin
+  // exposé de deux façons, comme un vrai site pourrait le faire :
+  // - attribut `data-streaming` sur la zone de réponse (présent pendant,
+  //   retiré à la fin) ;
+  // - événement custom `fogbank:streaming-end` déclenché sur la zone.
+  const TAILLE_CHUNK = 3;
+  const DELAI_CHUNK_MS = 60;
+
+  function demarrerStreaming(cible, texte) {
+    const zone = document.getElementById('reponse-' + cible);
+
+    const message = document.createElement('div');
+    message.className = 'message-ia';
+    zone.appendChild(message);
+    zone.dataset.streaming = 'true';
+
+    let position = 0;
+    const intervalle = setInterval(() => {
+      position += TAILLE_CHUNK;
+      message.textContent = texte.slice(0, position);
+      if (position >= texte.length) {
+        clearInterval(intervalle);
+        delete zone.dataset.streaming;
+        zone.dispatchEvent(new CustomEvent('fogbank:streaming-end', { bubbles: true }));
+      }
+    }, DELAI_CHUNK_MS);
+  }
+
   document.querySelectorAll('[data-role="envoyer"]').forEach((bouton) => {
     bouton.addEventListener('click', () => {
       const cible = bouton.dataset.cible;
@@ -188,6 +237,9 @@
       panneau.textContent = panneau.textContent.startsWith('(rien')
         ? ligne
         : panneau.textContent + ligne;
+
+      // Réception automatique : plus besoin du harnais pour le cas courant.
+      if (contenu) demarrerStreaming(cible, texteReponseAuto(contenu));
     });
   });
 
@@ -204,37 +256,12 @@
     });
   });
 
-  // Simulation d'une réponse progressive (streaming), pour tester UC-002
-  // (phase 1 pendant le streaming / phase 2 à la fin). Signal de fin
-  // exposé de deux façons, comme un vrai site pourrait le faire :
-  // - attribut `data-streaming` sur la zone de réponse (présent pendant,
-  //   retiré à la fin) ;
-  // - événement custom `fogbank:streaming-end` déclenché sur la zone.
-  const TAILLE_CHUNK = 3;
-  const DELAI_CHUNK_MS = 60;
-
   document.querySelectorAll('[data-role="simuler-streaming"]').forEach((bouton) => {
     bouton.addEventListener('click', () => {
       const cible = bouton.dataset.cible;
       const texte = document.getElementById('reponse-simulee-' + cible).value;
       if (!texte) return;
-      const zone = document.getElementById('reponse-' + cible);
-
-      const message = document.createElement('div');
-      message.className = 'message-ia';
-      zone.appendChild(message);
-      zone.dataset.streaming = 'true';
-
-      let position = 0;
-      const intervalle = setInterval(() => {
-        position += TAILLE_CHUNK;
-        message.textContent = texte.slice(0, position);
-        if (position >= texte.length) {
-          clearInterval(intervalle);
-          delete zone.dataset.streaming;
-          zone.dispatchEvent(new CustomEvent('fogbank:streaming-end', { bubbles: true }));
-        }
-      }, DELAI_CHUNK_MS);
+      demarrerStreaming(cible, texte);
     });
   });
 </script>

@@ -27,14 +27,19 @@ que le constat décrit pour Claude.ai :
 
 ## Contrôles de test
 
+- **La réception est automatique** : cliquer sur "Envoyer" déclenche seul
+  une réponse simulée en streaming qui reprend le contenu envoyé entre deux
+  blocs de texte de remplissage (Lorem ipsum) — pratique pour vérifier la
+  restauration d'un tag `[TYP:CODE]` sans ressaisir de réponse à la main.
+  Le signal de fin est porté par `data-is-streaming` sur le message
+  assistant lui-même (pas par un événement, contrairement à `mock-ai-site`).
 - **FR / EN (aria-label)** : bascule l'`aria-label` du bouton d'envoi entre
   `Send message` et `Envoyer le message`, pour vérifier qu'un sélecteur
   `button[aria-label*="Send" i]` ne casse pas silencieusement en UI
   française (piège documenté dans le constat).
-- Panneau replié **🧪 Contrôles de test** : mêmes deux boutons que
-  `mock-ai-site` (réception instantanée / streaming), avec le signal de fin
-  porté par `data-is-streaming` sur le message plutôt que par un événement
-  `fogbank:streaming-end`.
+- Panneau replié **🧪 Contrôles de test** : reste disponible pour composer
+  une réponse arbitraire (tag inconnu, tag cassé...), avec les mêmes deux
+  mécanismes d'injection (instantanée / streaming) que `mock-ai-site`.
 
 ## Utilisation
 
