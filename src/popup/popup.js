@@ -1,15 +1,13 @@
-// Popup — statut du site courant, pause temporaire, accès aux deux CRUD de
-// la page d'options (annuaire des entités, annuaire des sites). Voir
+// Popup — statut du site courant, accès rapide au side panel (surface
+// principale, voir ADR-008) et aux deux CRUD de la page d'options. Voir
 // docs/ARCHITECTURE.md.
 document.addEventListener('DOMContentLoaded', async () => {
   const statutSite = document.getElementById('statut-site');
   const boutonToggleSite = document.getElementById('bouton-toggle-site');
-  const boutonPause = document.getElementById('bouton-pause');
-  const boutonReparse = document.getElementById('bouton-reparse');
-  const statutReparse = document.getElementById('statut-reparse');
+  const boutonPanneau = document.getElementById('bouton-panneau');
 
   const [onglet] = await chrome.tabs.query({ active: true, currentWindow: true });
-  const donnees = await chrome.storage.local.get(['fogbank.sites', 'fogbank.pause']);
+  const donnees = await chrome.storage.local.get(['fogbank.sites']);
   const sites = donnees['fogbank.sites'] || [];
   const site =
     onglet && onglet.url
@@ -25,10 +23,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     boutonToggleSite.textContent = site.actif ? 'Désactiver sur ce site' : 'Activer sur ce site';
     boutonToggleSite.hidden = false;
     boutonToggleSite.addEventListener('click', async () => {
-      // Prend effet à la prochaine exécution du content script : celui-ci
-      // ne relit fogbank.sites qu'à son chargement (voir content.js), d'où
-      // le rechargement de l'onglet — contrairement à la pause temporaire
-      // ci-dessous, qui n'en a pas besoin.
+      // Prend effet à la prochaine exécution de content/ecriture.js :
+      // celui-ci ne relit fogbank.sites qu'à son chargement, d'où le
+      // rechargement de l'onglet.
       site.actif = !site.actif;
       await chrome.storage.local.set({ 'fogbank.sites': sites });
       if (onglet && onglet.id) chrome.tabs.reload(onglet.id);
@@ -36,32 +33,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Le content script ne s'exécute (et n'écoute ce message) que si le site
-  // est actif — voir content.js — donc pas la peine de proposer le bouton
-  // sinon : chrome.tabs.sendMessage échouerait faute d'écouteur.
-  if (site && site.actif && onglet && onglet.id) {
-    boutonReparse.hidden = false;
-    boutonReparse.addEventListener('click', async () => {
-      statutReparse.hidden = true;
-      try {
-        await chrome.tabs.sendMessage(onglet.id, { type: 'fogbank:reparse' });
-        statutReparse.textContent = 'Page réanalysée.';
-      } catch (err) {
-        statutReparse.textContent = 'Échec : le content script ne répond pas sur cet onglet (page rechargée depuis ?).';
-      }
-      statutReparse.hidden = false;
-    });
-  }
-
-  let enPause = !!donnees['fogbank.pause'];
-  function rendrePause() {
-    boutonPause.textContent = enPause ? 'Reprendre' : 'Mettre en pause';
-  }
-  rendrePause();
-  boutonPause.addEventListener('click', async () => {
-    enPause = !enPause;
-    await chrome.storage.local.set({ 'fogbank.pause': enPause });
-    rendrePause();
+  boutonPanneau.addEventListener('click', () => {
+    // Doit rester le tout premier appel, synchrone, dans le geste
+    // utilisateur (voir background.js) — un await avant lui ferait perdre
+    // le contexte de geste exigé par l'API.
+    if (onglet && onglet.id) {
+      chrome.sidePanel.open({ tabId: onglet.id }).catch((err) => {
+        console.error('[fogbank] échec d’ouverture du side panel :', err);
+      });
+    }
+    window.close();
   });
 
   document.getElementById('bouton-annuaire').addEventListener('click', () => {

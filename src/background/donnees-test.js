@@ -26,6 +26,9 @@ export const donneesTest = {
       actif: true,
       dureeViePseudonyme: '1a',
       formatPseudonyme: 'court',
+      modeReplication: 'manuel',
+      cibleEcriture: null,
+      configurationTerminee: true,
     },
     {
       id: 'site-claude',
@@ -34,6 +37,9 @@ export const donneesTest = {
       actif: true,
       dureeViePseudonyme: 'infini',
       formatPseudonyme: 'etendu',
+      modeReplication: 'manuel',
+      cibleEcriture: null,
+      configurationTerminee: true,
     },
     {
       id: 'site-local-test',
@@ -42,6 +48,9 @@ export const donneesTest = {
       actif: true,
       dureeViePseudonyme: '1s',
       formatPseudonyme: 'opaque',
+      modeReplication: 'manuel',
+      cibleEcriture: null,
+      configurationTerminee: true,
     },
     {
       id: 'site-local-test-claude',
@@ -50,6 +59,9 @@ export const donneesTest = {
       actif: true,
       dureeViePseudonyme: 'infini',
       formatPseudonyme: 'etendu',
+      modeReplication: 'manuel',
+      cibleEcriture: null,
+      configurationTerminee: true,
     },
     {
       id: 'site-local-test-copilot',
@@ -58,6 +70,9 @@ export const donneesTest = {
       actif: true,
       dureeViePseudonyme: '1a',
       formatPseudonyme: 'court',
+      modeReplication: 'manuel',
+      cibleEcriture: null,
+      configurationTerminee: true,
     },
   ],
 

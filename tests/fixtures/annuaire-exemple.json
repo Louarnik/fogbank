@@ -13,7 +13,10 @@
       "preActive": true,
       "actif": true,
       "dureeViePseudonyme": "1a",
-      "formatPseudonyme": "court"
+      "formatPseudonyme": "court",
+      "modeReplication": "manuel",
+      "cibleEcriture": null,
+      "configurationTerminee": true
     },
     {
       "id": "site-claude",
@@ -21,7 +24,10 @@
       "preActive": true,
       "actif": true,
       "dureeViePseudonyme": "infini",
-      "formatPseudonyme": "etendu"
+      "formatPseudonyme": "etendu",
+      "modeReplication": "manuel",
+      "cibleEcriture": null,
+      "configurationTerminee": true
     },
     {
       "id": "site-local-test",
@@ -29,7 +35,10 @@
       "preActive": false,
       "actif": true,
       "dureeViePseudonyme": "1s",
-      "formatPseudonyme": "opaque"
+      "formatPseudonyme": "opaque",
+      "modeReplication": "manuel",
+      "cibleEcriture": null,
+      "configurationTerminee": true
     },
     {
       "id": "site-local-test-claude",
@@ -37,7 +46,10 @@
       "preActive": false,
       "actif": true,
       "dureeViePseudonyme": "infini",
-      "formatPseudonyme": "etendu"
+      "formatPseudonyme": "etendu",
+      "modeReplication": "manuel",
+      "cibleEcriture": null,
+      "configurationTerminee": true
     },
     {
       "id": "site-local-test-copilot",
@@ -45,7 +57,10 @@
       "preActive": false,
       "actif": true,
       "dureeViePseudonyme": "1a",
-      "formatPseudonyme": "court"
+      "formatPseudonyme": "court",
+      "modeReplication": "manuel",
+      "cibleEcriture": null,
+      "configurationTerminee": true
     }
   ],
 

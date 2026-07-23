@@ -34,21 +34,6 @@ section {
   margin: 0 0 6px;
 }
 
-.aide {
-  font-size: 11px;
-  color: #888;
-  margin: 6px 0 0;
-}
-.aide code {
-  font-family: ui-monospace, monospace;
-  background: rgba(128, 128, 128, .15);
-  padding: 0 .25em;
-  border-radius: .2em;
-}
-
-#bouton-reparse { margin-top: 8px; }
-#statut-reparse { color: #2d6cdf; }
-
 button {
   font: inherit;
   font-size: 13px;
@@ -61,3 +46,10 @@ button {
   width: 100%;
 }
 button:hover { background: rgba(128, 128, 128, .1); }
+
+.bouton-primaire {
+  background: #2d6cdf;
+  border-color: #2d6cdf;
+  color: #fff;
+}
+.bouton-primaire:hover { background: #2559ba; }

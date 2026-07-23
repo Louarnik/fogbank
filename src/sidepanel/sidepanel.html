@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>fogbank</title>
+  <link rel="stylesheet" href="sidepanel.css" />
+</head>
+<body>
+  <h1>fogbank</h1>
+
+  <section id="section-cible">
+    <h2>Champ ciblé</h2>
+    <p id="etat-cible">Vérification…</p>
+    <button id="bouton-rafraichir-cible" type="button" class="bouton-secondaire">Rafraîchir</button>
+    <p class="sous-titre">Clic droit sur un champ du site → « fogbank : écrire ici » pour (re)cibler.</p>
+  </section>
+
+  <section id="section-onboarding" hidden>
+    <h2>Configuration du site</h2>
+    <p class="sous-titre">Ce site n'a pas encore été configuré — ce parcours ne s'affiche qu'une fois (voir UC-005).</p>
+
+    <div class="etape-onboarding">
+      <p class="etape-titre">1. Cibler le champ</p>
+      <p id="onboarding-etat-ciblage">Vérification…</p>
+    </div>
+
+    <div class="etape-onboarding">
+      <p class="etape-titre">2. Tester l'écriture</p>
+      <button id="bouton-test-ecriture" type="button" class="bouton-secondaire">Écrire un texte de test</button>
+      <p class="sous-titre">Vérifiez à l'œil que le texte apparaît bien sur la page du site.</p>
+    </div>
+
+    <div class="etape-onboarding">
+      <p class="etape-titre">3. Tester l'envoi</p>
+      <button id="bouton-test-envoi" type="button" class="bouton-secondaire">Écrire un message de test</button>
+      <p class="sous-titre">Envoyez-le vous-même depuis le site (fogbank ne clique pas à votre place), puis vérifiez la réponse ici.</p>
+      <button id="bouton-verifier-reponse" type="button" class="bouton-secondaire">Vérifier la réponse</button>
+      <p id="onboarding-etat-verification"></p>
+    </div>
+
+    <div class="etape-onboarding">
+      <p class="etape-titre">4. Préférences</p>
+      <label>
+        Durée de vie du pseudonyme
+        <select id="onboarding-duree">
+          <option value="1s">1 semaine</option>
+          <option value="1t">1 trimestre</option>
+          <option value="1a">1 an</option>
+          <option value="infini">Infinie</option>
+        </select>
+      </label>
+      <label>
+        Format du pseudonyme
+        <select id="onboarding-format">
+          <option value="court">Court</option>
+          <option value="etendu">Étendu</option>
+          <option value="opaque">Opaque</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="actions">
+      <button id="bouton-terminer-config" type="button" class="bouton-primaire">Terminer la configuration</button>
+      <button id="bouton-passer-config" type="button" class="bouton-secondaire">Passer pour l'instant</button>
+    </div>
+  </section>
+
+  <section id="section-composition">
+    <h2>Composer</h2>
+    <textarea id="champ-compose" rows="5" placeholder="Tapez & pour mentionner une entité…"></textarea>
+
+    <div class="ligne-mode">
+      <label for="select-mode">Réplication</label>
+      <select id="select-mode">
+        <option value="manuel">Manuel</option>
+        <option value="auto">Automatique</option>
+      </select>
+      <span id="temoin-synchro" class="temoin" data-etat="inactif">—</span>
+    </div>
+
+    <div id="message-suspension" class="message-avertissement" hidden>
+      <span>Synchronisation suspendue : le champ du site a été modifié en dehors du panneau.</span>
+      <button id="bouton-reprendre" type="button" class="bouton-secondaire">Reprendre</button>
+    </div>
+
+    <div class="actions">
+      <button id="bouton-envoyer" type="button" class="bouton-primaire">Envoyer (écraser)</button>
+      <button id="bouton-copier" type="button" class="bouton-secondaire">Copier</button>
+    </div>
+  </section>
+
+  <section id="section-lecture">
+    <h2>Réponse (en clair)</h2>
+    <button id="bouton-lire" type="button" class="bouton-secondaire">Lire maintenant</button>
+    <pre id="texte-clair"></pre>
+  </section>
+
+  <section id="section-journal">
+    <h2>Journal</h2>
+    <div id="journal"></div>
+  </section>
+
+  <script src="../shared/site-matching.js"></script>
+  <script src="../content/pseudonyme.js"></script>
+  <script src="../content/editor-handle/textarea-handle.js"></script>
+  <script src="../content/display.js"></script>
+  <script src="../content/mention-menu.js"></script>
+  <script src="sidepanel.js"></script>
+</body>
+</html>

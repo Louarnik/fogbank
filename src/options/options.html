@@ -48,7 +48,9 @@
       <p class="sous-titre">
         Sites sur lesquels fogbank peut agir. Un site désactivé n'est jamais
         câblé par le content script — voir aussi la popup pour un
-        activer/désactiver rapide sur l'onglet courant.
+        activer/désactiver rapide sur l'onglet courant. Le champ ciblé par
+        clic droit (« écrire ici », voir le side panel) est mémorisé par
+        site ; « Oublier » l'efface pour forcer un nouveau ciblage.
       </p>
 
       <div class="barre-outils">
@@ -63,6 +65,9 @@
             <th>Pré-activé</th>
             <th>Durée de vie</th>
             <th>Format</th>
+            <th>Réplication</th>
+            <th>Ciblage</th>
+            <th>Configuré</th>
             <th></th>
           </tr>
         </thead>
@@ -144,6 +149,14 @@
           <option value="court">Court</option>
           <option value="etendu">Étendu</option>
           <option value="opaque">Opaque</option>
+        </select>
+      </label>
+
+      <label>
+        Mode de réplication
+        <select id="site-champ-replication">
+          <option value="manuel">Manuel</option>
+          <option value="auto">Automatique</option>
         </select>
       </label>
 

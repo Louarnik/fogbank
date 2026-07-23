@@ -1,11 +1,13 @@
 // Page d'options — deux onglets, deux CRUD indépendants :
 // - Annuaire (fogbank.annuaire, M-12). Les alias par site (aliasParSite)
 //   restent en lecture seule ici : ils ne sont produits que par la rotation
-//   paresseuse (M-08/M-10) au fil de l'usage dans un champ de saisie,
+//   paresseuse (M-08/M-10) au fil de l'usage dans le panneau (sidepanel/),
 //   jamais saisis à la main.
 // - Sites (fogbank.sites, M-01). Un site désactivé n'est jamais câblé par
-//   le content script (voir content.js) ; la popup offre un raccourci pour
-//   basculer actif/inactif sur l'onglet en cours sans passer par ici.
+//   content/ecriture.js ; la popup offre un raccourci pour basculer
+//   actif/inactif sur l'onglet en cours sans passer par ici. Mode de
+//   réplication (M-16) et ciblage mémorisé (M-15, voir ADR-008) modifiables
+//   ici aussi.
 (function () {
   const LIBELLES_DUREE = { '1s': '1 semaine', '1t': '1 trimestre', '1a': '1 an', infini: 'Infinie' };
   const LIBELLES_FORMAT = { court: 'Court', etendu: 'Étendu', opaque: 'Opaque' };
@@ -256,6 +258,7 @@
   const siteChampPreActive = document.getElementById('site-champ-pre-active');
   const siteChampDuree = document.getElementById('site-champ-duree');
   const siteChampFormat = document.getElementById('site-champ-format');
+  const siteChampReplication = document.getElementById('site-champ-replication');
   const erreurFormulaireSite = document.getElementById('erreur-formulaire-site');
   const siteBoutonAnnuler = document.getElementById('site-bouton-annuler');
 
@@ -299,6 +302,18 @@
       tdFormat.textContent = LIBELLES_FORMAT[site.formatPseudonyme] || site.formatPseudonyme;
       ligne.appendChild(tdFormat);
 
+      const tdReplication = document.createElement('td');
+      tdReplication.textContent = site.modeReplication === 'auto' ? 'Auto' : 'Manuel';
+      ligne.appendChild(tdReplication);
+
+      const tdCiblage = document.createElement('td');
+      tdCiblage.textContent = site.cibleEcriture ? (site.cibleEcriture.tag || 'ciblé') : '—';
+      ligne.appendChild(tdCiblage);
+
+      const tdConfigure = document.createElement('td');
+      tdConfigure.textContent = cocheOuTiret(site.configurationTerminee);
+      ligne.appendChild(tdConfigure);
+
       const tdActions = document.createElement('td');
       tdActions.className = 'col-actions';
 
@@ -308,6 +323,13 @@
       boutonEditer.textContent = 'Modifier';
       boutonEditer.addEventListener('click', () => ouvrirFormulaireSite(site));
       tdActions.appendChild(boutonEditer);
+
+      const boutonReinitialiser = document.createElement('button');
+      boutonReinitialiser.type = 'button';
+      boutonReinitialiser.className = 'bouton-icone';
+      boutonReinitialiser.textContent = 'Retirer les réglages';
+      boutonReinitialiser.addEventListener('click', () => reinitialiserConfiguration(site));
+      tdActions.appendChild(boutonReinitialiser);
 
       const boutonSupprimer = document.createElement('button');
       boutonSupprimer.type = 'button';
@@ -331,6 +353,7 @@
       siteChampPreActive.checked = site.preActive;
       siteChampDuree.value = site.dureeViePseudonyme;
       siteChampFormat.value = site.formatPseudonyme;
+      siteChampReplication.value = site.modeReplication || 'manuel';
     } else {
       idSiteEnEdition = null;
       titreFormulaireSite.textContent = 'Ajouter un site';
@@ -339,6 +362,7 @@
       siteChampPreActive.checked = false;
       siteChampDuree.value = '1a';
       siteChampFormat.value = 'court';
+      siteChampReplication.value = 'manuel';
     }
     dialogueSite.showModal();
     siteChampDomaine.focus();
@@ -364,6 +388,7 @@
     const preActive = siteChampPreActive.checked;
     const dureeViePseudonyme = siteChampDuree.value;
     const formatPseudonyme = siteChampFormat.value;
+    const modeReplication = siteChampReplication.value;
 
     if (!domaine) {
       erreurFormulaireSite.textContent = 'Le domaine est obligatoire.';
@@ -381,6 +406,7 @@
           site.preActive = preActive;
           site.dureeViePseudonyme = dureeViePseudonyme;
           site.formatPseudonyme = formatPseudonyme;
+          site.modeReplication = modeReplication;
         }
       } else {
         actuel.push({
@@ -390,6 +416,12 @@
           preActive,
           dureeViePseudonyme,
           formatPseudonyme,
+          modeReplication,
+          cibleEcriture: null,
+          // Un site ajouté ici n'a pas encore été ciblé ni testé (UC-005) :
+          // le parcours de configuration s'affichera dans le panneau dès
+          // que ce domaine sera visité.
+          configurationTerminee: false,
         });
       }
     });
@@ -397,14 +429,40 @@
     fermerFormulaireSite();
   }
 
+  // « Retirer les réglages » (voir UC-005) : relance le parcours de
+  // configuration sans supprimer le site ni son historique d'alias dans
+  // l'annuaire — contrairement à la suppression complète ci-dessous.
+  async function reinitialiserConfiguration(site) {
+    const confirmation = confirm(
+      `Réinitialiser la configuration de « ${site.domaine} » ? Le ciblage devra être refait (clic droit → écrire ici), et le parcours de configuration se réaffichera dans le panneau.`
+    );
+    if (!confirmation) return;
+    await mettreAJourSites((actuel) => {
+      const cible = actuel.find((s) => s.id === site.id);
+      if (cible) {
+        cible.cibleEcriture = null;
+        cible.configurationTerminee = false;
+      }
+    });
+  }
+
+  // Suppression complète (voir UC-005) : contrairement à un simple retrait
+  // des réglages, purge aussi dans l'annuaire tout aliasParSite référençant
+  // ce site (avec son historique) — sinon ces entrées restent orphelines,
+  // affichées par leur seul identifiant technique (voir nomSite ci-dessus).
   async function supprimerSite(site) {
     const confirmation = confirm(
-      `Supprimer « ${site.domaine} » ? fogbank n'agira plus sur ce site. Les alias déjà attribués sur ce site dans l'annuaire ne seront pas supprimés, mais n'afficheront plus que son identifiant technique.`
+      `Supprimer complètement « ${site.domaine} » ? Cette action retire aussi son historique d'alias de toutes les entités de l'annuaire — irréversible.`
     );
     if (!confirmation) return;
     await mettreAJourSites((actuel) => {
       const index = actuel.findIndex((s) => s.id === site.id);
       if (index !== -1) actuel.splice(index, 1);
+    });
+    await mettreAJourAnnuaire((actuelAnnuaire) => {
+      actuelAnnuaire.forEach((entite) => {
+        entite.aliasParSite = entite.aliasParSite.filter((aps) => aps.siteId !== site.id);
+      });
     });
   }
 
