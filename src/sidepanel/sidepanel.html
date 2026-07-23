@@ -8,11 +8,18 @@
 <body>
   <h1>fogbank</h1>
 
-  <section id="section-cible">
-    <h2>Champ ciblé</h2>
-    <p id="etat-cible">Vérification…</p>
-    <button id="bouton-rafraichir-cible" type="button" class="bouton-secondaire">Rafraîchir</button>
-    <p class="sous-titre">Clic droit sur un champ du site → « fogbank : écrire ici » pour (re)cibler.</p>
+  <!-- Bandeau compact (voir docs/SPECS.md, § Ergonomie) : nom du site,
+       statut, synthèse des réglages en 2 lignes maximum. Seule exception :
+       quand la configuration est incomplète, section-onboarding juste
+       après peut prendre plus de place. -->
+  <section id="section-banniere">
+    <p id="banniere-ligne1">Site : vérification…</p>
+    <p id="banniere-ligne2">
+      <span id="etat-cible">Vérification…</span>
+      <span class="separateur">·</span>
+      <span id="banniere-mode-resume">Réplication : manuel</span>
+    </p>
+    <button id="bouton-rafraichir-cible" type="button" class="bouton-secondaire">Rafraîchir le ciblage</button>
   </section>
 
   <section id="section-onboarding" hidden>
@@ -36,6 +43,7 @@
       <p class="sous-titre">Envoyez-le vous-même depuis le site (fogbank ne clique pas à votre place), puis vérifiez la réponse ici.</p>
       <button id="bouton-verifier-reponse" type="button" class="bouton-secondaire">Vérifier la réponse</button>
       <p id="onboarding-etat-verification"></p>
+      <pre id="onboarding-dialogue" hidden></pre>
     </div>
 
     <div class="etape-onboarding">
@@ -65,6 +73,19 @@
     </div>
   </section>
 
+  <!-- Historique avant composition (voir § Ergonomie) : orienter d'abord
+       sur ce qui s'est déjà dit, puis composer la suite. -->
+  <section id="section-lecture">
+    <h2>Historique de la conversation (en clair)</h2>
+    <button id="bouton-lire" type="button" class="bouton-secondaire">Lire maintenant</button>
+    <pre id="texte-clair"></pre>
+    <div class="actions">
+      <button id="bouton-copier-lecture" type="button" class="bouton-secondaire">Copier</button>
+      <button id="bouton-localiser" type="button" class="bouton-secondaire">Localiser dans la page</button>
+    </div>
+    <p class="sous-titre">« Localiser » cherche, sur la page du site, le texte sélectionné ci-dessus (ou le début de l'historique à défaut de sélection) — un aller simple, pas une navigation synchronisée.</p>
+  </section>
+
   <section id="section-composition">
     <h2>Composer</h2>
     <textarea id="champ-compose" rows="5" placeholder="Tapez & pour mentionner une entité…"></textarea>
@@ -89,16 +110,12 @@
     </div>
   </section>
 
-  <section id="section-lecture">
-    <h2>Réponse (en clair)</h2>
-    <button id="bouton-lire" type="button" class="bouton-secondaire">Lire maintenant</button>
-    <pre id="texte-clair"></pre>
-  </section>
-
-  <section id="section-journal">
-    <h2>Journal</h2>
+  <!-- Réservé au débogage (voir § Ergonomie) : replié par défaut, jamais
+       nécessaire à l'usage normal du panneau. -->
+  <details id="section-journal">
+    <summary>Journal (debug)</summary>
     <div id="journal"></div>
-  </section>
+  </details>
 
   <script src="../shared/site-matching.js"></script>
   <script src="../content/pseudonyme.js"></script>

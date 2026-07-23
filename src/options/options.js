@@ -12,6 +12,35 @@
   const LIBELLES_DUREE = { '1s': '1 semaine', '1t': '1 trimestre', '1a': '1 an', infini: 'Infinie' };
   const LIBELLES_FORMAT = { court: 'Court', etendu: 'Étendu', opaque: 'Opaque' };
 
+  // Entité par défaut « Paris, France » (voir UC-005, Données) — même
+  // logique qu'en background.js, dupliquée volontairement (options.js est
+  // un script classique chargé par <script>, background.js un module de
+  // service worker ; voir la note équivalente dans background.js).
+  const ENTITE_PARIS_ID = 'ent-defaut-paris';
+  const ENTITE_PARIS_CODE = 'PA0001';
+
+  function assurerAliasParisPourSite(annuaireActuel, site) {
+    let entite = annuaireActuel.find((e) => e.id === ENTITE_PARIS_ID);
+    if (!entite) {
+      entite = {
+        id: ENTITE_PARIS_ID,
+        type: 'LOC',
+        nomReel: 'Paris, France',
+        email: null,
+        creeLe: site.creeLe,
+        aliasParSite: [],
+      };
+      annuaireActuel.push(entite);
+    }
+    if (entite.aliasParSite.some((aps) => aps.siteId === site.id)) return;
+    entite.aliasParSite.push({
+      siteId: site.id,
+      aliasActif: ENTITE_PARIS_CODE,
+      expireLe: site.creeLe,
+      historique: [{ alias: ENTITE_PARIS_CODE, attribueLe: site.creeLe, expireLe: site.creeLe }],
+    });
+  }
+
   let annuaire = [];
   let sites = [];
   let filtreActif = '';
@@ -397,6 +426,7 @@
     }
 
     const idCible = idSiteEnEdition;
+    let nouveauSite = null;
     await mettreAJourSites((actuel) => {
       if (idCible) {
         const site = actuel.find((s) => s.id === idCible);
@@ -409,11 +439,12 @@
           site.modeReplication = modeReplication;
         }
       } else {
-        actuel.push({
+        nouveauSite = {
           id: genererIdSite(domaine),
           domaine,
           actif,
           preActive,
+          creeLe: new Date().toISOString().slice(0, 10),
           dureeViePseudonyme,
           formatPseudonyme,
           modeReplication,
@@ -422,9 +453,18 @@
           // le parcours de configuration s'affichera dans le panneau dès
           // que ce domaine sera visité.
           configurationTerminee: false,
-        });
+        };
+        actuel.push(nouveauSite);
       }
     });
+
+    // Alias par défaut « Paris, France » (voir UC-005, Données) — après
+    // coup, une fois `nouveauSite.creeLe` connu et le site déjà persisté.
+    if (nouveauSite) {
+      await mettreAJourAnnuaire((annuaireActuel) => {
+        assurerAliasParisPourSite(annuaireActuel, nouveauSite);
+      });
+    }
 
     fermerFormulaireSite();
   }

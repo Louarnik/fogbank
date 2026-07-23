@@ -1,13 +1,11 @@
-test sous claude https://claude.ai/: 
-    pour claude quand je fait "entrer" j'envois le texte au llm plutot que choisir la bonne personne
-    l'affichage n'est pas au bon endroit il faut qu'il soit au dessus de la zone de saisie
-    l'info bulle est trop longue ne mettre que le nom de la personne
-test https://chatgpt.com/
-    ça ne marche pas
-test file:///C:/Users/frede/Documents/fogbank/tests/fixtures/mock-copilot-site/index.html
-    la substitution fonctionne mais pas le retour (ça reste en mode fog)
-test file:///C:/Users/frede/Documents/fogbank/tests/fixtures/mock-claude-site/index.html
-    le retour ne marche pas
-file:///C:/Users/frede/Documents/fogbank/tests/fixtures/mock-ai-site/index.html
-    le soulignement fonctionne et la substitution en retour, 
-    le texte d'aide n'est pas au bon endroit
+todo
+    reconnaissance du site semi-automatique
+    amélioration de l'ergonomie
+        reprendre dans le side menu
+            sous le tite le nom du site son status et une synthèse des réglage (2 ligne max) si des réglage sont à faire cette partie peux prendre plus de place
+            puis historique de la conversation en clair avec la possibilité de copier le texte et de le localiser dans la page de gauche (pas de navigation synchrone)
+            Composer en clair enfin l'espace de saisie du champs
+            mettre le journal que pour le débug
+    clean le code et les UC
+    reprendre les fixtures
+    audit de code

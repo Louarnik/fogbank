@@ -1,5 +1,5 @@
 // Seul content script de production (voir ADR-008, ADR-009) — remplace
-// content.js, reception.js et site-adapters/*. Quatre responsabilités,
+// content.js, reception.js et site-adapters/*. Cinq responsabilités,
 // toutes pilotées par messages depuis le side panel ou le menu contextuel :
 // - Ciblage (M-15) : mémoriser un champ désigné par clic droit, persister
 //   un descripteur par site, tenter de le retrouver au chargement suivant.
@@ -11,6 +11,9 @@
 // - Modification externe (M-16, panneau maître) : détecter qu'un champ
 //   ciblé a changé sans que ce soit fogbank qui l'ait écrit, et le
 //   signaler plutôt que de l'écraser silencieusement au prochain cycle.
+// - Localisation (voir SPECS.md, § Ergonomie) : retrouver sur la page un
+//   texte affiché dans le panneau, aller simple (scroll + surbrillance),
+//   pas une navigation synchronisée.
 (async function () {
   const siteMatching = window.fogbankSiteMatching;
 
@@ -157,6 +160,32 @@
     return { commandeAcceptee, contenuCorrespond: contenuFinal === texte, contenuFinal };
   }
 
+  // Localiser (voir docs/SPECS.md, § Ergonomie) : aller simple vers la
+  // première occurrence trouvée, pas une navigation synchronisée. V1
+  // best-effort : cherche le texte tel quel (hors champs de saisie), donc
+  // ne trouve rien pour un texte fourni sous sa forme résolue (nom réel)
+  // si la page n'affiche que le tag brut — limite connue, voir SPECS.md.
+  function localiserTexte(recherche) {
+    if (!recherche) return false;
+    const cible = recherche.trim().toLowerCase();
+    if (!cible) return false;
+    const marcheur = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let n = marcheur.nextNode();
+    while (n) {
+      const horsPortee = n.parentElement && n.parentElement.closest('[contenteditable="true"], textarea');
+      if (!horsPortee && n.textContent.toLowerCase().includes(cible)) {
+        const el = n.parentElement;
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          flashCible(el);
+          return true;
+        }
+      }
+      n = marcheur.nextNode();
+    }
+    return false;
+  }
+
   // Lecture (M-07) : même exclusion que l'ancien reception.js (jamais un
   // champ de saisie actif, R-31) mais renvoie le texte brut au panneau
   // plutôt que de substituer dans le DOM du site.
@@ -208,6 +237,11 @@
 
     if (message.type === 'fogbank:lire-clair') {
       sendResponse({ ok: true, texte: texteVisibleHorsChamps() });
+      return undefined;
+    }
+
+    if (message.type === 'fogbank:localiser') {
+      sendResponse({ ok: localiserTexte(message.texte) });
       return undefined;
     }
 

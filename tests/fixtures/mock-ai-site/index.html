@@ -63,6 +63,14 @@
     font-size: 14px;
     white-space: pre-wrap;
   }
+  .message-utilisateur {
+    background: #eef2ff;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    font-size: 14px;
+    white-space: pre-wrap;
+  }
   .payload-log {
     background: #0d1117;
     color: #c9d1d9;
@@ -104,13 +112,14 @@
   vérifier, en local, ce que l'extension enverrait réellement (panneau
   "Payload envoyé") et comment elle restaure une réponse contenant des
   pseudonymes. <strong>La réception est automatique</strong> : cliquer sur
-  "Envoyer" déclenche seul une réponse simulée en streaming qui reprend le
-  contenu envoyé entre deux blocs de texte de remplissage (Lorem ipsum) —
-  pratique pour tester les deux phases de UC-002 sans ressaisir de réponse
-  à la main. Le panneau replié "🧪 Contrôles de test" reste disponible pour
-  composer une réponse arbitraire (tag inconnu, tag cassé...). Deux
-  scénarios de champ de saisie sont fournis car les sites réels utilisent
-  l'un ou l'autre.
+  "Envoyer" affiche le message envoyé dans l'historique, puis déclenche
+  seul une réponse simulée en streaming — simple écho préfixé de
+  « réponse du llm: » — pratique pour tester UC-002 (et le test d'envoi de
+  UC-005, qui cherche deux fois la même sous-chaîne dans l'historique) sans
+  ressaisir de réponse à la main. Le panneau replié "🧪 Contrôles de test"
+  reste disponible pour composer une réponse arbitraire (tag inconnu, tag
+  cassé...). Deux scénarios de champ de saisie sont fournis car les sites
+  réels utilisent l'un ou l'autre.
 </div>
 
 <!-- ===================== SCÉNARIO A — textarea ===================== -->
@@ -184,19 +193,15 @@
     return new Date().toLocaleTimeString('fr-FR');
   }
 
-  // Réponse simulée automatiquement à l'envoi (voir plus bas) : le contenu
-  // réellement envoyé (donc déjà substitué par son tag [TYP:CODE] si
-  // l'extension est active) est repris tel quel entre deux blocs de texte
-  // de remplissage — pratique pour vérifier la restauration d'un tag sans
-  // ressaisir la réponse à la main à chaque essai.
-  const LOREM =
-    'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod ' +
-    'tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim ' +
-    'veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea ' +
-    'commodo consequat.';
-
+  // Réponse simulée automatiquement à l'envoi (voir plus bas) : simple
+  // écho préfixé du contenu réellement envoyé (donc déjà substitué par son
+  // tag [TYP:CODE] si l'extension est active) — pas de texte de
+  // remplissage, pour que le message utilisateur et la réponse simulée
+  // contiennent chacun exactement le texte attendu (utile notamment pour
+  // UC-005, dont le test d'envoi cherche une sous-chaîne précise deux fois
+  // dans l'historique : une fois côté utilisateur, une fois côté « IA »).
   function texteReponseAuto(contenuEnvoye) {
-    return `${LOREM}\n${contenuEnvoye}\n${LOREM}`;
+    return `réponse du llm: ${contenuEnvoye}`;
   }
 
   // Simulation d'une réponse progressive (streaming), pour tester UC-002
@@ -238,8 +243,19 @@
         ? ligne
         : panneau.textContent + ligne;
 
+      if (!contenu) return;
+
+      // Message utilisateur affiché dans l'historique, au même titre que
+      // la réponse — sans lui, seul le payload log (pensé pour le debug
+      // technique) montrait ce qui avait été envoyé.
+      const zone = document.getElementById('reponse-' + cible);
+      const messageUtilisateur = document.createElement('div');
+      messageUtilisateur.className = 'message-utilisateur';
+      messageUtilisateur.textContent = contenu;
+      zone.appendChild(messageUtilisateur);
+
       // Réception automatique : plus besoin du harnais pour le cas courant.
-      if (contenu) demarrerStreaming(cible, texteReponseAuto(contenu));
+      demarrerStreaming(cible, texteReponseAuto(contenu));
     });
   });
 

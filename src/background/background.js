@@ -85,6 +85,58 @@ function genererIdSite(domaine) {
   return `site-${domaine.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-+|-+$)/g, '')}`;
 }
 
+function aujourdHuiISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// Entité par défaut « Paris, France » (voir UC-005, Données) : code fixe
+// (pas généré par M-10), utilisée par le test d'envoi du parcours de
+// configuration pour valider une résolution réelle plutôt qu'une simple
+// sous-chaîne arbitraire. Présente dès l'installation, avec un alias par
+// site dont la date de péremption est la date de création du site — cet
+// alias n'est jamais le fruit d'un usage réel, il doit apparaître déjà
+// expiré pour qu'une mention réelle de « Paris » déclenche la rotation
+// paresseuse habituelle (M-08) dès sa première utilisation.
+const ENTITE_PARIS_ID = 'ent-defaut-paris';
+const ENTITE_PARIS_CODE = 'PA0001';
+
+// Idempotent : mute `annuaire` en place, n'ajoute que ce qui manque
+// (l'entité si absente, un alias par site de `sites` qui n'en a pas
+// encore). Appelée aussi bien à l'installation (pour tous les sites déjà
+// connus) qu'à la création d'un site isolé (voir assurerSiteConfigure).
+function assurerAliasParisPourTousLesSites(annuaire, sites) {
+  let entite = annuaire.find((e) => e.id === ENTITE_PARIS_ID);
+  if (!entite) {
+    entite = {
+      id: ENTITE_PARIS_ID,
+      type: 'LOC',
+      nomReel: 'Paris, France',
+      email: null,
+      creeLe: aujourdHuiISO(),
+      aliasParSite: [],
+    };
+    annuaire.push(entite);
+  }
+  sites.forEach((site) => {
+    if (entite.aliasParSite.some((aps) => aps.siteId === site.id)) return;
+    const dateRef = site.creeLe || aujourdHuiISO();
+    entite.aliasParSite.push({
+      siteId: site.id,
+      aliasActif: ENTITE_PARIS_CODE,
+      expireLe: dateRef,
+      historique: [{ alias: ENTITE_PARIS_CODE, attribueLe: dateRef, expireLe: dateRef }],
+    });
+  });
+}
+
+async function assurerEntitesParDefaut() {
+  const donnees = await chrome.storage.local.get(['fogbank.sites', 'fogbank.annuaire']);
+  const sites = donnees['fogbank.sites'] || [];
+  const annuaire = donnees['fogbank.annuaire'] || [];
+  assurerAliasParisPourTousLesSites(annuaire, sites);
+  await chrome.storage.local.set({ 'fogbank.annuaire': annuaire });
+}
+
 // Auto-création d'un site au premier ciblage (M-01/M-15, voir UC-005) :
 // plutôt que d'exiger un passage préalable par options/ pour tout nouveau
 // site, un clic droit sur un site inconnu le crée avec des réglages par
@@ -107,18 +159,25 @@ async function assurerSiteConfigure(tab) {
   const sites = donnees['fogbank.sites'] || [];
   if (sites.some((s) => correspondDomaine(s, tab.url))) return;
 
-  sites.push({
+  const nouveauSite = {
     id: genererIdSite(domaine),
     domaine,
     preActive: false,
     actif: true,
+    creeLe: aujourdHuiISO(),
     dureeViePseudonyme: '1a',
     formatPseudonyme: 'court',
     modeReplication: 'manuel',
     cibleEcriture: null,
     configurationTerminee: false,
-  });
+  };
+  sites.push(nouveauSite);
   await chrome.storage.local.set({ 'fogbank.sites': sites });
+
+  const donneesAnnuaire = await chrome.storage.local.get(['fogbank.annuaire']);
+  const annuaire = donneesAnnuaire['fogbank.annuaire'] || [];
+  assurerAliasParisPourTousLesSites(annuaire, [nouveauSite]);
+  await chrome.storage.local.set({ 'fogbank.annuaire': annuaire });
 }
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
@@ -143,7 +202,20 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 chrome.runtime.onInstalled.addListener(() => {
   console.log('[fogbank] extension installée.');
   enregistrerMenuContextuel();
-  chargerDonneesDeDeveloppement().catch((err) => {
-    console.error('[fogbank] échec du chargement des données de développement :', err);
-  });
+  (async () => {
+    try {
+      await chargerDonneesDeDeveloppement();
+    } catch (err) {
+      console.error('[fogbank] échec du chargement des données de développement :', err);
+    }
+    // Indépendant du chargement de développement (qui sera retiré avant
+    // une release réelle, voir donnees-test.js) — mais séquencé après lui
+    // pour voir tous les sites déjà connus, fixtures de dev comprises, et
+    // leur ajouter l'alias Paris manquant en un seul passage.
+    try {
+      await assurerEntitesParDefaut();
+    } catch (err) {
+      console.error('[fogbank] échec de la création des entités par défaut :', err);
+    }
+  })();
 });

@@ -5,9 +5,16 @@
   const DUREE_EN_JOURS = { '1s': 7, '1t': 91, '1a': 365 };
   const DELAI_AUTO_MS = 350;
   const TEXTE_TEST_ECRITURE = 'Test fogbank — écriture';
-  const PHRASE_TEST_ENVOI = 'test bien reçu';
+  // [LOC:PA0001] résout vers l'entité par défaut « Paris, France » (voir
+  // UC-005, Données) : un tag réel et résolvable plutôt qu'arbitraire, pour
+  // que la vérification teste aussi la résolution (M-10), pas seulement la
+  // présence d'une sous-chaîne.
+  const PHRASE_TEST_ENVOI = 'test bien reçu [LOC:PA0001]';
   const TEXTE_TEST_ENVOI = `Ceci est un test, merci de répondre par « ${PHRASE_TEST_ENVOI} ».`;
+  const MARGE_CONTEXTE = 150;
 
+  const banniereLigne1 = document.getElementById('banniere-ligne1');
+  const banniereModeResume = document.getElementById('banniere-mode-resume');
   const etatCible = document.getElementById('etat-cible');
   const boutonRafraichirCible = document.getElementById('bouton-rafraichir-cible');
   const champCompose = document.getElementById('champ-compose');
@@ -18,6 +25,8 @@
   const boutonEnvoyer = document.getElementById('bouton-envoyer');
   const boutonCopier = document.getElementById('bouton-copier');
   const boutonLire = document.getElementById('bouton-lire');
+  const boutonCopierLecture = document.getElementById('bouton-copier-lecture');
+  const boutonLocaliser = document.getElementById('bouton-localiser');
   const texteClair = document.getElementById('texte-clair');
   const journal = document.getElementById('journal');
 
@@ -27,6 +36,7 @@
   const boutonTestEnvoi = document.getElementById('bouton-test-envoi');
   const boutonVerifierReponse = document.getElementById('bouton-verifier-reponse');
   const onboardingEtatVerification = document.getElementById('onboarding-etat-verification');
+  const onboardingDialogue = document.getElementById('onboarding-dialogue');
   const onboardingDuree = document.getElementById('onboarding-duree');
   const onboardingFormat = document.getElementById('onboarding-format');
   const boutonTerminerConfig = document.getElementById('bouton-terminer-config');
@@ -86,11 +96,24 @@
     annuaire = donnees['fogbank.annuaire'] || [];
   }
 
+  // Ligne 1 de la bannière (voir docs/SPECS.md, § Ergonomie) : distincte de
+  // `siteActif` (qui ne matche qu'un site actif, pour la logique
+  // fonctionnelle) — une correspondance même sur un site désactivé doit
+  // pouvoir s'afficher ici, avec son statut.
+  function afficherBanniereSite(onglet) {
+    const site =
+      onglet && onglet.url ? window.fogbankSiteMatching.trouverSiteConfigurePour(sites, onglet.url) : null;
+    banniereLigne1.textContent = site
+      ? `${site.domaine} — ${site.actif ? 'actif' : 'inactif'}`
+      : 'Site non reconnu par fogbank.';
+  }
+
   async function determinerSite() {
     const onglet = await ongletActifCourant();
     ongletId = onglet && onglet.id ? onglet.id : null;
     siteActif =
       onglet && onglet.url ? window.fogbankSiteMatching.trouverSiteActifPour(sites, onglet.url) : null;
+    afficherBanniereSite(onglet);
   }
 
   chrome.storage.onChanged.addListener((changements, zone) => {
@@ -229,6 +252,8 @@
       onboardingFormat.value = siteActif.formatPseudonyme || 'court';
       onboardingEtatVerification.textContent = '';
       onboardingEtatVerification.className = '';
+      onboardingDialogue.hidden = true;
+      onboardingDialogue.textContent = '';
     }
   }
 
@@ -263,22 +288,73 @@
     }
   });
 
+  // Toutes les positions (insensible à la casse) où `sousChaine` apparaît
+  // dans `texte` — voir UC-005, Test d'envoi : la première correspond au
+  // message de l'utilisateur (qui contient la phrase complète), la
+  // dernière à la réponse de l'IA la plus récente (pas la seconde, en cas
+  // de régénération : voir Cas d'erreur de l'UC).
+  function trouverOccurrences(texte, sousChaine) {
+    const positions = [];
+    const texteMin = texte.toLowerCase();
+    const cibleMin = sousChaine.toLowerCase();
+    let depart = 0;
+    let index = texteMin.indexOf(cibleMin, depart);
+    while (index !== -1) {
+      positions.push(index);
+      depart = index + cibleMin.length;
+      index = texteMin.indexOf(cibleMin, depart);
+    }
+    return positions;
+  }
+
+  function extraireContexte(texte, index, longueurCible) {
+    const debut = Math.max(0, index - MARGE_CONTEXTE);
+    const fin = Math.min(texte.length, index + longueurCible + MARGE_CONTEXTE);
+    return texte.slice(debut, fin).trim();
+  }
+
   boutonVerifierReponse.addEventListener('click', async () => {
+    onboardingDialogue.hidden = true;
+    onboardingDialogue.textContent = '';
+
     const reponse = await envoyerAuContentScript({ type: 'fogbank:lire-clair' });
     if (!reponse || !reponse.ok) {
       onboardingEtatVerification.textContent = `Échec de lecture : ${(reponse && reponse.erreur) || 'réponse vide'}`;
       onboardingEtatVerification.className = 'erreur';
       return;
     }
-    const trouve = reponse.texte.toLowerCase().includes(PHRASE_TEST_ENVOI.toLowerCase());
-    if (trouve) {
-      onboardingEtatVerification.textContent = '« test bien reçu » trouvé sur la page — écriture et lecture fonctionnent sur ce site.';
-      onboardingEtatVerification.className = 'succes';
-    } else {
+
+    const occurrences = trouverOccurrences(reponse.texte, PHRASE_TEST_ENVOI);
+
+    if (occurrences.length === 0) {
       onboardingEtatVerification.textContent =
-        '« test bien reçu » non trouvé — la réponse est peut-être encore en cours, ou l’IA a reformulé. Réessayez, ou passez à l’étape suivante si vous l’avez constaté de visu.';
+        '« test bien reçu » introuvable — la réponse est peut-être encore en cours. Réessayez, ou passez à l’étape suivante si vous l’avez constaté de visu.';
       onboardingEtatVerification.className = 'erreur';
+      return;
     }
+
+    if (occurrences.length === 1) {
+      onboardingEtatVerification.textContent =
+        'Une seule occurrence trouvée — non concluant (la réponse n’est peut-être pas encore visible, ou le site ne restitue pas le message utilisateur dans le texte lu). Réessayez.';
+      onboardingEtatVerification.className = 'erreur';
+      return;
+    }
+
+    // Régénération possible : la dernière occurrence est la réponse la
+    // plus récente, pas nécessairement la deuxième trouvée.
+    const indexUtilisateur = occurrences[0];
+    const indexAssistant = occurrences[occurrences.length - 1];
+    const messageUtilisateur = substituerTags(
+      extraireContexte(reponse.texte, indexUtilisateur, PHRASE_TEST_ENVOI.length)
+    );
+    const messageAssistant = substituerTags(
+      extraireContexte(reponse.texte, indexAssistant, PHRASE_TEST_ENVOI.length)
+    );
+
+    onboardingEtatVerification.textContent = `« test bien reçu » trouvé (${occurrences.length} occurrence${occurrences.length > 1 ? 's' : ''}) — écriture et lecture fonctionnent sur ce site.`;
+    onboardingEtatVerification.className = 'succes';
+    onboardingDialogue.hidden = false;
+    onboardingDialogue.textContent = `Vous : ${messageUtilisateur}\n\nIA : ${messageAssistant}`;
   });
 
   boutonTerminerConfig.addEventListener('click', async () => {
@@ -306,7 +382,9 @@
   }
 
   function majAffichageMode() {
-    selecteurMode.value = (siteActif && siteActif.modeReplication) || 'manuel';
+    const mode = (siteActif && siteActif.modeReplication) || 'manuel';
+    selecteurMode.value = mode;
+    banniereModeResume.textContent = `Réplication : ${mode === 'auto' ? 'auto' : 'manuel'}`;
   }
 
   async function definirModeReplication(mode) {
@@ -409,6 +487,39 @@
       afficherTexteClair(reponse.texte);
     } else {
       logger(`Échec de lecture : ${(reponse && reponse.erreur) || 'réponse vide'}`, 'erreur');
+    }
+  });
+
+  boutonCopierLecture.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(texteClair.textContent);
+      logger('Historique copié dans le presse-papier.', 'succes');
+    } catch (err) {
+      logger(`Échec de copie : ${err.message || err}`, 'erreur');
+    }
+  });
+
+  // Localiser (voir docs/SPECS.md, § Ergonomie) : un aller simple vers la
+  // position correspondante sur la page du site, pas une navigation
+  // synchronisée. V1 best-effort : cherche le texte tel quel — s'il
+  // provient d'une portion résolue de l'historique (nom réel affiché à la
+  // place d'un tag), la recherche échoue sur le site, qui ne connaît que
+  // le tag brut. Cas non résolu pour l'instant, voir SPECS.md.
+  boutonLocaliser.addEventListener('click', async () => {
+    const selection = window.getSelection().toString().trim();
+    const texte = selection || texteClair.textContent.slice(0, 200).trim();
+    if (!texte) {
+      logger('Rien à localiser — sélectionnez du texte dans l’historique, ou lisez la page d’abord.', 'erreur');
+      return;
+    }
+    const reponse = await envoyerAuContentScript({ type: 'fogbank:localiser', texte });
+    if (reponse && reponse.ok) {
+      logger('Texte localisé sur la page.', 'succes');
+    } else {
+      logger(
+        'Texte introuvable tel quel sur la page — peut-être affiché sous sa forme résolue (nom réel) plutôt que le tag brut.',
+        'erreur'
+      );
     }
   });
 

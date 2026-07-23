@@ -106,6 +106,27 @@ appel qui doit rester synchrone dans le geste utilisateur, avant tout
 `await` (sans quoi l'API échoue silencieusement, constaté pendant le
 spike).
 
+### Ergonomie du side panel
+
+Disposition détaillée dans [SPECS.md](SPECS.md), § Ergonomie — implémentée
+telle quelle dans `sidepanel/sidepanel.html`, de haut en bas :
+`#section-banniere` (site/statut/synthèse réglages, 2 lignes) →
+`#section-onboarding` (parcours de configuration, affiché seulement si
+`configurationTerminee` est `false` — seule exception à la limite de 2
+lignes) → `#section-lecture` (historique en clair, copier + localiser) →
+`#section-composition` (champ `&` + réplication) → `#section-journal`
+(`<details>` replié par défaut, debug uniquement).
+
+« Localiser dans la page » (`fogbank:localiser`, voir `content/ecriture.js`)
+est un **v1 best-effort** : cherche tel quel, dans le texte visible hors
+champs de saisie, la sélection courante du panneau (ou les 200 premiers
+caractères de l'historique à défaut) — `scrollIntoView` + réutilisation de
+`flashCible` (déjà utilisée pour confirmer un ciblage) sur le premier nœud
+texte correspondant. Limite connue et non résolue : un texte fourni sous
+sa forme résolue (nom réel affiché dans le panneau) ne correspond pas au
+tag brut réellement présent sur la page — la recherche échoue dans ce cas,
+voir SPECS.md § Ergonomie.
+
 ### Pourquoi il n'y a plus d'adaptateur de site
 
 Trois générations ont été essayées et abandonnées avant l'approche
@@ -150,6 +171,7 @@ de stockage.
   domaine: string,                         // ex: "chatgpt.com"
   preActive: boolean,                      // true pour les grands sites IA (ADR-004)
   actif: boolean,
+  creeLe: string,                          // NOUVEAU (UC-005) — ISO date, création de l'entrée ; sert de date de péremption à l'alias par défaut « Paris, France » (voir plus bas)
   dureeViePseudonyme: "1s" | "1t" | "1a" | "infini",  // M-08
   formatPseudonyme: "court" | "etendu" | "opaque",    // voir ADR-002 — s'applique à toutes les entités sur ce site
   modeReplication: "manuel" | "auto",       // NOUVEAU (ADR-009) — défaut "manuel", M-16
@@ -215,6 +237,18 @@ un rechargement) : c'est un descripteur best-effort utilisé par
 `content/ecriture.js` pour retrouver le champ au chargement suivant — voir
 Flux, Ciblage.
 
+**Entité par défaut « Paris, France »** (voir UC-005, Données) : présente
+dans `fogbank.annuaire[]` dès l'installation (`id: "ent-defaut-paris"`,
+`type: "LOC"`, code fixe `PA0001` — pas généré par M-10, pour que le test
+d'envoi du parcours de configuration insère toujours le même tag).
+`assurerAliasParisPourTousLesSites` (dupliquée en `background.js` et
+`options.js`, même contrainte module/script classique que
+`shared/site-matching.js`) garantit, de façon idempotente, un
+`aliasParSite` pour chaque site — `expireLe` égal au `creeLe` du site :
+cet alias n'est jamais le fruit d'un usage réel, il doit apparaître déjà
+expiré pour que la rotation paresseuse (M-08) s'applique dès la première
+mention réelle de « Paris ».
+
 ## Flux principaux
 
 **Composition (M-03/M-04/M-05, dans le panneau — voir UC-001)**
@@ -268,8 +302,14 @@ Flux, Ciblage.
   panneau affiche un parcours guidé en plus de la zone de composition
   normale (jamais à sa place) : test d'écriture (réutilise l'écrasement de
   M-16), test d'envoi avec vérification de réponse (réutilise la lecture
-  de M-07, recherche d'une phrase fixe dans le texte extrait), puis choix
-  de la durée de vie et du format de pseudonyme.
+  de M-07), puis choix de la durée de vie et du format de pseudonyme.
+- Le test d'envoi cherche la sous-chaîne « test bien reçu [LOC:PA0001] »
+  (voir entité par défaut, ci-dessus) **deux fois** dans le texte extrait :
+  la première occurrence localise le message de l'utilisateur, la
+  **dernière** (pas nécessairement la deuxième, en cas de régénération) la
+  réponse de l'IA — le panneau affiche alors le contexte autour de chaque
+  position (`sidepanel.js#trouverOccurrences`/`extraireContexte`) pour
+  validation visuelle.
 - Suppression d'un site (`options/`) : purge aussi, dans
   `fogbank.annuaire[]`, tout `aliasParSite[]` référençant ce site — plus
   de référence orpheline laissée derrière (comportement précédent).

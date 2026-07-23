@@ -124,6 +124,36 @@ mono-poste** :
 - M-12/M-13 se limitent aux formats texte simples et à l'Excel (`.xlsx`) —
   pas de documents Office structurés (`.docx`, `.pptx`).
 
+## Ergonomie
+
+Disposition du side panel (surface principale, voir ADR-008), du haut vers
+le bas :
+
+1. **Titre** (« fogbank »).
+2. **Bandeau de site**, sous le titre : nom du site, statut (actif/inactif)
+   et synthèse des réglages en **2 lignes maximum** (mode de réplication,
+   ciblage — voir M-16, UC-003). Si des réglages restent à faire
+   (configuration incomplète, voir UC-005), ce bandeau peut prendre plus de
+   place pour afficher le parcours de configuration — seule exception à la
+   limite de 2 lignes.
+3. **Historique de la conversation, en clair** (voir UC-002) : le texte
+   résolu de la page, avec deux actions possibles sur ce texte :
+   - **copier** (presse-papier) ;
+   - **localiser dans la page** (celle du site, à gauche du panneau) : un
+     aller simple vers la position correspondante — défilement et/ou
+     surbrillance — déclenché explicitement, **pas une navigation
+     synchronisée** qui suivrait la conversation en continu. Nécessite de
+     faire correspondre une position dans le texte extrait (plat, voir
+     UC-002) à un nœud réel du DOM de la page — mécanisme à concevoir, pas
+     déjà couvert par l'extraction actuelle (`texteVisibleHorsChamps`), qui
+     ne conserve aucune référence aux nœuds d'origine une fois le texte
+     aplati.
+4. **Composer**, en clair (voir UC-001/UC-004) : l'espace de saisie du
+   panneau (déclencheur `&` + calque de décoration) et les contrôles de
+   réplication (mode, témoin de synchro, envoyer, copier).
+5. **Journal** : masqué par défaut, réservé au débogage — pas un élément
+   de l'usage normal.
+
 ## Macro-UC (vue d'ensemble)
 
 Liste de haut niveau, à décliner ensuite en UC détaillés avec le template
@@ -704,16 +734,46 @@ jamais bloquant, voir Contraintes) :
 2. **Test d'écriture** : un bouton écrit un texte fixe et reconnaissable
    (« Test fogbank — écriture ») dans le champ ciblé, par le mécanisme
    d'écrasement déjà décrit en UC-004. L'utilisateur confirme
-   visuellement que ce texte apparaît bien sur la page du site.
+   visuellement que ce texte apparaît bien sur la page du site. Ce succès
+   confirme du même coup le descripteur du champ ciblé à l'étape 1 (« la
+   balise », voir UC-003) : c'est à ce moment qu'il est (re)enregistré dans
+   `fogbank.sites[].cibleEcriture` — la fiche de préférences du site —
+   plutôt que de rester une correspondance non vérifiée.
 3. **Test d'envoi** : un bouton écrit, par le même mécanisme, un message
-   invitant explicitement l'IA à répondre par une phrase fixe : « Ceci
-   est un test, merci de répondre par « test bien reçu ». ». L'utilisateur
-   envoie lui-même ce message depuis le site (fogbank ne contrôle pas son
-   bouton d'envoi, voir ADR-009). Un bouton « Vérifier la réponse » relit
-   ensuite la page (même mécanisme que UC-002, `fogbank:lire-clair`) et
-   recherche la phrase attendue dans le texte extrait — trouvée, elle
-   valide **à la fois** que l'écriture est bien passée jusqu'à l'IA et que
-   la lecture de page fonctionne sur ce site, dans le même geste.
+   invitant explicitement l'IA à répondre par une phrase fixe portant un
+   tag fogbank réel et **résolvable** (« Ceci est un test, merci de
+   répondre par « test bien reçu [LOC:PA0001] ». ») : `[LOC:PA0001]`
+   résout vers l'entité **« Paris, France »**, une entité par défaut
+   (voir Données) plutôt qu'un tag arbitraire non résolvable — le test
+   valide ainsi la résolution réelle (M-10), pas seulement la présence
+   d'une sous-chaîne. L'utilisateur envoie lui-même ce message depuis le
+   site (fogbank ne contrôle pas son bouton d'envoi, voir ADR-009). Un
+   bouton « Vérifier la réponse » relit ensuite la page
+   (même mécanisme que UC-002, `fogbank:lire-clair`) et cherche la
+   sous-chaîne « test bien reçu [LOC:PA0001] » dans le texte extrait —
+   **deux occurrences attendues**, pas une seule :
+   - la **première** correspond au message de l'utilisateur lui-même (il
+     contient la phrase complète, donc aussi cette sous-chaîne) —
+     identifie où, dans l'historique de la conversation affiché par le
+     site, se trouve le tour de l'utilisateur ;
+   - la **seconde** correspond à la réponse de l'IA — identifie où se
+     trouve le tour de l'assistant.
+
+   Trouver les deux valide **à la fois** que l'écriture est bien passée
+   jusqu'à l'IA et que la lecture de page fonctionne sur ce site, dans le
+   même geste ; le panneau affiche alors, sous ce test, le dialogue
+   identifié (contexte autour de chaque occurrence) pour que l'utilisateur
+   confirme visuellement que c'est bien son message et la bonne réponse
+   qui ont été reconnus — pas une coïncidence de texte ailleurs sur la
+   page.
+
+   > Ce point précis de l'implémentation demande davantage de réflexion
+   > que le reste de cet UC : distinguer de façon fiable « première
+   > occurrence = utilisateur, seconde = assistant » suppose de
+   > comprendre comment chaque site restitue l'historique dans le texte
+   > extrait (ordre chronologique fiable ou non, doublons possibles côté
+   > brouillon/streaming, etc.) — à valider contre les sites réels avant
+   > de considérer ce mécanisme acquis, pas seulement contre les fixtures.
 4. **Préférences** : durée de vie du pseudonyme (M-08) et format du
    pseudonyme (M-10), choisies dans le panneau — mêmes valeurs et mêmes
    options que le formulaire de l'onglet Sites de `options/`.
@@ -727,14 +787,30 @@ jamais bloquant, voir Contraintes) :
 
 Écriture dans `fogbank.sites[]` :
 - Nouvelle entrée (points d'entrée 1 et 2), réglages par défaut
-  (`dureeViePseudonyme: "1a"`, `formatPseudonyme: "court"`,
-  `modeReplication: "manuel"`, `cibleEcriture: null`,
-  `configurationTerminee: false`).
+  (`creeLe`: date du jour, `dureeViePseudonyme: "1a"`,
+  `formatPseudonyme: "court"`, `modeReplication: "manuel"`,
+  `cibleEcriture: null`, `configurationTerminee: false`).
 - Puis, au fil du parcours : `cibleEcriture` (étape 1, via UC-003),
   `dureeViePseudonyme`/`formatPseudonyme` (étape 4), `configurationTerminee`
   (étape 5).
 
-Aucune écriture dans `fogbank.annuaire` par cet UC.
+Écriture dans `fogbank.annuaire[]` — entité par défaut « Paris, France » :
+- **« Paris, France »** (type `LOC`, code fixe `PA0001`, pas généré par
+  M-10) est une entité par défaut de l'annuaire, présente dès
+  l'installation au même titre que les sites pré-activés (voir ADR-004).
+  Contrairement aux entités ordinaires, son code n'est pas dérivé de son
+  nom ni généré à l'insertion d'un tag — il est fixe, pour que le message
+  de test de l'étape 3 soit prévisible et identique sur tous les sites.
+- À la création d'un nouveau site (points d'entrée 1 et 2 de cet UC), un
+  `aliasParSite` pour cette entité est ajouté automatiquement si absent,
+  avec `aliasActif: "PA0001"` et **`expireLe` égal à `creeLe` du site**
+  (pas une expiration future calculée normalement, voir M-08) : cet alias
+  n'est jamais le résultat d'un usage réel, il est prévu pour paraître
+  déjà expiré dès la création du site. Une future mention réelle de
+  « Paris » sur ce site (menu `&`, hors contexte de cet UC) déclenchera
+  alors la rotation paresseuse habituelle (M-08) dès la première
+  utilisation, plutôt que de rester indéfiniment sur ce code de
+  bootstrap.
 
 **Cas d'erreur**
 
@@ -742,7 +818,9 @@ Aucune écriture dans `fogbank.annuaire` par cet UC.
 |-----|----------------------|
 | Clic droit sur un site dont le domaine correspond déjà à une entrée existante | L'entrée existante est réutilisée (correspondance par domaine) ; aucun doublon créé. |
 | Test d'écriture : le texte n'apparaît pas sur la page | Aucun blocage technique — l'utilisateur reste sur cette étape, peut vérifier le ciblage (UC-003) ou réessayer. |
-| Test d'envoi : phrase attendue introuvable à la vérification | Message d'échec, pas de blocage — l'IA a pu reformuler ou la réponse n'est pas encore arrivée (page pas encore stabilisée, voir UC-002) ; l'utilisateur peut réessayer la vérification ou passer à l'étape suivante s'il a constaté le succès de visu. |
+| Test d'envoi : sous-chaîne absente (zéro occurrence) | Message d'échec, pas de blocage — l'IA n'a peut-être pas encore répondu (page pas encore stabilisée, voir UC-002) ; l'utilisateur peut réessayer la vérification ou passer à l'étape suivante s'il a constaté le succès de visu. |
+| Test d'envoi : une seule occurrence trouvée (pas deux) | Traité comme non concluant, pas comme un échec dur : soit la réponse de l'IA n'est pas encore visible, soit le site ne restitue pas le message utilisateur dans le même texte extrait. Le dialogue ne s'affiche pas ; message invitant à réessayer. |
+| Test d'envoi : plus de deux occurrences trouvées (l'IA a répété la phrase, ou une régénération a eu lieu) | Prendre la première comme message utilisateur et la **dernière** comme réponse la plus récente, plutôt que la seconde — évite de pointer vers une réponse périmée après une régénération. |
 | Site ajouté via `options/` sans qu'aucun onglet n'ait ce domaine ouvert | Le site est créé (`configurationTerminee: false`) mais le ciblage devra être fait plus tard, en visitant le site et en faisant un clic droit — pas d'erreur, juste un parcours interrompu à l'étape 1. |
 
 **Contraintes**
