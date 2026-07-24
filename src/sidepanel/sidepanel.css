@@ -1,7 +1,43 @@
-/* Design tokens — approximation locale du design system "Industry" (voir
-   docs/design/side-panel-ergonomie/). Pas de police distante chargée : par
-   principe "tout local" (voir ARCHITECTURE.md), la pile système sert de
-   repli pour Barlow/Barlow Condensed. */
+/* Design tokens — design system "Industry" (voir
+   docs/design/side-panel-ergonomie/). Barlow/Barlow Condensed vendorées
+   localement (src/vendor/fonts/, voir src/vendor/fonts/README.md) : aucun
+   appel réseau, conforme au principe "tout local" (voir ARCHITECTURE.md). */
+@font-face {
+  font-family: "Barlow";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("../vendor/fonts/barlow-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow";
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  src: url("../vendor/fonts/barlow-500.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow";
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url("../vendor/fonts/barlow-700.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("../vendor/fonts/barlow-condensed-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Barlow Condensed";
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url("../vendor/fonts/barlow-condensed-600.woff2") format("woff2");
+}
+
 :root {
   color-scheme: light dark;
 
@@ -91,51 +127,17 @@ h6 {
   line-height: 1.4;
 }
 
-/* --- Cadre "blueprint" : bordure fine + 4 marques d'angle, jamais de coins
-   arrondis ni de fond plein (sauf le bouton primaire). --- */
+/* --- Cadre "blueprint" : simple bordure fine, jamais de coins arrondis ni
+   de fond plein (sauf le bouton primaire). --- */
 .blueprint {
-  position: relative;
   border: 1px solid var(--color-divider);
 }
-.coin {
-  position: absolute;
-  width: 7px;
-  height: 7px;
-  pointer-events: none;
-}
-.coin::before, .coin::after {
-  content: "";
-  position: absolute;
-  background: var(--color-accent-700);
-}
-.coin::before { width: 100%; height: 1.5px; top: 50%; left: 0; transform: translateY(-50%); }
-.coin::after { height: 100%; width: 1.5px; left: 50%; top: 0; transform: translateX(-50%); }
-.coin-hg { top: -1px; left: -1px; }
-.coin-hd { top: -1px; right: -1px; }
-.coin-bg { bottom: -1px; left: -1px; }
-.coin-bd { bottom: -1px; right: -1px; }
 
-/* --- 1. Titre --- */
-#section-titre {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-4) var(--space-4) var(--space-2);
-  color: var(--color-accent-700);
-}
-#section-titre h1 {
-  font-size: 20px;
-  margin: 0;
-  letter-spacing: -0.01em;
-  color: var(--color-text);
-  font-family: var(--font-heading);
-}
-
-/* --- 2. Bandeau de site --- */
+/* --- 2. Bandeau de site (le titre/icône de l'onglet est déjà fourni par
+   Chrome pour le side panel — pas de titre dupliqué ici) --- */
 #section-banniere {
   flex-shrink: 0;
-  margin: 0 var(--space-4) var(--space-3);
+  margin: var(--space-4) var(--space-4) var(--space-3);
   padding: var(--space-3);
   display: flex;
   flex-direction: column;

@@ -66,7 +66,8 @@ src/
 │   ├── popup.js
 │   └── popup.css
 ├── vendor/                   # dépendances tierces vendored
-│   └── xlsx.full.min.js      # SheetJS CE, Apache-2.0 (voir ADR-006)
+│   ├── xlsx.full.min.js      # SheetJS CE, Apache-2.0 (voir ADR-006)
+│   └── fonts/                # Barlow/Barlow Condensed (SIL OFL), voir fonts/README.md
 └── icons/
 ```
 
