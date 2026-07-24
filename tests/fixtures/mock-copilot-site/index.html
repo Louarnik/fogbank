@@ -105,12 +105,11 @@
 
 <h1>Copilot factice — fixture de test fogbank</h1>
 <div class="banniere">
-  Reproduit la structure DOM relevée dans
-  <code>docs/recherche/constat-copilot.md</code> (Copilot grand public,
-  <code>copilot.microsoft.com</code> : composer <code>&lt;textarea&gt;</code>
+  Reproduit la structure DOM relevée sur le vrai Copilot grand public
+  (<code>copilot.microsoft.com</code> : composer <code>&lt;textarea&gt;</code>
   natif, réponse <code>div[data-content="ai-message"]</code>). N'envoie rien
   à un vrai serveur. **Aucun signal de fin de streaming n'est simulé** :
-  le vrai site n'en expose pas non plus (constat, §4.3) — la détection s'y
+  le vrai site n'en expose pas non plus — la détection s'y
   fait uniquement par stabilité du texte (~2,5 s sans mutation), exactement
   ce que le repli `MutationObserver` générique de fogbank doit couvrir.
   Sélecteurs non revérifiés en direct (voir le constat, §8 pour la sonde de

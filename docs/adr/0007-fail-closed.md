@@ -17,10 +17,10 @@ plus référence dans les specs ni dans le discours produit.
 
 ## Contexte
 
-UC-001 (implémenté) substitue les mentions marquées par leur tag `[TYP:CODE]` juste avant
+UC-001 (implémenté) substitue les mentions marquées par leur tag `[TYP:ALIAS]` juste avant
 l'envoi (M-06), en réécrivant le contenu du champ. Ce modèle « fail-open » repose sur deux
 hypothèses fragiles, mises en évidence par le relevé factuel de ChatGPT, Claude.ai et
-Copilot (voir [docs/recherche/](../recherche/)) :
+Copilot (voir docs/recherche/ (dossier supprimé, voir ADR-010)) :
 
 - **ProseMirror (ChatGPT, Claude.ai)** : le composer maintient un modèle de document
   interne indépendant du DOM. Une réécriture DOM juste avant l'envoi (`textContent`,
@@ -44,23 +44,23 @@ invisible — exactement ce que fogbank doit empêcher.
 |---|---|
 | **Fail-open (actuel, UC-001/UC-002)** : le vrai nom reste affiché dans le champ, substitué par le tag juste avant l'envoi | Repose sur une réécriture DOM qui n'atteint pas le modèle interne de ProseMirror (ChatGPT, Claude.ai) ; échec silencieux possible — le vrai nom peut partir en clair sans avertissement |
 | **Fail-open + hook réseau sortant** : garder l'affichage en clair, substituer via un hook `fetch`/WebSocket en monde `MAIN` plutôt que par réécriture DOM | Résout le problème ProseMirror, mais réintroduit tout ce que MV3 a supprimé : un hook par site, un schéma de payload à connaître et maintenir par site (voir §5 de chaque constat), fragile au moindre changement de forme du corps de requête |
-| **Fail-closed (retenue)** : le tag `[TYP:CODE]` est ce que l'utilisateur tape et voit dans le champ ; le vrai nom n'est jamais écrit dans l'éditeur, seulement décoré à l'affichage (soulignement, infobulle, légende) | Écarte entièrement la réécriture sortante ; en contrepartie, le calque de décoration doit reproduire fidèlement la position du texte réel (mesure par miroir sur `<textarea>`, `Range` sur `contenteditable`). `docs/recherche/reco.md` recommandait en plus un garde-fou bloquant l'envoi si un vrai nom reste tapé en clair (R-50 à R-53) ; **non retenu**, voir Conséquences — fogbank ne protège que ce qui passe par le menu `&` |
+| **Fail-closed (retenue)** : le tag `[TYP:ALIAS]` est ce que l'utilisateur tape et voit dans le champ ; le vrai nom n'est jamais écrit dans l'éditeur, seulement décoré à l'affichage (soulignement, infobulle, légende) | Écarte entièrement la réécriture sortante ; en contrepartie, le calque de décoration doit reproduire fidèlement la position du texte réel (mesure par miroir sur `<textarea>`, `Range` sur `contenteditable`). `docs/recherche/reco.md` recommandait en plus un garde-fou bloquant l'envoi si un vrai nom reste tapé en clair (R-50 à R-53) ; **non retenu**, voir Conséquences — fogbank ne protège que ce qui passe par le menu `&` |
 
 ## Décision
 
-Adopter le mode **fail-closed** : `[TYP:CODE]` est la source de vérité dans l'éditeur, dès
+Adopter le mode **fail-closed** : `[TYP:ALIAS]` est la source de vérité dans l'éditeur, dès
 l'insertion (M-04). Aucune réécriture du champ n'a lieu à l'envoi. L'affichage du vrai nom
 est un calque de décoration en lecture seule (soulignement + infobulle + légende sous le
 champ), rendu dans un shadow root fermé, qui ne dépose jamais le vrai nom dans le DOM du
 site. Le détail technique (façade `EditorHandle`, mesure par miroir, cloisonnement) est
-dans [docs/recherche/reco.md](../recherche/reco.md) (R-01 à R-63) — **à l'exception du
+dans docs/recherche/reco.md (supprimé, voir ADR-010) (R-01 à R-63) — **à l'exception du
 garde-fou à l'envoi (R-50 à R-53) et de la restauration réseau (R-54 à R-56), tous deux
 écartés en cours de rédaction des UC**, voir Conséquences.
 
 Périmètre retenu : ChatGPT, Claude.ai, **Copilot grand public**
 (`copilot.microsoft.com`). Microsoft 365 Copilot reste hors périmètre pour l'instant —
 produit distinct, corpus tenant interrogé en grande partie hors du prompt (voir
-[constat-copilot.md](../recherche/constat-copilot.md), §0 et §6).
+docs/recherche/constat-copilot.md (supprimé), §0 et §6).
 
 ## Conséquences
 
@@ -106,7 +106,7 @@ produit distinct, corpus tenant interrogé en grande partie hors du prompt (voir
 
 ## Sources
 
-- [docs/recherche/reco.md](../recherche/reco.md) — recommandations R-01 à R-63
-- [docs/recherche/constat-chatgpt.md](../recherche/constat-chatgpt.md)
-- [docs/recherche/constat-claude.md](../recherche/constat-claude.md)
-- [docs/recherche/constat-copilot.md](../recherche/constat-copilot.md)
+- docs/recherche/reco.md (supprimé, voir ADR-010) — recommandations R-01 à R-63
+- docs/recherche/constat-chatgpt.md (supprimé)
+- docs/recherche/constat-claude.md (supprimé)
+- docs/recherche/constat-copilot.md (supprimé)

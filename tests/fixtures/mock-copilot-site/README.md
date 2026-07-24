@@ -1,10 +1,9 @@
 # Fixture de test — Copilot factice
 
-`index.html` reproduit la structure DOM relevée dans
-[`docs/recherche/constat-copilot.md`](../../../docs/recherche/constat-copilot.md)
-pour **Copilot grand public** (`copilot.microsoft.com`), afin de développer
-et tester un futur adaptateur `copilot.js` **sans dépendre du vrai site** ni
-envoyer quoi que ce soit sur le réseau.
+`index.html` reproduit la structure DOM relevée sur le vrai **Copilot grand
+public** (`copilot.microsoft.com`), afin de développer et tester un futur
+adaptateur `copilot.js` **sans dépendre du vrai site** ni envoyer quoi que ce
+soit sur le réseau.
 
 Contrairement à [`mock-ai-site/`](../mock-ai-site/) (générique, deux
 scénarios `<textarea>`/`contenteditable`), cette fixture ne modélise que ce
@@ -19,8 +18,7 @@ que le constat décrit pour Copilot :
   vrai site (constat, §4.3 — « aucun attribut équivalent à
   `data-is-streaming` n'a été relevé »). La détection n'y est possible que
   par **stabilité du texte** (~2,5 s sans mutation), exactement ce que le
-  repli `MutationObserver` générique de fogbank doit couvrir pour ce site
-  (voir [ADR-007](../../../docs/adr/0007-fail-closed.md), R-58).
+  scan `MutationObserver` générique de fogbank doit couvrir pour ce site.
 
 ## Contrôles de test
 

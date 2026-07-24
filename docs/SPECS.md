@@ -12,17 +12,13 @@ entités sensibles citées dans un prompt destiné à une IA, puis de restaurer
 automatiquement leurs valeurs réelles dans la réponse reçue — afin de ne
 jamais envoyer de données personnelles/sensibles aux services IA tiers.
 
-> **Side panel comme surface principale (voir [ADR-008](adr/0008-side-panel.md)
-> et [ADR-009](adr/0009-replication.md))** : trois itérations successives
-> d'injection directe dans le champ d'un site (heuristiques génériques,
-> adaptateurs à sélecteurs exacts) ont toutes échoué sur les vrais sites
-> (voir `bugs.md`). Le site n'est plus qu'une **destination d'écriture** :
-> la composition (`&`, calque de décoration) et la lecture de la réponse
-> (affichage résolu) vivent entièrement dans le **side panel**, une surface
-> que fogbank contrôle à 100 %. Le champ du site n'est plus atteint que par
-> **écrasement total** de son contenu, sur un ciblage explicite (clic droit
-> → « écrire ici ») mémorisé par site. Validé par spike sur Claude.ai,
-> ChatGPT et Copilot grand public (voir ADR-008).
+Le **side panel** est la surface principale (voir
+[ADR-008](adr/0008-side-panel.md), [ADR-009](adr/0009-replication.md)) : le
+site IA n'est qu'une **destination d'écriture**. La composition (`&`,
+calque de décoration) et la lecture de la réponse (affichage résolu) vivent
+entièrement dans le panneau, une surface que fogbank contrôle à 100 %. Le
+champ du site n'est atteint que par **écrasement total** de son contenu,
+sur un ciblage explicite (clic droit → « écrire ici ») mémorisé par site.
 
 Cinq types d'entités sont pris en charge, chacun identifié par un trigramme
 aligné sur le schéma NER standard (voir [ADR-003](adr/0003-typage-entites.md)) :
@@ -34,39 +30,52 @@ Le type est choisi manuellement par l'utilisateur au moment de l'ajout
 le code de type en clair (voir plus bas) afin que l'IA comprenne la nature
 de l'objet substitué, même sans en connaître l'identité réelle.
 
-Mécanique générale (side panel, ADR-008/ADR-009) :
+**Principe directeur : le panneau est en clair, le site reçoit le
+pseudonymisé.** Le panneau est la propre surface de fogbank, jamais
+exposée au site — rien n'y est risqué à afficher en clair. Le tag
+`[TYP:ALIAS]` n'existe qu'au moment de la réplication vers le site (voir
+[ADR-009](adr/0009-replication.md)).
+
+Mécanique générale :
 - Dans le panneau (pas dans le champ du site), taper `&` ouvre un menu de
   sélection d'une entité (annuaire privé ou saisie libre d'une nouvelle
   entrée, avec choix du type). Voir [ADR-001](adr/0001-caractere-declencheur.md)
   pour le choix de ce caractère (et pourquoi ce n'est pas `@`).
-- L'entité sélectionnée insère son tag `[TYP:CODE]` **directement dans le
-  champ du panneau** — jamais le vrai nom (fail-closed, voir
-  [ADR-007](adr/0007-fail-closed.md)). Une couche de décoration (calque +
-  infobulle + légende) souligne le tag et révèle le vrai nom au survol,
-  **dans le panneau uniquement** — le site n'affiche jamais cette
-  décoration, il ne voit que ce qui lui est répliqué.
+- L'entité sélectionnée insère son **vrai nom, en clair, directement dans
+  le champ du panneau** — jamais le tag. Une couche de décoration (calque +
+  infobulle) souligne chaque nom ainsi inséré et révèle, au survol, le tag
+  `[TYP:ALIAS]` qui sera envoyé au site — l'inverse de l'infobulle d'un
+  champ fail-closed classique. Chaque mention est suivie par position
+  (pas par un motif à reparcourir dans le texte, voir UC-001) : c'est cette
+  liste qui permet de reconstruire, à la réplication, la version taguée.
 - **Ciblage** : un clic droit sur un champ éditable du site (« écrire
   ici ») mémorise ce champ pour l'onglet courant **et** persiste un
   descripteur pour le site (`fogbank.sites[].cibleEcriture`), afin qu'un
   retour ultérieur sur le même site retrouve automatiquement le même champ
   sans repasser par un clic droit (voir M-15, UC-003).
-- **Réplication** : le contenu du panneau est répliqué vers le champ ciblé
-  par **écrasement total** (jamais une insertion au curseur), en mode
-  manuel (bouton explicite) ou automatique (anti-rebond après la frappe,
-  par site — voir M-16, UC-004). Un témoin de synchro et un repli
-  presse-papier accompagnent les deux modes.
-- **Aucun garde-fou ni détection d'un vrai nom tapé en clair** dans le
-  panneau, en dehors du menu `&` (décision héritée d'ADR-007) : fogbank
-  protège ce qui passe par la mention, pas ce qui est tapé à côté. fogbank
-  ne contrôle pas non plus le bouton d'envoi du site : la garantie porte
-  sur l'exactitude du témoin de synchro affiché, pas sur un blocage
-  technique de l'envoi (voir ADR-009).
+- **Réplication** : le panneau reconstruit, à partir de son texte en clair
+  et de la liste des mentions suivies, la version où chaque nom réel est
+  remplacé par son tag `[TYP:ALIAS]` — c'est cette version taguée, et
+  seulement elle, qui est écrite vers le champ ciblé, par **écrasement
+  total** (jamais une insertion au curseur), en mode manuel (bouton
+  explicite) ou automatique (anti-rebond après la frappe, par site — voir
+  M-16, UC-004). Un témoin de synchro et un repli presse-papier
+  accompagnent les deux modes ; le repli presse-papier copie lui aussi la
+  version taguée, jamais le texte en clair.
+- **Aucun garde-fou ni détection d'un vrai nom tapé en clair en dehors
+  d'une mention suivie** : un nom tapé directement (sans passer par `&`)
+  n'est jamais reconnu comme une mention, donc jamais retagué à la
+  réplication — il part tel quel au site. fogbank protège ce qui passe par
+  la mention, pas ce qui est tapé à côté. fogbank ne contrôle pas non plus
+  le bouton d'envoi du site : la garantie porte sur l'exactitude du témoin
+  de synchro affiché, pas sur un blocage technique de l'envoi (voir
+  ADR-009).
 - À la réception de la réponse, fogbank lit tout le texte visible de la
   page (hors champs de saisie) et affiche, **dans le panneau**, sa version
   résolue (pseudonymes remplacés par les noms réels) — sans jamais écrire
   dans le DOM du site (voir M-07, UC-002).
 - Le pseudonyme est toujours tagué avec son type sous la forme
-  `[TYP:CODE]`, `TYP` étant un trigramme (ex: `[PER:PDT]`, `[ORG:ACM]`)
+  `[TYP:ALIAS]`, `TYP` étant un trigramme (ex: `[PER:PDT]`, `[ORG:ACM]`)
   afin que l'IA reconnaisse la nature de l'entité malgré la substitution —
   voir [ADR-003](adr/0003-typage-entites.md).
 - Le `CODE` est généré selon un format configuré **par site** (M-01) et
@@ -92,18 +101,14 @@ Périmètre : liste blanche uniquement (pas de mode liste noire). Par défaut,
 l'extension n'est active nulle part, à l'exception des grands sites IA
 connus — **ChatGPT, Claude.ai, Copilot grand public**
 (`copilot.microsoft.com`) — pré-activés à l'installation. L'utilisateur
-peut ajouter volontairement d'autres sites. Voir
-[ADR-004](adr/0004-portee-permissions.md). Ce modèle de permission (liste
-blanche a priori) reste inchangé par le pivot side panel — une permission
-demandée au clic droit (`activeTab`/`contextMenus`) a été envisagée mais
-non retenue faute de spike dédié, voir [ADR-008](adr/0008-side-panel.md).
+peut ajouter volontairement d'autres sites, ou fogbank crée l'entrée
+automatiquement au premier ciblage (voir M-15, UC-005). Voir
+[ADR-004](adr/0004-portee-permissions.md).
 
 **Microsoft 365 Copilot reste hors périmètre pour l'instant** : produit
 distinct de Copilot grand public (domaines et backend différents), dont le
 corpus tenant (documents, mails, messages) est interrogé en grande partie
-hors du prompt lui-même — voir
-[docs/recherche/constat-copilot.md](recherche/constat-copilot.md) §0 et §6,
-et [ADR-007](adr/0007-fail-closed.md).
+hors du prompt lui-même.
 
 En complément du flux automatique (`&` → réplication → réponse affichée),
 un fichier généré par l'IA et téléchargé (ex: `.md`, `.csv`, `.txt`) peut
@@ -121,8 +126,8 @@ mono-poste** :
 - Pas de synchronisation entre plusieurs machines (stockage strictement
   local à l'installation, voir [ADR-005](adr/0005-stockage-local.md)).
 - Pas de fusion/merge automatique entre deux annuaires importés.
-- M-12/M-13 se limitent aux formats texte simples et à l'Excel (`.xlsx`) —
-  pas de documents Office structurés (`.docx`, `.pptx`).
+- M-12/M-13 se limitent aux formats texte simples (`.md`, `.html`) —
+  pas de documents Office structurés (`.xlsx`, `.docx`, `.pptx`).
 
 ## Ergonomie
 
@@ -142,12 +147,7 @@ le bas :
    - **localiser dans la page** (celle du site, à gauche du panneau) : un
      aller simple vers la position correspondante — défilement et/ou
      surbrillance — déclenché explicitement, **pas une navigation
-     synchronisée** qui suivrait la conversation en continu. Nécessite de
-     faire correspondre une position dans le texte extrait (plat, voir
-     UC-002) à un nœud réel du DOM de la page — mécanisme à concevoir, pas
-     déjà couvert par l'extraction actuelle (`texteVisibleHorsChamps`), qui
-     ne conserve aucune référence aux nœuds d'origine une fois le texte
-     aplati.
+     synchronisée** qui suivrait la conversation en continu.
 4. **Composer**, en clair (voir UC-001/UC-004) : l'espace de saisie du
    panneau (déclencheur `&` + calque de décoration) et les contrôles de
    réplication (mode, témoin de synchro, envoyer, copier).
@@ -161,22 +161,22 @@ ci-dessous. Chaque macro-UC deviendra un ou plusieurs UC-XXX.
 
 | ID | Macro-UC | Résumé |
 |----|----------|--------|
-| M-01 | Gestion de la liste de sites autorisés | Configurer la whitelist des sites sur lesquels fogbank peut agir (grands sites IA pré-activés + ajout manuel), avec pour chaque site sa durée de vie (M-08), son format de pseudonyme (M-10) et son mode de réplication (M-16). Un nouveau site passe par un parcours de configuration guidé (**nouveau**, voir M-15, UC-005) avant d'être considéré prêt |
+| M-01 | Gestion de la liste de sites autorisés | Configurer la whitelist des sites sur lesquels fogbank peut agir (grands sites IA pré-activés + ajout manuel), avec pour chaque site sa durée de vie (M-08), son format de pseudonyme (M-10) et son mode de réplication (M-16). Un nouveau site passe par un parcours de configuration guidé (M-15, UC-005) avant d'être considéré prêt |
 | M-02 | Gestion de l'annuaire privé | Créer/modifier/supprimer les entités (personne, organisation, lieu, projet, divers) de l'annuaire, stocké localement dans le navigateur ([ADR-005](adr/0005-stockage-local.md)) ; une entité a un alias indépendant par site (voir [ARCHITECTURE.md](ARCHITECTURE.md)) et, pour une personne, un email facultatif |
-| M-03 | Déclenchement du menu `&` | **Redéfini par ADR-008** : ouvrir le menu de sélection à la frappe de `&` **dans le champ de composition du side panel**, plus dans le champ du site (voir [ADR-001](adr/0001-caractere-declencheur.md)) |
-| M-04 | Ajout à la volée depuis `&` | Créer une nouvelle entité directement depuis le menu si elle n'existe pas encore dans l'annuaire, avec sélection manuelle obligatoire de son type ; **insère le tag `[TYP:CODE]` dans le champ du panneau**, pas le vrai nom (fail-closed, [ADR-007](adr/0007-fail-closed.md)) |
-| M-05 | Calque de décoration de la mention | **Redéfini par ADR-008** : le champ de composition du panneau contient le tag `[TYP:CODE]` en clair ; une couche de décoration (shadow root fermé) le souligne et révèle le vrai nom — légende (base) + infobulle au survol (raffinement) — entièrement dans le panneau, jamais dans le DOM du site |
-| M-06 | Envoi sans réécriture | **Vestigial, absorbé par M-16** : il n'y a plus de « geste d'envoi » distinct côté fogbank — c'est la réplication (M-16) qui détermine ce qui se trouve dans le champ du site au moment où l'utilisateur clique sur le bouton d'envoi du site. Aucun garde-fou, aucune détection d'un vrai nom resté en clair dans le panneau |
-| M-07 | Restauration automatique à la réception | **Redéfini par ADR-008** : lire tout le texte visible de la page (hors champs de saisie) et afficher, **dans le panneau**, sa version résolue — plus aucune substitution dans le DOM du site |
+| M-03 | Déclenchement du menu `&` | Ouvrir le menu de sélection à la frappe de `&` **dans le champ de composition du side panel** (voir [ADR-001](adr/0001-caractere-declencheur.md)) |
+| M-04 | Ajout à la volée depuis `&` | Créer une nouvelle entité directement depuis le menu si elle n'existe pas encore dans l'annuaire, avec sélection manuelle obligatoire de son type ; **insère le vrai nom, en clair, dans le champ du panneau**, jamais le tag — le panneau est en clair, voir Vue d'ensemble |
+| M-05 | Calque de décoration de la mention | Le champ de composition du panneau contient le vrai nom en clair ; une couche de décoration (shadow root fermé) le souligne et révèle, au survol, le tag `[TYP:ALIAS]` correspondant — entièrement dans le panneau, jamais dans le DOM du site |
+| M-06 | Envoi sans réécriture | Vestigial, absorbé par M-16 : il n'y a pas de « geste d'envoi » distinct côté fogbank — c'est la réplication (M-16) qui reconstruit la version taguée et détermine ce qui se trouve dans le champ du site au moment où l'utilisateur clique sur son bouton d'envoi. Aucun garde-fou, aucune détection d'un vrai nom tapé en clair hors d'une mention suivie |
+| M-07 | Restauration automatique à la réception | Lire tout le texte visible de la page (hors champs de saisie) et afficher, **dans le panneau**, sa version résolue — aucune substitution dans le DOM du site |
 | M-08 | Durée de vie / rotation du pseudonyme | Générer un nouveau pseudonyme quand l'alias est utilisé après expiration de la durée configurée pour le site concerné (M-01) — rotation paresseuse à l'usage, pas de tâche périodique |
 | M-09 | Historique des alias | Conserver la trace de tous les pseudonymes jamais attribués à chaque entité, **par site**, y compris expirés |
-| M-10 | Génération du pseudonyme | Générer le pseudonyme `[TYP:CODE]` selon le format configuré **pour le site courant** (M-01, commun aux 4 types sur ce site) : reconnaissable (initiales, plusieurs variantes) ou opaque (aléatoire), avec suffixe numérique automatique en cas de collision |
+| M-10 | Génération du pseudonyme | Générer le pseudonyme `[TYP:ALIAS]` selon le format configuré **pour le site courant** (M-01, commun aux 4 types sur ce site) : reconnaissable (initiales, plusieurs variantes) ou opaque (aléatoire), avec suffixe numérique automatique en cas de collision |
 | M-11 | Typage de l'entité | Faire choisir manuellement le type (PER/ORG/LOC/PRJ/MISC) à l'utilisateur lors de l'ajout, et le conserver en clair dans le tag du pseudonyme |
 | M-12 | Conversion manuelle de fichiers générés | Interface dédiée, déclenchée manuellement, pour pseudonymiser ou restaurer le contenu d'un fichier téléchargé (.md, .csv, .txt...) dans les deux sens ; le fichier proposé porte un infixe avant l'extension d'origine (`rapport.txt` → `rapport.fog.txt` ou `rapport.unfog.txt`) |
 | M-13 | Export / import de l'annuaire (Excel) | Exporter l'annuaire et son historique vers un fichier `.xlsx` local, et importer un tel fichier pour peupler ou mettre à jour l'annuaire |
 | M-14 | Mode « vision site » _(différé, non spécifié)_ | Bascule volontaire affichant les pseudonymes bruts tels que le site IA les voit réellement, sans restauration — voir TODO dans UC-002 |
-| M-15 | Ciblage du champ d'écriture, persistant par site | **Nouveau (ADR-008)** : cibler un champ éditable du site par clic droit (« écrire ici »), mémoriser ce ciblage pour l'onglet courant et le persister par site pour un retrouvage automatique aux visites suivantes |
-| M-16 | Réplication panneau → site | **Nouveau (ADR-009)** : répliquer le contenu du panneau vers le champ ciblé par écrasement total, en mode manuel ou automatique (par site), avec témoin de synchro, dégradation automatique et repli presse-papier |
+| M-15 | Ciblage du champ d'écriture, persistant par site | Cibler un champ éditable du site par clic droit (« écrire ici »), mémoriser ce ciblage pour l'onglet courant et le persister par site pour un retrouvage automatique aux visites suivantes |
+| M-16 | Réplication panneau → site | Répliquer le contenu du panneau vers le champ ciblé par écrasement total, en mode manuel ou automatique (par site), avec témoin de synchro, dégradation automatique et repli presse-papier |
 
 _Statut : brouillon à valider avant de passer à l'architecture cible._
 
@@ -218,30 +218,24 @@ applicables à ce cas d'usage._
 
 | ID     | Titre | Statut |
 |--------|-------|--------|
-| UC-001 | Mention `&` et insertion du tag `[TYP:CODE]` dans le panneau | réécrit (side panel, ADR-008) |
-| UC-002 | Restauration à la réception — affichage panneau | réécrit (side panel, ADR-008) |
-| UC-003 | Ciblage du champ d'écriture, persistant par site | nouveau (ADR-008) |
-| UC-004 | Réplication du panneau vers le champ ciblé | nouveau (ADR-009) |
-| UC-005 | Configuration d'un site (onboarding) | nouveau |
+| UC-001 | Mention `&` et insertion du tag `[TYP:ALIAS]` dans le panneau | implémenté |
+| UC-002 | Restauration à la réception — affichage panneau | implémenté |
+| UC-003 | Ciblage du champ d'écriture, persistant par site | implémenté |
+| UC-004 | Réplication du panneau vers le champ ciblé | implémenté |
+| UC-005 | Configuration d'un site (onboarding) | en cours d'implémentation |
 
 ---
 
-### UC-001 — Mention `&` et insertion du tag `[TYP:CODE]` dans le panneau
+### UC-001 — Mention `&` et insertion du vrai nom dans le panneau
 
-> **Réécrit selon [ADR-008](adr/0008-side-panel.md)** — remplace la version
-> précédente de cet UC, où le menu `&` et le calque de décoration
-> s'attachaient à un champ détecté sur le site lui-même. Code :
-> `src/content/editor-handle/` (façade de saisie), `src/content/display.js`
-> (calque de décoration), `src/content/mention-menu.js` (insertion du tag),
-> `src/sidepanel/` (orchestration) — les trois premiers modules sont
-> **réutilisés sans modification** : ils n'ont jamais eu besoin de savoir
-> sur quelle page ils s'exécutaient, seulement quel `EditorHandle` leur est
-> passé. Seul le champ auquel ils s'attachent change (celui du panneau, pas
-> celui du site).
-
-**Statut** : réécrit (side panel)
+**Statut** : implémenté
 **Macro-UC rattaché** : M-03, M-04 (sélection seulement), M-05, M-10
 **Dépendances** : aucune
+
+Code : `src/content/editor-handle/` (façade de saisie), `src/content/display.js`
+(calque de décoration), `src/content/mention-menu.js` (insertion, suivi des
+mentions par position), `src/sidepanel/` (orchestration, reconstruction de
+la version taguée à la réplication — voir UC-004).
 
 **Déclencheur**
 L'utilisateur tape le caractère `&` dans le champ de composition du side
@@ -256,13 +250,16 @@ avoir encore désigné de champ de destination.
    `fogbank.annuaire` dont le nom réel correspond au texte tapé après `&`
    (filtrage insensible à la casse, sous-chaîne).
 2. La sélection d'une entité (clic, Entrée, Tab ou Espace) remplace
-   `&filtre` par son tag `[TYP:CODE]`, inséré via `EditorHandle.replaceRange`
-   — **jamais le vrai nom**. Le champ du panneau est un `<textarea>` natif
-   contrôlé par fogbank : `EditorHandle.replaceRange` y écrit directement
-   (`.value`), sans les contraintes de ProseMirror/Lexical qui motivaient
-   `execCommand('insertText')` sur le site (voir ADR-007) — cette primitive
-   reste néanmoins nécessaire côté réplication (UC-004), pour écrire dans
-   le champ *du site*.
+   `&filtre` par son **vrai nom, en clair**, inséré via
+   `EditorHandle.replaceRange` — **jamais le tag**. Le panneau est en clair
+   (voir Vue d'ensemble) : rien n'est risqué à y afficher le nom réel,
+   contrairement à un champ qui partirait directement au site. Le tag
+   `[TYP:ALIAS]` n'existe qu'au moment de la réplication (UC-004).
+   - L'insertion est enregistrée comme une **mention suivie par position**
+     (`{debut, fin, entite, code}`, voir `mention-menu.js`) plutôt que
+     redécouverte en reparcourant le texte : sans motif structurel comme
+     `[TYP:ALIAS]` à rechercher, il n'y a pas d'autre moyen fiable de
+     retrouver plus tard quel nom correspond à quelle entité.
    - Si l'entité n'a pas encore d'alias pour le site **actuellement ciblé**
      (déterminé par l'onglet actif au moment de la frappe, voir UC-003), un
      nouvel alias est généré immédiatement (M-10 : format du site, unicité
@@ -273,29 +270,21 @@ avoir encore désigné de champ de destination.
      jamais dépendre d'avoir déjà ciblé un champ.
 3. Échap ferme le menu sans rien insérer ; le texte `&filtre` reste tel
    quel en clair dans le champ.
-4. Le calque de décoration (racine shadow DOM fermée, voir ADR-007),
-   attaché au champ du panneau, marque le tag inséré — légende (base,
-   toujours au-dessus du champ) et infobulle au survol (raffinement,
-   montre uniquement le nom réel), inchangés dans leur comportement par
-   rapport à la version précédente de cet UC.
+4. Le calque de décoration (racine shadow DOM fermée), attaché au champ du
+   panneau, souligne chaque mention suivie et affiche, au survol, une
+   infobulle montrant le tag `[TYP:ALIAS]` qui sera envoyé au site — pas le
+   nom réel, déjà visible sans avoir à survoler.
 
    Confirmation du menu par clavier : Entrée, Tab ou Espace, au choix.
-   Le champ du panneau étant un `<textarea>` natif propre à fogbank (pas un
-   éditeur tiers comme ProseMirror), la course d'écouteurs `keydown` qui
-   motivait l'ajout d'Espace comme repli sur Claude.ai (voir ancienne
-   version de cet UC) ne s'applique plus ici — conservé quand même par
-   simplicité et cohérence d'interaction, aucun changement de comportement
-   entre les trois touches à justifier.
-   - Soulignement bleu sur le tag lui-même : même token visuel que M-07
-     (voir UC-002) — contrat fort, « souligné = touché par fogbank », des
-     deux côtés du prompt.
-5. Le contenu du champ du panneau, tag compris, est ce qui sera répliqué
-   vers le champ ciblé du site (voir UC-004) — sur geste explicite (mode
-   manuel) ou après un court anti-rebond (mode auto). Il n'y a plus de
-   « geste d'envoi » distinct côté fogbank : c'est la réplication qui
-   détermine le contenu du champ du site au moment où l'utilisateur clique
-   sur le bouton d'envoi du site lui-même (hors du contrôle de fogbank,
-   voir ADR-009).
+5. Le panneau reste en clair jusqu'à la réplication (voir UC-004) : c'est
+   à ce moment, et seulement à ce moment, que le texte du champ est
+   transformé en remplaçant chaque mention suivie par son tag — cette
+   version taguée est la seule à atteindre le champ ciblé du site. Il n'y a
+   pas de « geste d'envoi » distinct côté fogbank au sens de l'ancien
+   modèle fail-closed appliqué à un champ de site : c'est la réplication
+   qui détermine le contenu du champ au moment où l'utilisateur clique sur
+   le bouton d'envoi du site lui-même (hors du contrôle de fogbank, voir
+   ADR-009).
 
 **Données**
 - Entrée : frappe clavier dans le panneau, texte tapé après `&`, position
@@ -305,54 +294,62 @@ avoir encore désigné de champ de destination.
   l'URL de l'onglet actif (voir `shared/site-matching.js`).
 - Écriture : nouvel alias / historique ajouté à l'entité concernée si
   généré à la création de la mention.
-- Sortie : contenu du champ du panneau modifié directement (tag inséré via
-  `EditorHandle`). Le calque de décoration (légende + infobulle) est un
-  rendu séparé dans la racine shadow DOM fermée, propre à la page du
-  panneau ; il ne modifie jamais le contenu du champ, ni celui du site.
+- Sortie : contenu du champ du panneau modifié directement (nom réel
+  inséré via `EditorHandle`), plus une entrée ajoutée à la liste des
+  mentions suivies (état en mémoire, pas persisté). Le calque de
+  décoration est un rendu séparé dans la racine shadow DOM fermée, propre
+  à la page du panneau ; il ne modifie jamais le contenu du champ.
 
 **Cas d'erreur**
 - Aucune entité ne correspond au texte tapé → menu vide. Pas de création à
   la volée dans cet UC (M-04/M-11, différé à un UC suivant).
 - Aucun site actif ne correspond à l'onglet actif au moment de la frappe →
-  la frappe et l'insertion du tag fonctionnent quand même (voir Résultat
+  la frappe et l'insertion du nom fonctionnent quand même (voir Résultat
   attendu, point 2) ; c'est la réplication (UC-004) qui échouera faute de
   cible, pas l'insertion elle-même.
-- L'utilisateur édite **à l'intérieur** d'un tag déjà inséré (ex : place le
-  curseur entre `[PER:` et `PDT]` et tape) → le tag est corrompu dans le
-  champ du panneau. La regex partagée (R-47) ne le matche plus : le calque
-  le signale comme invalide (soulignement pointillé rouge), mais **rien
-  n'empêche la réplication** — voir Contraintes.
+- L'utilisateur tape alors que le curseur est **strictement à l'intérieur**
+  d'une mention déjà insérée → la frappe est bloquée (voir Contraintes),
+  pour ne jamais laisser le nom réel se corrompre partiellement.
+  Backspace/Delete au bord ou à l'intérieur suppriment la mention entière
+  d'un coup (suppression atomique).
+- Une édition qui chevauche malgré tout une mention (ex : sélection
+  multi-caractères couvrant en partie le nom, collage) → la mention est
+  abandonnée du suivi : son soulignement disparaît, c'est le seul signal.
+  Le texte qui en résulte, non reconnu comme mention, part **en clair, tel
+  quel**, à la réplication — voir Contraintes, angle mort assumé.
 - L'utilisateur tape un vrai nom déclaré dans l'annuaire directement en
   clair dans le panneau, sans passer par `&` → **non détecté, non
-  signalé**. Le nom part tel quel à la réplication. Limite assumée, voir
-  Contraintes.
+  signalé**, jamais suivi comme mention. Le nom part tel quel à la
+  réplication. Limite assumée, voir Contraintes.
 
 **Contraintes**
 - Façade `EditorHandle` toujours utilisée pour le champ du panneau, même si
-  celui-ci est un `<textarea>` unique et connu à l'avance (pas de détection
-  dynamique nécessaire côté panneau) — garde le code de `mention-menu.js`
-  et `display.js` identique à ce qu'il était pour le site, aucune
-  divergence à maintenir entre deux usages du même composant.
-- Suppression quasi atomique du tag : sur `Backspace`/`Delete` au bord ou à
-  l'intérieur d'un tag, sélectionner et supprimer le tag entier d'un coup,
-  pour éviter les fragments `[PER:PD` qui ne révèlent rien mais polluent le
-  prompt et cassent la détection par regex. Inchangé.
-- **Aucun garde-fou, aucune détection de vrai nom tapé en clair** dans le
-  panneau — décision héritée d'ADR-007 : fogbank ne protège que ce qui
-  passe effectivement par le menu `&`. Limite à documenter clairement dans
-  le README utilisateur.
+  celui-ci est un `<textarea>` unique et connu à l'avance — garde le code
+  de `mention-menu.js` et `display.js` identique à ce qu'il est pour tout
+  autre usage, aucune divergence à maintenir.
+- Suivi des mentions par position (préfixe/suffixe commun entre le texte
+  avant/après chaque frappe, voir `mention-menu.js#trouverPlageEditee`) :
+  plus robuste qu'une déduction depuis la seule touche appuyée (fonctionne
+  aussi pour un collage, une composition IME, une correction automatique),
+  mais reste approximatif — une édition qui chevauche une mention
+  l'abandonne plutôt que de risquer une reconstruction erronée (voir Cas
+  d'erreur).
+- Suppression atomique + blocage de frappe à l'intérieur d'une mention :
+  seules protections structurelles contre la corruption — pas de détection
+  a posteriori d'un nom altéré (le texte résultant, non suivi, part en
+  clair sans avertissement autre que l'absence de soulignement).
+- **Aucun garde-fou, aucune détection de vrai nom tapé en clair** en dehors
+  d'une mention suivie : fogbank ne protège que ce qui passe effectivement
+  par le menu `&`. Limite à documenter clairement dans le README
+  utilisateur.
 - Calque de décoration : racine shadow DOM **fermée**, hôte anodin, aucune
   ressource externe, `pointer-events: none`, propriétés de peinture
-  uniquement sur le soulignement — inchangé, partagé avec UC-002 dans
-  [ARCHITECTURE.md](ARCHITECTURE.md). Fonctionne à l'identique dans une
-  page d'extension (le panneau) que sur un site tiers — aucune adaptation
-  requise.
-- Regex de tag partagée avec UC-002 et M-12 :
-  `\[(PER|ORG|LOC|PRJ|MISC):([A-Z0-9]+(?:-\d+)?)\]`.
+  uniquement sur le soulignement — partagé avec UC-002 dans
+  [ARCHITECTURE.md](ARCHITECTURE.md).
 - Rotation paresseuse (M-08) : l'expiration d'un alias est vérifiée **à
-  chaque insertion d'un tag pour une entité donnée** (étape 2 ci-dessus),
-  vis-à-vis du site actuellement ciblé (UC-003) ou, à défaut, du site
-  correspondant à l'onglet actif.
+  chaque insertion d'une mention pour une entité donnée** (étape 2
+  ci-dessus), vis-à-vis du site actuellement ciblé (UC-003) ou, à défaut,
+  du site correspondant à l'onglet actif.
 - À tester contre
   [tests/fixtures/mock-ai-site/index.html](../tests/fixtures/mock-ai-site/index.html)
   comme destination de réplication (voir UC-004), avec l'annuaire de
@@ -363,28 +360,17 @@ avoir encore désigné de champ de destination.
 
 ### UC-002 — Restauration à la réception — affichage panneau
 
-> **Réécrit selon [ADR-008](adr/0008-side-panel.md)**. Historique : la
-> recommandation d'un hook réseau entrant (`docs/recherche/reco.md` R-54 à
-> R-56) avait déjà été écartée par ADR-007 au profit d'un scan DOM ; ce scan
-> a ensuite été étendu à toute la page (abandon de la notion de « zone de
-> réponse », voir historique dans le fichier avant cette réécriture, ou
-> `bugs.md`). **Ce que change ADR-008** : le résultat du scan n'est plus
-> substitué dans le DOM du site — il est envoyé au panneau, qui l'affiche.
-> Le site n'est plus jamais modifié par fogbank pour la restauration.
-> Validé fonctionnellement en spike ; bruit de texte (contenu hors
-> conversation) constaté mais non filtré — voir Cas d'erreur.
-
-**Statut** : réécrit (side panel)
+**Statut** : implémenté
 **Macro-UC rattaché** : M-07
-**Dépendances** : M-04 (le tag `[TYP:CODE]` est ce qui part réellement au
+**Dépendances** : M-04 (le tag `[TYP:ALIAS]` est ce qui part réellement au
 site IA depuis la réplication — voir UC-001, UC-004), M-10 (génération du
 code)
 
 **Déclencheur**
 L'utilisateur a répliqué (UC-004) un prompt contenant un ou plusieurs tags
-`[TYP:CODE]` vers le site IA, qui affiche sa réponse quelque part dans la
+`[TYP:ALIAS]` vers le site IA, qui affiche sa réponse quelque part dans la
 page — fogbank ne cherche pas à savoir où. La réponse peut contenir zéro,
-un ou plusieurs tags de la forme `[TYP:CODE]`.
+un ou plusieurs tags de la forme `[TYP:ALIAS]`.
 
 **Résultat attendu**
 
@@ -398,23 +384,21 @@ page — le même pour tout site, pas de hook réseau.
   sans aucune mutation à observer).
 - Une fois la page stable, le content script extrait tout le texte visible
   de `document.body`, **hors champs de saisie** (`[contenteditable="true"],
-  textarea` — jamais touchés, R-31), et l'envoie au panneau (message
+  textarea` — jamais touchés), et l'envoie au panneau (message
   `fogbank:page-stable`).
-- Le panneau résout chaque tag `[TYP:CODE]` complet trouvé via l'annuaire
+- Le panneau résout chaque tag `[TYP:ALIAS]` complet trouvé via l'annuaire
   (même regex/logique que `pseudonyme.js`) et affiche le résultat en
   lecture seule — remplacement textuel simple (`String.replace`), pas de
   DOM à construire côté site puisque rien n'y est écrit.
 - Un rafraîchissement manuel (bouton dans le panneau) reste possible pour
   forcer une relecture immédiate sans attendre la stabilisation.
 
-Rationale : scanner toute la page dès qu'elle cesse de bouger reste le
-mécanisme le plus robuste trouvé face à des sites dont la structure n'est
-pas maîtrisée (voir historique dans ADR-008) ; afficher le résultat dans le
-panneau plutôt que le substituer dans le DOM du site élimine en plus tout
-risque d'interférence avec le rendu React/Vue du site (une insertion de
-`<span>` dans un sous-arbre géré par un framework pouvait provoquer un
-rendu incohérent côté site — jamais confirmé comme cause exacte, mais un
-risque structurellement écarté par ce changement).
+Scanner toute la page dès qu'elle cesse de bouger est le mécanisme retenu
+pour rester robuste face à des sites dont la structure n'est pas maîtrisée.
+Afficher le résultat dans le panneau plutôt que le substituer dans le DOM
+du site élimine aussi tout risque d'interférence avec le rendu React/Vue
+du site (une insertion dans un sous-arbre géré par un framework peut
+provoquer un rendu incohérent côté site).
 
 **Données**
 
@@ -436,20 +420,19 @@ Non-écriture en storage :
 
 | Cas | Comportement attendu |
 |-----|----------------------|
-| Tag `[TYP:CODE]` reçu mais aucune entité correspondante dans l'annuaire (ex : annuaire modifié entre l'envoi et la réception, ou tag halluciné par le modèle) | Le tag reste affiché brut dans le texte résolu. Pas d'erreur bloquante. |
+| Tag `[TYP:ALIAS]` reçu mais aucune entité correspondante dans l'annuaire (ex : annuaire modifié entre l'envoi et la réception, ou tag halluciné par le modèle) | Le tag reste affiché brut dans le texte résolu. Pas d'erreur bloquante. |
 | Type valide mais CODE inconnu pour ce type | Idem : traité comme un pseudonyme inconnu, aucun remplacement. |
 | Tag mal formé (ex : `[per:PDT]` en minuscule, `[PER:PD T]` avec espace) | Non détecté par la regex, laissé brut. Comportement attendu, pas de tentative de correction. |
 | La page ne cesse jamais de bouger (animation continue, polling du site) | Le minuteur de stabilité ne se déclenche jamais ; le rafraîchissement manuel reste disponible en repli. |
-| Texte extrait trop bruyant (navigation, barre latérale, contenu hors conversation — constaté en spike) | Non filtré dans cette itération : le panneau affiche tout, y compris du texte non pertinent. Dégradé mais fonctionnel ; à affiner (ex. limiter aux ancêtres contenant un tag) si ça s'avère gênant en usage réel. |
+| Texte extrait trop bruyant (navigation, barre latérale, contenu hors conversation) | Non filtré dans cette itération : le panneau affiche tout, y compris du texte non pertinent. Dégradé mais fonctionnel ; à affiner (ex. limiter aux ancêtres contenant un tag) si ça s'avère gênant en usage réel. |
 | Réponse ne contenant aucun tag | Le texte affiché dans le panneau est identique au texte brut de la page ; aucune erreur. |
 
 **Contraintes**
 
-- **Pas de hook réseau** pour M-07 (hérité d'ADR-007).
+- **Pas de hook réseau** pour M-07 : la lecture se fait par scan de page
+  (`MutationObserver`), pas par interception du trafic réseau.
 - **Pas de zone de réponse identifiée** : le scan porte sur `document.body`
-  entier, sans tenter de délimiter une zone propre au site (hérité de la
-  réécriture précédente de cet UC, inchangé par ADR-008 — seule la
-  destination du résultat change, DOM du site → panneau).
+  entier, sans tenter de délimiter une zone propre au site.
 - Un tag est considéré complet quand la regex
   `\[(PER|ORG|LOC|PRJ|MISC):[A-Z0-9-]+\]` matche entièrement dans le texte
   extrait.
@@ -459,26 +442,20 @@ Non-écriture en storage :
   encore été envoyé).
 - Cohérence visuelle : le style utilisé pour un pseudonyme inconnu (s'il en
   reste un affiché tel quel) reste cohérent avec M-05, mais l'affichage
-  étant désormais un simple bloc de texte dans le panneau (pas du DOM
-  substitué avec `<span>` individuels), il n'y a plus d'infobulle inversée
-  par tag — perte assumée de ce raffinement au profit de la simplicité
-  (voir Points ouverts).
+  étant un simple bloc de texte dans le panneau (pas du DOM substitué avec
+  `<span>` individuels), il n'y a pas d'infobulle inversée par tag — voir
+  Points ouverts.
 
 Performance :
 - Un passage complet sur tous les nœuds texte de `document.body` à chaque
   stabilisation : accepté comme suffisamment léger même sur une
   conversation longue, à confirmer empiriquement si une page réelle
-  s'avère plus volumineuse que prévu (voir Cas d'erreur, bruit constaté).
+  s'avère plus volumineuse que prévu.
 
 Implémentation :
 - `content/ecriture.js` pose l'unique `MutationObserver`, extrait le texte,
   diffuse `fogbank:page-stable` ; `sidepanel/sidepanel.js` résout et
   affiche.
-- Testé en spike contre Claude.ai, ChatGPT et Copilot grand public
-  (extraction + résolution fonctionnelles) ; testé auparavant contre les
-  trois fixtures (`mock-ai-site`, `mock-claude-site`, `mock-copilot-site`)
-  pour la version précédente du scan (substitution DOM), mécanisme
-  d'extraction inchangé depuis.
 
 **Points ouverts**
 
@@ -486,18 +463,16 @@ Implémentation :
   filtrage (ex. ne garder que le texte à proximité d'un tag trouvé, ou
   ignorer certains conteneurs connus comme navigation/sidebar) reste à
   envisager si l'usage réel s'avère gênant.
-- **Infobulle par tag perdue** : l'ancienne version (substitution DOM avec
-  un `<span>` par tag) permettait de survoler chaque nom restauré pour
-  revoir son tag d'origine. L'affichage panneau (bloc de texte simple)
-  n'offre plus ce raffinement — à réintroduire si jugé utile (ex.
-  affichage tag par tag dans une liste séparée, comme la légende de M-05).
-- **Historique de conversation / SPA** : inchangé — un rechargement réel
-  (F5) comme un changement de conversation en SPA (`pushState`) sont
-  couverts par le même mécanisme, sans traitement spécial (le passage de
-  stabilisation planifié au chargement couvre une conversation déjà
-  rendue ; le `MutationObserver` capte tout changement de contenu quel que
-  soit le conteneur concerné, puisqu'aucun conteneur précis n'est
-  identifié).
+- **Infobulle par tag** : l'affichage panneau (bloc de texte simple) ne
+  permet pas de survoler chaque nom restauré pour revoir son tag d'origine
+  — à réintroduire si jugé utile (ex. affichage tag par tag dans une liste
+  séparée).
+- **Historique de conversation / SPA** : un rechargement réel (F5) comme un
+  changement de conversation en SPA (`pushState`) sont couverts par le même
+  mécanisme, sans traitement spécial (le passage de stabilisation planifié
+  au chargement couvre une conversation déjà rendue ; le `MutationObserver`
+  capte tout changement de contenu quel que soit le conteneur concerné,
+  puisqu'aucun conteneur précis n'est identifié).
 
 **TODO — Mode « vision site »**
 
@@ -515,7 +490,7 @@ un prompt.
   de composition (mentions marquées M-05) ?
 - Portée temporelle : bascule instantanée sur la session courante, ou
   persistante tant que non désactivée ?
-- Style spécifique en mode vision : les tags `[TYP:CODE]` doivent-ils être
+- Style spécifique en mode vision : les tags `[TYP:ALIAS]` doivent-ils être
   eux-mêmes stylisés (ex : fond gris pâle façon `<code>`) pour souligner
   qu'on regarde du contenu système ?
 - Raccourci clavier : à définir (proposition : `Alt+Maj+F` ou touche
@@ -525,14 +500,7 @@ un prompt.
 
 ### UC-003 — Ciblage du champ d'écriture, persistant par site
 
-> **Nouveau, [ADR-008](adr/0008-side-panel.md)**. Valide en spike (S2) sur
-> Claude.ai, ChatGPT et Copilot grand public : le clic droit place bien le
-> focus sur le champ visé avant que le gestionnaire de fogbank ne
-> s'exécute, de façon fiable sur les trois. La persistance par site
-> (auto-repérage au chargement suivant) n'a pas encore été testée en usage
-> réel prolongé — voir Contraintes.
-
-**Statut** : nouveau, implémentation en cours
+**Statut** : implémenté
 **Macro-UC rattaché** : M-15
 **Dépendances** : aucune
 
@@ -601,22 +569,13 @@ d'un site déjà ciblé précédemment (auto-repérage, voir Résultat attendu).
 - `chrome.sidePanel.open()` doit être appelé de façon synchrone dans le
   geste utilisateur (le clic sur le menu contextuel), avant tout `await` —
   un appel différé après une opération asynchrone perd le contexte de
-  geste exigé par l'API (constaté pendant le spike, voir historique dans
-  le code de `background.js`).
+  geste exigé par l'API.
 
 ---
 
 ### UC-004 — Réplication du panneau vers le champ ciblé
 
-> **Nouveau, [ADR-009](adr/0009-replication.md)**. Le mécanisme
-> d'écrasement (S1) est validé sur Claude.ai, ChatGPT et Copilot grand
-> public, y compris en rafale (plusieurs écrasements rapprochés sur le
-> même champ). Le témoin de synchro, la dégradation automatique et la
-> détection de modification externe (panneau maître) sont des
-> comportements décidés par conception, pas encore éprouvés en usage réel
-> prolongé.
-
-**Statut** : nouveau, implémentation en cours
+**Statut** : implémenté
 **Macro-UC rattaché** : M-16
 **Dépendances** : UC-001 (contenu à répliquer), UC-003 (champ ciblé)
 
@@ -626,8 +585,11 @@ auto (`fogbank.sites[].modeReplication === "auto"`) : la frappe s'arrête
 dans le champ du panneau pendant ~300-400 ms.
 
 **Résultat attendu**
-1. Le panneau envoie le texte du champ de composition au content script de
-   l'onglet ciblé (message `fogbank:ecrire`).
+1. Le panneau reconstruit, à partir du texte en clair du champ de
+   composition et de la liste des mentions suivies (voir UC-001), la
+   version où chaque nom réel est remplacé par son tag `[TYP:ALIAS]` — c'est
+   cette version taguée, jamais le texte en clair, qui est envoyée au
+   content script de l'onglet ciblé (message `fogbank:ecrire`).
 2. Le content script sélectionne tout le contenu existant du champ ciblé
    puis le remplace via `document.execCommand('insertText', false, texte)`
    — écrasement total, jamais une insertion au curseur (voir ADR-008).
@@ -635,7 +597,7 @@ dans le champ du panneau pendant ~300-400 ms.
    relu et comparé au texte attendu. Une discordance (le site a réécrit
    par-dessus, ou l'a partiellement ignoré) est traitée comme un échec,
    même si `execCommand` a retourné succès — c'est la seule preuve fiable
-   qu'un site a réellement accepté l'écriture (voir ADR-008, Contexte).
+   qu'un site a réellement accepté l'écriture (voir ADR-008).
 4. **Témoin de synchro** dans le panneau, trois états : *synchronisé* (la
    dernière vérification correspond), *en attente* (écriture en cours,
    mode auto avant l'anti-rebond), *échec* (discordance ou cible perdue).
@@ -651,12 +613,15 @@ dans le champ du panneau pendant ~300-400 ms.
    cycle.
 7. **Repli presse-papier** : un bouton « copier » reste actif dans le
    panneau à tout moment, indépendamment du mode et de l'état du témoin —
-   `navigator.clipboard.writeText` depuis le panneau, aucune dépendance au
-   ciblage ou à l'état du site.
+   copie la même version taguée (reconstruite comme au point 1), jamais le
+   texte en clair du panneau : coller ce repli dans le site ne doit pas
+   pouvoir envoyer un nom réel. `navigator.clipboard.writeText` depuis le
+   panneau, aucune dépendance au ciblage ou à l'état du site.
 
 **Données**
-- Entrée : texte du champ de composition du panneau ; référence en mémoire
-  du champ ciblé (voir UC-003).
+- Entrée : texte en clair du champ de composition du panneau et liste des
+  mentions suivies (voir UC-001) ; référence en mémoire du champ ciblé
+  (voir UC-003).
 - Sortie : contenu du champ ciblé du site remplacé ; état de synchro
   affiché dans le panneau (pas persisté en storage, purement transitoire).
 - Lecture/écriture : `fogbank.sites[].modeReplication` (lu au chargement du
@@ -670,14 +635,14 @@ dans le champ du panneau pendant ~300-400 ms.
 |-----|----------------------|
 | Cible perdue (jamais définie, ou retirée du DOM depuis) | Message d'échec explicite au panneau, pas de tentative d'écriture. Témoin de synchro passe à *échec*. |
 | `execCommand` renvoie succès mais le contenu final ne correspond pas au texte envoyé | Traité comme un échec (voir Résultat attendu, point 3) — le site a rejeté ou altéré l'écriture silencieusement à son niveau ; fogbank ne peut que le détecter, pas l'empêcher. |
-| Écrasements rapprochés (mode auto, frappe continue avec anti-rebond court) | Validé par spike sur les trois sites réels — accepté sans échec sur les cas testés. Si un site s'avère n'accepter que le premier d'une rafale, dégradation automatique après 1-2 échecs (point 5) limite les dégâts. |
+| Écrasements rapprochés (mode auto, frappe continue avec anti-rebond court) | Attendu accepté sans échec par un site normal. Si un site s'avère n'accepter que le premier d'une rafale, dégradation automatique après 1-2 échecs (point 5) limite les dégâts. |
 | Modification externe détectée pendant le mode auto | Synchronisation suspendue, message affiché (voir Résultat attendu, point 6) ; reprise sur action explicite de l'utilisateur (pas de reprise automatique silencieuse — recréerait le même risque). |
 | L'utilisateur clique sur le bouton d'envoi du site alors que le témoin affiche *échec* ou *en attente* | Fogbank ne bloque pas ce clic (pas de contrôle sur le bouton du site, voir ADR-009) — le témoin est le seul avertissement. Limite assumée, à documenter. |
 | `navigator.clipboard.writeText` échoue (permission refusée, contexte non sécurisé) | Message d'échec dans le panneau ; pas de repli supplémentaire — c'est déjà le repli de dernier recours. |
 
 **Contraintes**
 - Écrasement total uniquement — jamais une tentative d'insertion au
-  curseur dans le champ du site (plus simple, c'est ce que S1 a validé).
+  curseur dans le champ du site.
 - Anti-rebond (~300-400 ms) obligatoire en mode auto : une écriture par
   caractère tapé déclencherait un cycle de rendu du site à chaque frappe,
   en plus d'être inutile (voir ADR-009).
@@ -686,10 +651,8 @@ dans le champ du panneau pendant ~300-400 ms.
   dans le panneau — c'est le principe fail-closed transposé à la
   réplication (voir ADR-009).
 - Aucun contrôle du bouton d'envoi du site : fogbank n'intercepte ni
-  `Enter` ni le clic sur le bouton d'envoi natif dans cette itération —
-  contrairement à l'ancienne version fail-closed de UC-001 (qui, elle,
-  s'attachait directement au champ du site). Ce n'est plus nécessaire
-  puisque le contenu du champ est déjà correct au moment de l'écrasement ;
+  `Enter` ni le clic sur le bouton d'envoi natif — le contenu du champ est
+  déjà correct au moment de l'écrasement, ce n'est donc pas nécessaire ;
   c'en est aussi la limite (voir Cas d'erreur, avant-dernière ligne).
 - `chrome.storage.onChanged` sur `fogbank.sites` doit garder le panneau à
   jour si le mode de réplication est changé depuis l'onglet Sites de
@@ -699,16 +662,16 @@ dans le champ du panneau pendant ~300-400 ms.
 
 ### UC-005 — Configuration d'un site (onboarding)
 
-> **Nouveau**. Réunit M-01 (whitelist) et M-15 (ciblage, UC-003) en un seul
-> parcours guidé, avec deux points d'entrée équivalents. Contrairement à
-> UC-001/UC-003/UC-004, ce parcours ne s'exécute qu'une fois par site (tant
-> que `configurationTerminee` reste `true`) — ce n'est pas un mécanisme
-> déclenché à chaque usage.
-
-**Statut** : nouveau, implémentation en cours
+**Statut** : en cours d'implémentation
 **Macro-UC rattaché** : M-01, M-15
 **Dépendances** : UC-003 (ciblage), UC-004 (réplication, réutilisée pour le
 test d'écriture), UC-002 (lecture de page, réutilisée pour la vérification)
+
+Réunit M-01 (whitelist) et M-15 (ciblage, UC-003) en un seul parcours
+guidé, avec deux points d'entrée équivalents. Contrairement à
+UC-001/UC-003/UC-004, ce parcours ne s'exécute qu'une fois par site (tant
+que `configurationTerminee` reste `true`) — ce n'est pas un mécanisme
+déclenché à chaque usage.
 
 **Déclencheur**
 
@@ -848,7 +811,6 @@ Trois actions distinctes, disponibles depuis l'onglet Sites de `options/` :
   sans supprimer le site ni son historique d'alias dans l'annuaire.
 - **Supprimer complètement** : retire l'entrée de `fogbank.sites[]` **et**
   purge, dans `fogbank.annuaire[]`, tout `aliasParSite[]` référençant ce
-  site (avec son historique) — contrairement au comportement précédent
-  (qui laissait des références orphelines, affichées par leur seul
-  identifiant technique). Action irréversible, confirmée explicitement
-  avant exécution.
+  site (avec son historique) — sans laisser de référence orpheline
+  affichée par son seul identifiant technique. Action irréversible,
+  confirmée explicitement avant exécution.

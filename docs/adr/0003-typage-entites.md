@@ -31,7 +31,7 @@ pour la génération du code lui-même).
 
 ## Décision
 
-1. **Format retenu : tag entre crochets avec trigramme** — `[TYP:CODE]`,
+1. **Format retenu : tag entre crochets avec trigramme** — `[TYP:ALIAS]`,
    `TYP` étant un trigramme fixe par type, aligné sur le schéma NER standard
    (CoNLL-2003 : `PER`/`ORG`/`LOC`/`MISC`) plutôt qu'inventé — familier pour
    quiconque a déjà croisé de l'extraction d'entités, et `MISC` fournit un
@@ -63,7 +63,7 @@ pour la génération du code lui-même).
 
 ## Conséquences
 
-- Le tag `[TYP:CODE]` doit être détectable de façon fiable par une
+- Le tag `[TYP:ALIAS]` doit être détectable de façon fiable par une
   expression régulière simple, aussi bien au moment de la substitution
   (M-06) que de la restauration (M-07).
 - Point ouvert pour la spec détaillée (UC-by-UC) : le schéma générique

@@ -1,6 +1,6 @@
-// Seul content script de production (voir ADR-008, ADR-009) — remplace
-// content.js, reception.js et site-adapters/*. Cinq responsabilités,
-// toutes pilotées par messages depuis le side panel ou le menu contextuel :
+// Seul content script de production (voir ADR-008, ADR-009). Cinq
+// responsabilités, toutes pilotées par messages depuis le side panel ou
+// le menu contextuel :
 // - Ciblage (M-15) : mémoriser un champ désigné par clic droit, persister
 //   un descripteur par site, tenter de le retrouver au chargement suivant.
 // - Écrasement (M-16) : remplacer tout le contenu du champ ciblé —
@@ -187,8 +187,8 @@
   }
 
   // Lecture (M-07) : même exclusion que l'ancien reception.js (jamais un
-  // champ de saisie actif, R-31) mais renvoie le texte brut au panneau
-  // plutôt que de substituer dans le DOM du site.
+  // champ de saisie actif) mais renvoie le texte brut au panneau plutôt que
+  // de substituer dans le DOM du site.
   function texteVisibleHorsChamps() {
     const marcheur = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     let texte = '';

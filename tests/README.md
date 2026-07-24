@@ -5,9 +5,9 @@ contre des fixtures locales — des sites IA factices qui ne font aucun appel
 réseau, utilisés pour vérifier :
 
 - ce que l'extension enverrait réellement (panneau "Payload envoyé"),
-  pour valider que le tag inséré via le menu `&` (M-04) est bien ce qui
-  part au site IA, sans réécriture à l'envoi (fail-closed — voir
-  [ADR-007](../docs/adr/0007-fail-closed.md)) ;
+  pour valider que le tag inséré via le menu `&` est bien ce qui part au
+  site IA, par écrasement total et sans réécriture séparée à l'envoi (voir
+  [ADR-008](../docs/adr/0008-side-panel.md)) ;
 - la restauration automatique d'une réponse simulée contenant des
   pseudonymes (M-07).
 
@@ -15,16 +15,15 @@ Quatre fixtures, chacune avec son propre README détaillé :
 
 | Fixture | Modélise | À utiliser pour |
 |---|---|---|
-| [`mock-ai-site/`](fixtures/mock-ai-site/) | Site générique, deux scénarios (`<textarea>` **et** `contenteditable`) | `generic.js`, les deux `EditorHandle` (R-63) |
+| [`mock-ai-site/`](fixtures/mock-ai-site/) | Site générique, deux scénarios (`<textarea>` **et** `contenteditable`) | `generic.js`, les deux `EditorHandle` |
 | [`mock-claude-site/`](fixtures/mock-claude-site/) | Claude.ai (composer ProseMirror dans un `fieldset`, `data-is-streaming` par message, plusieurs éditeurs ProseMirror sur la page) | Futur `claude.js` |
 | [`mock-copilot-site/`](fixtures/mock-copilot-site/) | Copilot grand public (`<textarea>` natif, pas de signal de fin de streaming) | Futur `copilot.js` |
 
-Les trois fixtures « par site » reproduisent la structure DOM relevée dans
-[`docs/recherche/constat-*.md`](../docs/recherche/) — **aucun sélecteur n'y
-a été vérifié en direct** (voir chaque constat, §8, pour la sonde de
-validation à rejouer avant implémentation et à chaque release). Pas encore
-de fixture ChatGPT dédiée : `mock-ai-site` (scénario B, contenteditable) en
-tient lieu pour l'instant.
+Les trois fixtures « par site » reproduisent la structure DOM relevée sur
+les vrais sites — **aucun sélecteur n'y a été vérifié en direct**, à
+revalider avant implémentation et à chaque release. Pas encore de fixture
+ChatGPT dédiée : `mock-ai-site` (scénario B, contenteditable) en tient lieu
+pour l'instant.
 
 ## Jeu de données d'annuaire
 

@@ -53,7 +53,7 @@ des données) : le format doit donc être configurable plutôt qu'imposé.
    l'annuaire, tous sites confondus**, pour ce type — pas seulement le site
    sur lequel l'entité est en train d'être ajoutée. Raison : M-12
    (conversion manuelle d'un fichier généré par l'IA) doit pouvoir résoudre
-   un tag `[TYP:CODE]` sans connaître le site d'origine du fichier ; si
+   un tag `[TYP:ALIAS]` sans connaître le site d'origine du fichier ; si
    deux entités pouvaient porter le même code sur deux sites différents, la
    résolution deviendrait ambiguë dès que le fichier est traité hors du
    contexte d'un site précis. Ce mécanisme s'applique aussi bien au format

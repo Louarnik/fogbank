@@ -1,33 +1,35 @@
-// Calque de décoration (M-05, fail-closed) — voir ADR-007 et docs/SPECS.md
-// UC-001. Le champ contient le tag [TYP:CODE] en clair, jamais le vrai nom ;
-// ce module se contente de le RÉVÉLER à l'affichage, sans jamais rien écrire
-// dans le champ ni dans le DOM du site (règle cardinale, R-31) :
-// - une légende au-dessus du champ (base, R-43) : une ligne par tag présent ;
-// - une infobulle au survol (raffinement, R-34/R-38) ;
-// - un soulignement peint par-dessus le texte (R-32/R-33), positionné via
-//   EditorHandle.getRangeRects — identique pour <textarea> et
-//   contenteditable, toute la différence étant encapsulée dans l'EditorHandle.
+// Calque de décoration (M-05) — voir ADR-008 et docs/SPECS.md UC-001.
+// Attaché au champ de composition du side panel, qui contient l'entité
+// (nom réel) en clair (le tag [TYP:ALIAS] n'existe qu'à la réplication vers
+// le site — voir UC-004) : ce module ne fait que signaler visuellement
+// qu'un nom est une mention suivie par fogbank, sans jamais rien écrire
+// dans le champ :
+// - une infobulle au survol montrant le tag `[TYP:ALIAS]` correspondant ;
+// - un soulignement peint par-dessus le nom, positionné via
+//   EditorHandle.getRangeRects.
+// Les zones décorées viennent de `options.obtenirMentions()` (suivi par
+// position, voir mention-menu.js) — ce module ne reparse pas le texte du
+// champ pour les retrouver, il n'y a plus de motif structurel à y chercher.
 //
-// Cloisonnement (R-25 à R-30) : une seule racine shadow DOM **fermée**,
-// hôte anodin, aucune ressource externe, pointer-events: none partout — le
-// site ne peut ni la lire ni la voir dans ses mutations (protection contre
-// les outils de rejeu de session type FullStory/Clarity/rrweb, voir ADR-007).
+// Cloisonnement : une seule racine shadow DOM **fermée**, hôte anodin,
+// aucune ressource externe, pointer-events: none partout — le site ne peut
+// ni la lire ni la voir dans ses mutations (protection contre les outils de
+// rejeu de session type FullStory/Clarity/rrweb).
 //
 // Non couvert dans cette itération (limitations connues, pas des oublis) :
-// détection du thème du site par luminance (R-35, une couleur fixe est
-// utilisée), région aria-live (R-45), parité clavier pour l'infobulle
-// (R-44 — la légende reste lisible sans survol, ce qui couvre le besoin de
-// base), prefers-reduced-transparency/motion (R-46).
+// détection du thème du site par luminance (une couleur fixe est
+// utilisée), région aria-live, parité clavier pour l'infobulle,
+// prefers-reduced-transparency/motion.
 window.fogbankDisplay = (function () {
   const DELAI_OUVERTURE_MS = 180;
   const DELAI_FERMETURE_MS = 100;
 
   let racineOmbre = null;
 
-  // Racine anodine (R-27 : ni id ni class identifiable) accrochée à
-  // document.documentElement, en mode shadow "closed" (R-25 : même
-  // l'extension ne peut pas relire hote.shadowRoot depuis l'extérieur de
-  // cette closure — protection contre d'autres extensions).
+  // Racine anodine (ni id ni class identifiable) accrochée à
+  // document.documentElement, en mode shadow "closed" (même l'extension ne
+  // peut pas relire hote.shadowRoot depuis l'extérieur de cette closure —
+  // protection contre d'autres extensions).
   function obtenirRacine() {
     if (racineOmbre) return racineOmbre;
     const hote = document.createElement('div');
@@ -36,20 +38,16 @@ window.fogbankDisplay = (function () {
     document.documentElement.appendChild(hote);
     racineOmbre = hote.attachShadow({ mode: 'closed' });
 
-    // Styles par adoptedStyleSheets (R-29), pas de <style> dupliqué. Le
-    // trait ne porte que des propriétés de peinture (R-32) : border-bottom
-    // seulement, jamais padding/margin/font-*/letter-spacing qui décalerait
-    // les glyphes du champ réel.
+    // Styles par adoptedStyleSheets, pas de <style> dupliqué. Le trait ne
+    // porte que des propriétés de peinture : border-bottom seulement,
+    // jamais padding/margin/font-*/letter-spacing qui décalerait les
+    // glyphes du champ réel.
     const feuille = new CSSStyleSheet();
     feuille.replaceSync(`
       .fb-trait {
         position: fixed;
         pointer-events: none;
         border-bottom: 2px solid #2d6cdf;
-      }
-      .fb-trait[data-invalide] {
-        border-bottom-style: dotted;
-        border-bottom-color: #d33;
       }
       .fb-bulle {
         position: fixed;
@@ -70,59 +68,17 @@ window.fogbankDisplay = (function () {
         backdrop-filter: blur(14px) saturate(160%);
       }
       .fb-bulle[data-ouvert] { opacity: 1; transform: none; }
-      .fb-legende {
-        position: fixed;
-        pointer-events: none;
-        font: 12px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
-        color: #333;
-        background: rgba(255, 255, 255, .97);
-        border: 1px solid rgba(0, 0, 0, .12);
-        border-radius: .375rem;
-        padding: .375rem .5rem;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, .12);
-      }
-      .fb-legende div { white-space: nowrap; }
-      .fb-legende code {
-        color: #2d6cdf;
-        font-family: ui-monospace, monospace;
-      }
-      .fb-legende .fb-inconnu code { color: #d33; }
     `);
     racineOmbre.adoptedStyleSheets = [feuille];
     return racineOmbre;
   }
 
-  // Détecte tous les tags complets présents dans `texte` et les résout via
-  // `resoudre(type, code)`. Un tag incomplet (`[PER:PD`, pas encore de
-  // crochet fermant) ne matche simplement pas — pas de marquage prématuré.
-  function analyserTags(texte, resoudre) {
-    const regex = window.fogbankPseudonyme.creerRegexTag();
-    const zones = [];
-    let m = regex.exec(texte);
-    while (m) {
-      const [tagComplet, type, code] = m;
-      zones.push({
-        debut: m.index,
-        fin: m.index + tagComplet.length,
-        type,
-        code,
-        entite: resoudre(type, code),
-      });
-      m = regex.exec(texte);
-    }
-    return zones;
-  }
-
   // Attache la décoration à un champ déjà pourvu de son EditorHandle.
-  // `options.resoudre(type, code)` doit renvoyer l'entité correspondante ou
-  // null (voir fogbankPseudonyme.resoudreEntite).
+  // `options.obtenirMentions()` doit renvoyer les mentions actuellement
+  // suivies pour ce champ : `[{ debut, fin, entite, code }]` (voir
+  // mention-menu.js, valeur retournée par son propre `attacher()`).
   function attacher(champ, handle, options) {
     const racine = obtenirRacine();
-
-    const legende = document.createElement('div');
-    legende.className = 'fb-legende';
-    legende.style.display = 'none';
-    racine.appendChild(legende);
 
     let bulle = null;
     let minuteur = null;
@@ -136,11 +92,12 @@ window.fogbankDisplay = (function () {
         bulle.className = 'fb-bulle';
         racine.appendChild(bulle);
       }
-      // Seulement le nom réel : type et email allongeaient inutilement
-      // l'infobulle (la légende reste l'endroit pour le détail complet).
-      bulle.textContent = zone.entite ? zone.entite.nomReel : 'Pseudonyme inconnu';
+      // Le nom réel est déjà visible dans le champ (le panneau est en
+      // clair) : l'infobulle montre l'inverse, le tag qui sera envoyé au
+      // site à la réplication (UC-004) — utile pour vérifier/expliquer.
+      bulle.textContent = `[${zone.entite.type}:${zone.alias}]`;
       // Placement sous le trait, bascule au-dessus si la place manque en
-      // bas de la fenêtre (R-40) : sans ça, un tag proche du bas du
+      // bas de la fenêtre : sans ça, un tag proche du bas du
       // viewport pousse l'infobulle hors écran plutôt que de l'afficher.
       const hauteurBulle = bulle.offsetHeight;
       const placeSousLeTrait = window.innerHeight - rect.bottom - 4;
@@ -171,52 +128,12 @@ window.fogbankDisplay = (function () {
       traits = [];
     }
 
-    function rendreLegende() {
-      legende.textContent = '';
-      if (zones.length === 0) {
-        legende.style.display = 'none';
-        return;
-      }
-      legende.style.display = 'block';
-      // Une ligne par ENTITÉ, pas par occurrence : `zones` porte un élément
-      // par tag trouvé dans le texte (nécessaire pour positionner chaque
-      // soulignement individuellement, voir rendreTraits) — la même
-      // personne mentionnée deux fois y apparaît donc deux fois, mais la
-      // légende ne doit la lister qu'une fois.
-      const dejaListes = new Set();
-      zones.forEach((zone) => {
-        const cle = `${zone.type}:${zone.code}`;
-        if (dejaListes.has(cle)) return;
-        dejaListes.add(cle);
-
-        const ligne = document.createElement('div');
-        if (!zone.entite) ligne.className = 'fb-inconnu';
-        const code = document.createElement('code');
-        code.textContent = `[${zone.type}:${zone.code}]`;
-        ligne.appendChild(code);
-        ligne.appendChild(document.createTextNode(' → '));
-        ligne.appendChild(
-          document.createTextNode(zone.entite ? zone.entite.nomReel : 'pseudonyme inconnu')
-        );
-        legende.appendChild(ligne);
-      });
-      const rect = champ.getBoundingClientRect();
-      legende.style.left = `${rect.left}px`;
-      // Toujours au-dessus du champ, sans condition : un composer de site
-      // de chat réel est presque systématiquement ancré près du bas du
-      // viewport (voir mock-claude-site), donc "en dessous" ne sert
-      // jamais en pratique — autant y renoncer plutôt que de garder une
-      // bascule qui ne bascule jamais dans le bon sens.
-      legende.style.top = `${rect.top - legende.offsetHeight - 6}px`;
-    }
-
     function rendreTraits() {
       nettoyerTraits();
       zones.forEach((zone) => {
         handle.getRangeRects(zone.debut, zone.fin).forEach((r) => {
           const trait = document.createElement('div');
           trait.className = 'fb-trait';
-          if (!zone.entite) trait.setAttribute('data-invalide', '');
           trait.style.left = `${r.left}px`;
           trait.style.top = `${r.top}px`;
           trait.style.width = `${r.width}px`;
@@ -228,12 +145,11 @@ window.fogbankDisplay = (function () {
     }
 
     function rendre() {
-      zones = analyserTags(handle.getText(), options.resoudre);
-      rendreLegende();
+      zones = options.obtenirMentions();
       rendreTraits();
     }
 
-    // Détection du survol par rectangles déjà calculés (R-36) : pas de
+    // Détection du survol par rectangles déjà calculés : pas de
     // caretRangeFromPoint, pas de recherche dichotomique — throttlé par
     // requestAnimationFrame.
     champ.addEventListener('mousemove', (e) => {
@@ -258,7 +174,7 @@ window.fogbankDisplay = (function () {
             break;
           }
         }
-        // Tag césuré (R-37) : ancrer l'infobulle sur le dernier rectangle
+        // Tag césuré : ancrer l'infobulle sur le dernier rectangle
         // (le plus bas), pas le premier.
         if (zoneSurvolee) {
           programmerOuverture(zoneSurvolee, rectsZone[rectsZone.length - 1]);
@@ -293,7 +209,6 @@ window.fogbankDisplay = (function () {
         window.removeEventListener('resize', rendre);
         window.removeEventListener('scroll', rendre, { capture: true });
         nettoyerTraits();
-        legende.remove();
         if (bulle) bulle.remove();
       },
     };

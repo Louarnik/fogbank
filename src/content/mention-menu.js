@@ -1,13 +1,21 @@
 // Menu de mention déclenché par le caractère configuré (M-03/M-04).
-// Fail-closed (ADR-007, voir docs/SPECS.md UC-001) : la sélection insère le
-// tag [TYP:CODE] directement dans le champ via EditorHandle.replaceRange —
-// jamais le vrai nom. Aucun marquage DOM ici : la décoration (soulignement,
-// infobulle, légende) est prise en charge séparément par fogbankDisplay, qui
-// parse le texte du champ en continu plutôt que de dépendre d'un span posé
-// à l'insertion.
+//
+// Le panneau est en clair (voir docs/SPECS.md § Vue d'ensemble) : la
+// sélection insère l'entité (nom réel) dans le champ, jamais le tag — le
+// tag n'existe qu'au moment de la réplication vers le site (voir
+// UC-004/sidepanel.js). Sans délimiteur structurel comme `[TYP:ALIAS]` à
+// re-détecter par regex, chaque mention insérée est suivie par position
+// (`mentions`, tableau `{debut, fin, entite, alias}`) plutôt que
+// redécouverte en reparcourant le texte — display.js consomme cette liste
+// via `obtenirMentions()` plutôt que de la reconstruire lui-même.
 window.fogbankMentionMenu = (function () {
   let etatMenu = null; // { mention, resultats, elementMenu }
   let indexSurligne = 0;
+
+  const TOUCHES_NAVIGATION = new Set([
+    'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End',
+    'PageUp', 'PageDown', 'Escape', 'Tab', 'Shift', 'Control', 'Alt', 'Meta', 'CapsLock',
+  ]);
 
   function fermerMenu() {
     if (etatMenu && etatMenu.elementMenu) {
@@ -17,9 +25,8 @@ window.fogbankMentionMenu = (function () {
   }
 
   // Placement sous le curseur, bascule au-dessus si la place manque en bas
-  // de la fenêtre (même principe que l'infobulle de fogbankDisplay) : sans
-  // ça, un champ proche du bas du viewport (composer ancré en bas de
-  // page, cas courant des vrais sites de chat) pousse le menu hors écran
+  // du panneau (même principe que l'infobulle de fogbankDisplay) : sans
+  // ça, un champ proche du bas du viewport pousse le menu hors écran
   // plutôt que de l'afficher lisiblement. `elementMenu` est déjà inséré
   // dans le DOM à cet instant : sa hauteur réelle (offsetHeight) est
   // mesurable avant de choisir où le placer.
@@ -84,50 +91,110 @@ window.fogbankMentionMenu = (function () {
     return { debut, fin, filtre };
   }
 
-  // Insère le tag [TYP:CODE] — jamais le vrai nom (fail-closed). Si
-  // l'entité n'a pas encore d'alias pour le site courant, un nouvel alias
-  // est généré immédiatement (M-10) pour que le tag inséré soit déjà correct.
-  function inserer(mention, entite, handle, options) {
-    const code = options.obtenirOuCreerAlias(entite);
-    const tag = `[${entite.type}:${code}]`;
-    handle.replaceRange(mention.debut, mention.fin, tag);
-    const position = mention.debut + tag.length;
+  // Plage exactement modifiée entre deux versions du texte (préfixe/suffixe
+  // communs) : plus robuste qu'une déduction depuis la seule touche appuyée
+  // (fonctionne aussi pour un collage, une composition IME, une correction
+  // automatique...).
+  function trouverPlageEditee(avant, apres) {
+    const min = Math.min(avant.length, apres.length);
+    let debut = 0;
+    while (debut < min && avant[debut] === apres[debut]) debut += 1;
+    let finAvant = avant.length;
+    let finApres = apres.length;
+    while (finAvant > debut && finApres > debut && avant[finAvant - 1] === apres[finApres - 1]) {
+      finAvant -= 1;
+      finApres -= 1;
+    }
+    return { debut, finAvant, finApres };
+  }
+
+  // Décale les mentions après une édition ailleurs dans le texte ; une
+  // mention qui chevauche la plage éditée est abandonnée (voir Contraintes,
+  // docs/SPECS.md UC-001) — son texte n'est plus garanti être exactement le
+  // nom réel attendu, donc plus question de la reconstruire en tag fiable
+  // à la réplication (UC-004). La protection atomique (Backspace/Delete,
+  // blocage de frappe à l'intérieur) vise à rendre ce cas rare ; un collage
+  // chevauchant une mention reste un angle mort assumé — l'absence de
+  // soulignement qui en résulte reste le seul signal visible.
+  function ajusterMentions(mentions, avant, apres) {
+    if (avant === apres || mentions.length === 0) return mentions;
+    const { debut, finAvant, finApres } = trouverPlageEditee(avant, apres);
+    const delta = finApres - finAvant;
+    const resultat = [];
+    mentions.forEach((m) => {
+      if (m.fin <= debut) {
+        resultat.push(m);
+      } else if (m.debut >= finAvant) {
+        resultat.push({ ...m, debut: m.debut + delta, fin: m.fin + delta });
+      }
+      // sinon : chevauchement avec la plage éditée, mention abandonnée.
+    });
+    return resultat;
+  }
+
+  function mentionInterieure(mentions, position) {
+    return mentions.find((m) => position > m.debut && position < m.fin);
+  }
+
+  function mentionAuBord(mentions, position, key) {
+    return mentions.find((m) =>
+      key === 'Backspace' ? position > m.debut && position <= m.fin : position >= m.debut && position < m.fin
+    );
+  }
+
+  // Insère le VRAI NOM (pas le tag, voir en-tête de fichier) via
+  // EditorHandle.replaceRange, puis enregistre la mention par position.
+  // Alias obtenu/généré immédiatement (M-10) pour que le code soit déjà
+  // correct si la mention est répliquée dans la foulée.
+  // `handle.replaceRange` déclenche un `input` natif **synchrone**
+  // (execCommand) : le gestionnaire posé dans `attacher()` ci-dessous
+  // s'exécute donc en réentrance, à l'intérieur même de cet appel, et
+  // décale déjà les mentions existantes via `ajusterMentions` avant qu'on
+  // revienne ici — ne reste qu'à ajouter la nouvelle, jamais à redécaler
+  // les autres soi-même (double décalage sinon).
+  function inserer(mention, entite, handle, options, mentions) {
+    const alias = options.obtenirOuCreerAlias(entite);
+    const nomReel = entite.nomReel;
+    handle.replaceRange(mention.debut, mention.fin, nomReel);
+    mentions.push({ debut: mention.debut, fin: mention.debut + nomReel.length, entite, alias });
+    mentions.sort((a, b) => a.debut - b.debut);
+    const position = mention.debut + nomReel.length;
     handle.setSelection(position, position);
   }
 
-  // Suppression quasi atomique (R-49) : si le curseur est au bord ou à
-  // l'intérieur d'un tag, Backspace/Delete supprime le tag entier d'un
-  // coup, pour éviter les fragments `[PER:PD` qui ne révèlent rien mais
-  // polluent le prompt et cassent la détection par regex du calque.
-  function supprimerTagAtomique(e, handle, options) {
+  // Suppression atomique : Backspace/Delete au bord ou à l'intérieur
+  // d'une mention la supprime entière d'un coup, pour ne jamais laisser un
+  // nom réel tronqué (ni visuellement, ni surtout dans ce qui serait
+  // reconstruit en tag à la réplication). Même remarque de réentrance que
+  // `inserer` ci-dessus : le retrait de `mentions` est déjà fait par
+  // `ajusterMentions` (la plage éditée équivaut exactement à la mention,
+  // donc écartée par recouvrement) — rien à refaire ici après l'appel.
+  function supprimerMentionAtomique(e, handle, mentions) {
     const { debut, fin } = handle.getSelection();
     if (debut !== fin) return; // sélection non vide : comportement natif
-    const texte = handle.getText();
-    const regex = options.creerRegexTag();
-    let m = regex.exec(texte);
-    while (m) {
-      const zoneDebut = m.index;
-      const zoneFin = m.index + m[0].length;
-      const curseurDansTag =
-        e.key === 'Backspace'
-          ? debut > zoneDebut && debut <= zoneFin
-          : debut >= zoneDebut && debut < zoneFin;
-      if (curseurDansTag) {
-        e.preventDefault();
-        handle.replaceRange(zoneDebut, zoneFin, '');
-        handle.setSelection(zoneDebut, zoneDebut);
-        return;
-      }
-      m = regex.exec(texte);
-    }
+    const m = mentionAuBord(mentions, debut, e.key);
+    if (!m) return;
+    e.preventDefault();
+    handle.replaceRange(m.debut, m.fin, '');
+    handle.setSelection(m.debut, m.debut);
   }
 
   function attacher(champ, handle, options) {
+    const mentions = [];
+    let texteConnu = handle.getText();
+
     champ.addEventListener('input', (e) => {
-      // R-13 : neutraliser pendant la composition IME (japonais/chinois/
+      // Neutraliser pendant la composition IME (japonais/chinois/
       // coréen) — réagir seulement une fois la frappe finalisée
       // (compositionend redéclenche un événement input sur Chromium).
       if (e.isComposing) return;
+
+      const texteActuel = handle.getText();
+      const misesAJour = ajusterMentions(mentions, texteConnu, texteActuel);
+      mentions.length = 0;
+      mentions.push(...misesAJour);
+      texteConnu = texteActuel;
+
       // Pause temporaire (bascule depuis la popup) : reprend sans recharger
       // la page, contrairement à l'activation/désactivation par site.
       if (options.estEnPause && options.estEnPause()) {
@@ -146,7 +213,8 @@ window.fogbankMentionMenu = (function () {
 
       indexSurligne = 0;
       const elementMenu = creerElementMenu(resultats, (entite) => {
-        inserer(mention, entite, handle, options);
+        inserer(mention, entite, handle, options, mentions);
+        texteConnu = handle.getText();
         fermerMenu();
       });
       document.body.appendChild(elementMenu);
@@ -157,15 +225,10 @@ window.fogbankMentionMenu = (function () {
 
     // capture:true + stopPropagation() : défense utile contre un
     // gestionnaire natif attaché plus haut dans l'arbre (ex. un <form> qui
-    // soumet sur Entrée en phase de bouillonnement) — mais insuffisante
-    // contre un éditeur comme ProseMirror (Claude.ai), qui attache sa
-    // propre écoute native `keydown` DIRECTEMENT sur le même champ que
-    // nous : pour un même élément cible, les écouteurs s'exécutent dans
-    // leur ORDRE D'ATTACHE, capture ou non — le sien, posé au montage de
-    // l'éditeur bien avant que ce content script ne s'exécute, gagne
-    // toujours la course sur Entrée. Espace n'a pas cet adversaire (aucun
-    // éditeur ne s'en sert pour envoyer) : on l'accepte donc en plus comme
-    // touche de confirmation, plus fiable qu'Entrée sur un vrai site.
+    // soumettrait sur Entrée en phase de bouillonnement). Le champ étant un
+    // <textarea> propre au panneau (voir ADR-008), Entrée, Tab et Espace
+    // sont trois touches de confirmation équivalentes, sans concurrence
+    // d'un éditeur tiers à gérer.
     champ.addEventListener('keydown', (e) => {
       if (etatMenu) {
         if (e.key === 'Escape') {
@@ -194,15 +257,34 @@ window.fogbankMentionMenu = (function () {
           const { mention, resultats } = etatMenu;
           const entite = resultats[indexSurligne];
           fermerMenu();
-          inserer(mention, entite, handle, options);
+          inserer(mention, entite, handle, options, mentions);
+          texteConnu = handle.getText();
           return;
         }
       }
 
       if (e.key === 'Backspace' || e.key === 'Delete') {
-        supprimerTagAtomique(e, handle, options);
+        supprimerMentionAtomique(e, handle, mentions);
+        texteConnu = handle.getText();
+        return;
+      }
+
+      // Frappe normale avec le curseur strictement à l'intérieur d'une
+      // mention (pas à son bord, voir mentionInterieure) : bloquée plutôt
+      // que de risquer de corrompre le nom réel affiché — Backspace/Delete
+      // déjà traités ci-dessus, Ctrl/Meta laissés passer (copier, tout
+      // sélectionner...).
+      if (!e.ctrlKey && !e.metaKey && !TOUCHES_NAVIGATION.has(e.key)) {
+        const { debut, fin } = handle.getSelection();
+        if (debut === fin && mentionInterieure(mentions, debut)) {
+          e.preventDefault();
+        }
       }
     }, { capture: true });
+
+    return {
+      obtenirMentions: () => mentions.slice(),
+    };
   }
 
   return { attacher };

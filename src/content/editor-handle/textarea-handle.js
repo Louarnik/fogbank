@@ -1,11 +1,11 @@
-// EditorHandle pour <textarea> (et <input type="text">) — voir ADR-007 et
-// docs/recherche/reco.md, R-08 à R-24. Un <textarea> n'expose aucun nœud DOM
-// pour son contenu (ni Range, ni getClientRects()) : les coordonnées sont
+// EditorHandle pour <textarea> (et <input type="text">) — voir ADR-008.
+// Un <textarea> n'expose aucun nœud DOM pour son contenu (ni Range, ni
+// getClientRects()) : les coordonnées sont
 // reconstruites via un miroir — un <div> invisible qui copie les propriétés
 // calculées du champ pour que la même chaîne de caractères y occupe
 // exactement la même position visuelle.
 window.fogbankTextareaHandle = (function () {
-  // Propriétés calculées à copier exhaustivement (R-20) — un oubli décale
+  // Propriétés calculées à copier exhaustivement — un oubli décale
   // tout le texte en aval.
   const PROPRIETES_MIROIR = [
     'boxSizing', 'width', 'height',
@@ -38,12 +38,12 @@ window.fogbankTextareaHandle = (function () {
   function creer(champ) {
     const miroir = creerMiroir(champ);
 
-    // Position du curseur (R-22) : le miroir reçoit le texte jusqu'à
-    // `offset`, un repère y est ajouté, sa position dans le miroir donne la
-    // position réelle dans le champ (une fois recalée sur son rect et son
-    // scroll). Quirk dernière ligne (R-21) : si le texte avant le repère se
-    // termine par un saut de ligne, le miroir collapse la ligne vide sans
-    // caractère de garde.
+    // Position du curseur : le miroir reçoit le texte jusqu'à `offset`, un
+    // repère y est ajouté, sa position dans le miroir donne la position
+    // réelle dans le champ (une fois recalée sur son rect et son scroll).
+    // Quirk dernière ligne : si le texte avant le repère se termine par un
+    // saut de ligne, le miroir collapse la ligne vide sans caractère de
+    // garde.
     function rectDepuisOffset(offset) {
       const avant = champ.value.slice(0, offset);
       miroir.textContent = '';
@@ -62,7 +62,7 @@ window.fogbankTextareaHandle = (function () {
       return rect;
     }
 
-    // Rectangles d'une plage (R-23) : la plage est enveloppée dans un
+    // Rectangles d'une plage : la plage est enveloppée dans un
     // <span> du miroir, ses getClientRects() donnent un rectangle par ligne
     // visuelle (utile pour un tag qui casse en fin de ligne).
     function rectsDepuisPlage(debut, fin) {
@@ -104,9 +104,9 @@ window.fogbankTextareaHandle = (function () {
         champ.setSelectionRange(debut, fin);
       },
 
-      // Primitive d'écriture unique (R-10) : execCommand('insertText') émet
+      // Primitive d'écriture unique : execCommand('insertText') émet
       // un beforeinput natif que React traite comme une frappe réelle, et
-      // conserve la pile d'annulation (Ctrl+Z). Repli (R-11) : le setter du
+      // conserve la pile d'annulation (Ctrl+Z). Repli : le setter du
       // *prototype* HTMLTextAreaElement, pour contourner le _valueTracker
       // React qui ignore une affectation directe sur l'instance.
       replaceRange(debut, fin, texte) {

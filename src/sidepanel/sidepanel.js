@@ -153,13 +153,13 @@
     });
   }
 
-  // Sans site actif (onglet non reconnu), génère un code à la volée avec le
+  // Sans site actif (onglet non reconnu), génère un alias à la volée avec le
   // format par défaut plutôt que de bloquer la frappe (voir UC-001, Cas
   // d'erreur) — pas de siteId valide où persister une rotation.
   function obtenirOuCreerAlias(entite) {
     const aujourdHui = aujourdHuiISO();
     if (!siteActif) {
-      return window.fogbankPseudonyme.genererCodeUnique(
+      return window.fogbankPseudonyme.genererAliasUnique(
         entite.nomReel,
         config.formatParDefaut || 'court',
         entite.type,
@@ -170,7 +170,7 @@
     if (entree && (entree.expireLe === null || entree.expireLe > aujourdHui)) {
       return entree.aliasActif;
     }
-    const code = window.fogbankPseudonyme.genererCodeUnique(
+    const alias = window.fogbankPseudonyme.genererAliasUnique(
       entite.nomReel,
       siteActif.formatPseudonyme,
       entite.type,
@@ -178,15 +178,15 @@
     );
     const expireLe = calculerExpiration(siteActif.dureeViePseudonyme, aujourdHui);
     if (!entree) {
-      entree = { siteId: siteActif.id, aliasActif: code, expireLe, historique: [] };
+      entree = { siteId: siteActif.id, aliasActif: alias, expireLe, historique: [] };
       entite.aliasParSite.push(entree);
     } else {
-      entree.aliasActif = code;
+      entree.aliasActif = alias;
       entree.expireLe = expireLe;
     }
-    entree.historique.push({ alias: code, attribueLe: aujourdHui, expireLe });
+    entree.historique.push({ alias, attribueLe: aujourdHui, expireLe });
     persisterAnnuaire();
-    return code;
+    return alias;
   }
 
   function rechercherEntites(filtre) {
@@ -194,22 +194,44 @@
     return annuaire.filter((e) => e.nomReel.toLowerCase().includes(f));
   }
 
-  function resoudre(type, code) {
-    return window.fogbankPseudonyme.resoudreEntite(annuaire, type, code);
+  function resoudre(type, alias) {
+    return window.fogbankPseudonyme.resoudreEntite(annuaire, type, alias);
   }
 
   // --- Composition (M-03/M-04/M-05, voir UC-001) ------------------------
 
   const handle = window.fogbankTextareaHandle.creer(champCompose);
 
-  window.fogbankMentionMenu.attacher(champCompose, handle, {
+  // mentionMenuHandle.obtenirMentions() est la source de vérité des
+  // mentions actuellement suivies (voir mention-menu.js) — display.js
+  // décore d'après cette même liste, et la réplication (plus bas) s'en
+  // sert pour reconstruire la version taguée envoyée au site.
+  const mentionMenuHandle = window.fogbankMentionMenu.attacher(champCompose, handle, {
     caractereDeclencheur: config.caractereDeclencheur || '&',
     rechercherEntites,
     obtenirOuCreerAlias,
-    creerRegexTag: window.fogbankPseudonyme.creerRegexTag,
   });
 
-  window.fogbankDisplay.attacher(champCompose, handle, { resoudre });
+  window.fogbankDisplay.attacher(champCompose, handle, {
+    obtenirMentions: mentionMenuHandle.obtenirMentions,
+  });
+
+  // Reconstruit, à partir du texte en clair du panneau, la version que le
+  // site doit recevoir : chaque mention suivie est remplacée par son tag
+  // [TYP:ALIAS] — traité du plus loin au plus proche pour ne jamais
+  // invalider les décalages des remplacements suivants. C'est la seule
+  // fonction qui fait exister un tag : nulle part ailleurs dans le
+  // panneau (voir docs/SPECS.md, Vue d'ensemble — le panneau est en
+  // clair, le site reçoit le pseudonymisé).
+  function construireTexteTague(texte) {
+    const mentions = [...mentionMenuHandle.obtenirMentions()].sort((a, b) => b.debut - a.debut);
+    let resultat = texte;
+    mentions.forEach((m) => {
+      const tag = `[${m.entite.type}:${m.alias}]`;
+      resultat = resultat.slice(0, m.debut) + tag + resultat.slice(m.fin);
+    });
+    return resultat;
+  }
 
   // --- Ciblage (M-15, voir UC-003) -------------------------------------
 
@@ -344,10 +366,10 @@
     // plus récente, pas nécessairement la deuxième trouvée.
     const indexUtilisateur = occurrences[0];
     const indexAssistant = occurrences[occurrences.length - 1];
-    const messageUtilisateur = substituerTags(
+    const messageUtilisateur = resoudreTags(
       extraireContexte(reponse.texte, indexUtilisateur, PHRASE_TEST_ENVOI.length)
     );
-    const messageAssistant = substituerTags(
+    const messageAssistant = resoudreTags(
       extraireContexte(reponse.texte, indexAssistant, PHRASE_TEST_ENVOI.length)
     );
 
@@ -408,7 +430,7 @@
 
   async function envoyer(estAuto) {
     if (estAuto && syncSuspendue) return; // panneau maître : pas de reprise silencieuse
-    const texte = champCompose.value;
+    const texte = construireTexteTague(champCompose.value);
     majTemoin('attente');
     const reponse = await envoyerAuContentScript({ type: 'fogbank:ecrire', texte });
 
@@ -451,10 +473,13 @@
 
   boutonEnvoyer.addEventListener('click', () => envoyer(false));
 
+  // Repli presse-papier (voir UC-004) : copie la version taguée, pas le
+  // texte en clair du panneau — sans quoi ce repli enverrait un nom réel
+  // dès qu'il est collé sur le site, contournant la pseudonymisation.
   boutonCopier.addEventListener('click', async () => {
     try {
-      await navigator.clipboard.writeText(champCompose.value);
-      logger('Copié dans le presse-papier.', 'succes');
+      await navigator.clipboard.writeText(construireTexteTague(champCompose.value));
+      logger('Copié dans le presse-papier (version pseudonymisée).', 'succes');
     } catch (err) {
       logger(`Échec de copie : ${err.message || err}`, 'erreur');
     }
@@ -469,16 +494,16 @@
 
   // --- Réception (M-07, voir UC-002) ------------------------------------
 
-  function substituerTags(texteBrut) {
+  function resoudreTags(texteBrut) {
     const regex = window.fogbankPseudonyme.creerRegexTag();
-    return texteBrut.replace(regex, (tagComplet, type, code) => {
-      const entite = window.fogbankPseudonyme.resoudreEntite(annuaire, type, code);
+    return texteBrut.replace(regex, (tagComplet, type, alias) => {
+      const entite = window.fogbankPseudonyme.resoudreEntite(annuaire, type, alias);
       return entite ? entite.nomReel : tagComplet;
     });
   }
 
   function afficherTexteClair(texteBrut) {
-    texteClair.textContent = substituerTags(texteBrut);
+    texteClair.textContent = resoudreTags(texteBrut);
   }
 
   boutonLire.addEventListener('click', async () => {

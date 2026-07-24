@@ -1,13 +1,12 @@
 # Fixture de test — Claude.ai factice
 
-`index.html` reproduit la structure DOM relevée dans
-[`docs/recherche/constat-claude.md`](../../../docs/recherche/constat-claude.md),
-pour développer et tester un futur adaptateur `claude.js` **sans dépendre du
-vrai site** ni envoyer quoi que ce soit sur le réseau.
+`index.html` reproduit la structure DOM relevée sur le vrai Claude.ai, pour
+développer et tester un futur adaptateur `claude.js` **sans dépendre du vrai
+site** ni envoyer quoi que ce soit sur le réseau.
 
 Contrairement à [`mock-ai-site/`](../mock-ai-site/) (générique, deux
 scénarios `<textarea>`/`contenteditable`), cette fixture ne modélise que ce
-que le constat décrit pour Claude.ai :
+qui a été relevé pour Claude.ai :
 
 - **Composer** : `div.ProseMirror[contenteditable]` dans un `<fieldset>`,
   bouton d'envoi porteur d'un `aria-label` traduit selon la langue de
@@ -19,8 +18,7 @@ que le constat décrit pour Claude.ai :
 - **Piège volontaire** : un deuxième `div.ProseMirror[contenteditable]`
   hors composer (« Renommer la conversation »), pour vérifier qu'un
   adaptateur qualifie bien le champ via son conteneur plutôt que de prendre
-  le premier `ProseMirror` trouvé sur la page (voir constat, §2.2, et
-  `docs/recherche/reco.md` R-17).
+  le premier `ProseMirror` trouvé sur la page.
 - **Fil de conversation** : tours `.group/conversation-turn`, message
   utilisateur `[data-testid="user-message"]`, message assistant
   `.font-claude-response[data-is-streaming]` avec sa barre d'actions
