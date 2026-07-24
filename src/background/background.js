@@ -168,6 +168,7 @@ async function assurerSiteConfigure(tab) {
     dureeViePseudonyme: '1a',
     formatPseudonyme: 'court',
     modeReplication: 'manuel',
+    conversionFichierMode: 'manuel',
     cibleEcriture: null,
     configurationTerminee: false,
   };

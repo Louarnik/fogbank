@@ -6,116 +6,185 @@
   <link rel="stylesheet" href="sidepanel.css" />
 </head>
 <body>
-  <h1>fogbank</h1>
+  <div id="panneau">
 
-  <!-- Bandeau compact (voir docs/SPECS.md, § Ergonomie) : nom du site,
-       statut, synthèse des réglages en 2 lignes maximum. Seule exception :
-       quand la configuration est incomplète, section-onboarding juste
-       après peut prendre plus de place. -->
-  <section id="section-banniere">
-    <p id="banniere-ligne1">Site : vérification…</p>
-    <p id="banniere-ligne2">
-      <span id="etat-cible">Vérification…</span>
-      <span class="separateur">·</span>
-      <span id="banniere-mode-resume">Réplication : manuel</span>
-    </p>
-    <button id="bouton-rafraichir-cible" type="button" class="bouton-secondaire">Rafraîchir le ciblage</button>
-  </section>
-
-  <section id="section-onboarding" hidden>
-    <h2>Configuration du site</h2>
-    <p class="sous-titre">Ce site n'a pas encore été configuré — ce parcours ne s'affiche qu'une fois (voir UC-005).</p>
-
-    <div class="etape-onboarding">
-      <p class="etape-titre">1. Cibler le champ</p>
-      <p id="onboarding-etat-ciblage">Vérification…</p>
+    <!-- 1. Titre (voir docs/SPECS.md, § Ergonomie) -->
+    <div id="section-titre">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path></svg>
+      <h1>fogbank</h1>
     </div>
 
-    <div class="etape-onboarding">
-      <p class="etape-titre">2. Tester l'écriture</p>
-      <button id="bouton-test-ecriture" type="button" class="bouton-secondaire">Écrire un texte de test</button>
-      <p class="sous-titre">Vérifiez à l'œil que le texte apparaît bien sur la page du site.</p>
-    </div>
+    <!-- 2. Bandeau de site : cadre "blueprint", 2 lignes max sauf config incomplète -->
+    <section id="section-banniere" class="blueprint">
+      <i class="coin coin-hg"></i><i class="coin coin-hd"></i><i class="coin coin-bg"></i><i class="coin coin-bd"></i>
 
-    <div class="etape-onboarding">
-      <p class="etape-titre">3. Tester l'envoi</p>
-      <button id="bouton-test-envoi" type="button" class="bouton-secondaire">Écrire un message de test</button>
-      <p class="sous-titre">Envoyez-le vous-même depuis le site (fogbank ne clique pas à votre place), puis vérifiez la réponse ici.</p>
-      <button id="bouton-verifier-reponse" type="button" class="bouton-secondaire">Vérifier la réponse</button>
-      <p id="onboarding-etat-verification"></p>
-      <pre id="onboarding-dialogue" hidden></pre>
-    </div>
+      <div class="banniere-ligne1">
+        <div class="banniere-site">
+          <span id="banniere-domaine">Site : vérification…</span>
+          <span id="banniere-statut" class="tag">—</span>
+        </div>
+        <div class="banniere-actions">
+          <button id="bouton-configurer-site" type="button" class="btn-icone" title="Configurer le site">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 17H5"></path><path d="M19 7h-9"></path><circle cx="17" cy="17" r="3"></circle><circle cx="7" cy="7" r="3"></circle></svg>
+          </button>
+          <button id="bouton-rafraichir-cible" type="button" class="btn-icone" title="Rafraîchir le ciblage">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 16h5v5"></path></svg>
+          </button>
+        </div>
+      </div>
 
-    <div class="etape-onboarding">
-      <p class="etape-titre">4. Préférences</p>
-      <label>
-        Durée de vie du pseudonyme
-        <select id="onboarding-duree">
-          <option value="1s">1 semaine</option>
-          <option value="1t">1 trimestre</option>
-          <option value="1a">1 an</option>
-          <option value="infini">Infinie</option>
-        </select>
-      </label>
-      <label>
-        Format du pseudonyme
-        <select id="onboarding-format">
-          <option value="court">Court</option>
-          <option value="etendu">Étendu</option>
-          <option value="opaque">Opaque</option>
-        </select>
-      </label>
-    </div>
+      <p id="banniere-ligne2">
+        <span id="etat-cible">Vérification…</span>
+        <span class="separateur">·</span>
+        <span id="banniere-mode-resume">Réplication : manuel</span>
+      </p>
+    </section>
 
-    <div class="actions">
-      <button id="bouton-terminer-config" type="button" class="bouton-primaire">Terminer la configuration</button>
-      <button id="bouton-passer-config" type="button" class="bouton-secondaire">Passer pour l'instant</button>
-    </div>
-  </section>
+    <section id="section-onboarding" hidden>
+      <div class="onboarding-entete">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 17H5"></path><path d="M19 7h-9"></path><circle cx="17" cy="17" r="3"></circle><circle cx="7" cy="7" r="3"></circle></svg>
+        <span>Configuration incomplète</span>
+      </div>
+      <p class="sous-titre">Ce parcours ne s'affiche qu'une fois par site (voir UC-005).</p>
 
-  <!-- Historique avant composition (voir § Ergonomie) : orienter d'abord
-       sur ce qui s'est déjà dit, puis composer la suite. -->
-  <section id="section-lecture">
-    <h2>Historique de la conversation (en clair)</h2>
-    <button id="bouton-lire" type="button" class="bouton-secondaire">Lire maintenant</button>
-    <pre id="texte-clair"></pre>
-    <div class="actions">
-      <button id="bouton-copier-lecture" type="button" class="bouton-secondaire">Copier</button>
-      <button id="bouton-localiser" type="button" class="bouton-secondaire">Localiser dans la page</button>
-    </div>
-    <p class="sous-titre">« Localiser » cherche, sur la page du site, le texte sélectionné ci-dessus (ou le début de l'historique à défaut de sélection) — un aller simple, pas une navigation synchronisée.</p>
-  </section>
+      <div class="etape-onboarding">
+        <p class="etape-titre">1. Cibler le champ</p>
+        <p id="onboarding-etat-ciblage">Vérification…</p>
+      </div>
 
-  <section id="section-composition">
-    <h2>Composer</h2>
-    <textarea id="champ-compose" rows="5" placeholder="Tapez & pour mentionner une entité…"></textarea>
+      <div class="etape-onboarding">
+        <p class="etape-titre">2. Tester l'écriture</p>
+        <button id="bouton-test-ecriture" type="button" class="bouton-secondaire">Écrire un texte de test</button>
+        <p class="sous-titre">Vérifiez à l'œil que le texte apparaît bien sur la page du site.</p>
+      </div>
 
-    <div class="ligne-mode">
-      <label for="select-mode">Réplication</label>
-      <select id="select-mode">
-        <option value="manuel">Manuel</option>
-        <option value="auto">Automatique</option>
-      </select>
-      <span id="temoin-synchro" class="temoin" data-etat="inactif">—</span>
-    </div>
+      <div class="etape-onboarding">
+        <p class="etape-titre">3. Tester l'envoi</p>
+        <button id="bouton-test-envoi" type="button" class="bouton-secondaire">Écrire un message de test</button>
+        <p class="sous-titre">Envoyez-le vous-même depuis le site (fogbank ne clique pas à votre place), puis vérifiez la réponse ici.</p>
+        <button id="bouton-verifier-reponse" type="button" class="bouton-secondaire">Vérifier la réponse</button>
+        <p id="onboarding-etat-verification"></p>
+        <pre id="onboarding-dialogue" hidden></pre>
+      </div>
 
-    <div id="message-suspension" class="message-avertissement" hidden>
-      <span>Synchronisation suspendue : le champ du site a été modifié en dehors du panneau.</span>
-      <button id="bouton-reprendre" type="button" class="bouton-secondaire">Reprendre</button>
-    </div>
+      <div class="etape-onboarding">
+        <p class="etape-titre">4. Préférences</p>
+        <label>
+          Durée de vie du pseudonyme
+          <select id="onboarding-duree">
+            <option value="1s">1 semaine</option>
+            <option value="1t">1 trimestre</option>
+            <option value="1a">1 an</option>
+            <option value="infini">Infinie</option>
+          </select>
+        </label>
+        <label>
+          Format du pseudonyme
+          <select id="onboarding-format">
+            <option value="court">Court</option>
+            <option value="etendu">Étendu</option>
+            <option value="opaque">Opaque</option>
+          </select>
+        </label>
+      </div>
 
-    <div class="actions">
-      <button id="bouton-envoyer" type="button" class="bouton-primaire">Envoyer (écraser)</button>
-      <button id="bouton-copier" type="button" class="bouton-secondaire">Copier</button>
-    </div>
-  </section>
+      <div class="actions">
+        <button id="bouton-terminer-config" type="button" class="bouton-primaire">Terminer la configuration</button>
+        <button id="bouton-passer-config" type="button" class="bouton-secondaire">Passer pour l'instant</button>
+      </div>
+    </section>
 
-  <!-- Réservé au débogage (voir § Ergonomie) : replié par défaut, jamais
-       nécessaire à l'usage normal du panneau. -->
-  <details id="section-journal">
-    <summary>Journal (debug)</summary>
-    <div id="journal"></div>
-  </details>
+    <!-- 3. Historique, zone extensible (flex:1) -->
+    <section id="section-lecture">
+      <div class="entete-section">
+        <h6>Historique — en clair</h6>
+        <button id="bouton-lire" type="button" class="btn-ghost">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 16h5v5"></path></svg>
+          Lire maintenant
+        </button>
+      </div>
+
+      <div id="cadre-historique" class="blueprint">
+        <i class="coin coin-hg"></i><i class="coin coin-hd"></i><i class="coin coin-bg"></i><i class="coin coin-bd"></i>
+        <pre id="texte-clair"></pre>
+      </div>
+
+      <div class="actions">
+        <button id="bouton-copier-lecture" type="button" class="bouton-secondaire">Copier</button>
+        <button id="bouton-localiser" type="button" class="bouton-secondaire">Localiser dans la page</button>
+      </div>
+      <p class="sous-titre">« Localiser » cherche, sur la page du site, le texte sélectionné ci-dessus (ou le début de l'historique à défaut de sélection) — un aller simple, pas une navigation synchronisée.</p>
+
+      <!-- Conversion fichier (M-12, voir UC-006) : imbriqué ici, sans padding latéral propre -->
+      <div id="section-conversion">
+        <div class="entete-section">
+          <h6>Conversion fichier</h6>
+          <button id="bouton-convertir-fichier" type="button" class="btn-ghost">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5z"></path><path d="M14 2v6h6"></path></svg>
+            Convertir un fichier…
+          </button>
+        </div>
+        <input id="entree-fichier-conversion" type="file" accept=".md,.txt,.html" hidden />
+        <div class="ligne-toggle">
+          <p class="sous-titre">Conversion automatique au téléchargement (.md, .txt)</p>
+          <label class="toggle">
+            <input id="toggle-conversion-auto" type="checkbox" />
+            <span class="toggle-piste"><span class="toggle-curseur"></span></span>
+          </label>
+        </div>
+        <p id="note-conversion-auto" class="sous-titre" hidden>Chaque fichier téléchargé sur un site actif serait converti automatiquement — non actif dans cette version (voir UC-006, Points ouverts), le réglage est seulement mémorisé.</p>
+      </div>
+    </section>
+
+    <!-- 4. Composer -->
+    <section id="section-composition">
+      <div class="entete-section">
+        <h6>Composer</h6>
+        <span id="temoin-synchro" class="temoin" data-etat="inactif">—</span>
+        <label class="toggle toggle-libelle">
+          <span>Envoi automatique</span>
+          <input id="toggle-envoi-auto" type="checkbox" />
+          <span class="toggle-piste"><span class="toggle-curseur"></span></span>
+        </label>
+      </div>
+
+      <textarea id="champ-compose" placeholder="Tapez & pour mentionner une entité…"></textarea>
+
+      <div id="message-suspension" class="message-avertissement" hidden>
+        <span>Synchronisation suspendue : le champ du site a été modifié en dehors du panneau.</span>
+        <button id="bouton-reprendre" type="button" class="bouton-secondaire">Reprendre</button>
+      </div>
+
+      <div class="barre-composer">
+        <div class="compteur-conteneur">
+          <button id="bouton-compteur" type="button" class="pastille-compteur" data-etat="zero">
+            <svg class="icone-masque" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"></path><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"></path><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"></path><path d="m2 2 20 20"></path></svg>
+            <svg class="icone-avertissement" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+            <span id="compteur-libelle">0 masqué</span>
+          </button>
+          <div id="compteur-menu" class="compteur-menu" hidden>
+            <span class="compteur-menu-titre">Entités masquées</span>
+            <div id="compteur-liste"></div>
+          </div>
+        </div>
+        <button id="bouton-envoyer" type="button" class="bouton-primaire blueprint">
+          <i class="coin coin-hg"></i><i class="coin coin-hd"></i><i class="coin coin-bg"></i><i class="coin coin-bd"></i>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"></path><path d="m21.854 2.147-10.94 10.939"></path></svg>
+          Envoyer
+        </button>
+      </div>
+      <div class="actions">
+        <button id="bouton-copier" type="button" class="bouton-secondaire">Copier (version pseudonymisée)</button>
+      </div>
+    </section>
+
+    <!-- Réservé au débogage : replié par défaut -->
+    <details id="section-journal">
+      <summary>Journal (debug)</summary>
+      <div id="journal"></div>
+    </details>
+
+  </div>
 
   <script src="../shared/site-matching.js"></script>
   <script src="../content/pseudonyme.js"></script>

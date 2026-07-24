@@ -13,12 +13,14 @@
   const TEXTE_TEST_ENVOI = `Ceci est un test, merci de répondre par « ${PHRASE_TEST_ENVOI} ».`;
   const MARGE_CONTEXTE = 150;
 
-  const banniereLigne1 = document.getElementById('banniere-ligne1');
+  const banniereDomaine = document.getElementById('banniere-domaine');
+  const banniereStatut = document.getElementById('banniere-statut');
   const banniereModeResume = document.getElementById('banniere-mode-resume');
   const etatCible = document.getElementById('etat-cible');
+  const boutonConfigurerSite = document.getElementById('bouton-configurer-site');
   const boutonRafraichirCible = document.getElementById('bouton-rafraichir-cible');
   const champCompose = document.getElementById('champ-compose');
-  const selecteurMode = document.getElementById('select-mode');
+  const toggleEnvoiAuto = document.getElementById('toggle-envoi-auto');
   const temoinSynchro = document.getElementById('temoin-synchro');
   const messageSuspension = document.getElementById('message-suspension');
   const boutonReprendre = document.getElementById('bouton-reprendre');
@@ -29,6 +31,16 @@
   const boutonLocaliser = document.getElementById('bouton-localiser');
   const texteClair = document.getElementById('texte-clair');
   const journal = document.getElementById('journal');
+
+  const boutonCompteur = document.getElementById('bouton-compteur');
+  const compteurLibelle = document.getElementById('compteur-libelle');
+  const compteurMenu = document.getElementById('compteur-menu');
+  const compteurListe = document.getElementById('compteur-liste');
+
+  const boutonConvertirFichier = document.getElementById('bouton-convertir-fichier');
+  const entreeFichierConversion = document.getElementById('entree-fichier-conversion');
+  const toggleConversionAuto = document.getElementById('toggle-conversion-auto');
+  const noteConversionAuto = document.getElementById('note-conversion-auto');
 
   const sectionOnboarding = document.getElementById('section-onboarding');
   const onboardingEtatCiblage = document.getElementById('onboarding-etat-ciblage');
@@ -103,9 +115,10 @@
   function afficherBanniereSite(onglet) {
     const site =
       onglet && onglet.url ? window.fogbankSiteMatching.trouverSiteConfigurePour(sites, onglet.url) : null;
-    banniereLigne1.textContent = site
-      ? `${site.domaine} — ${site.actif ? 'actif' : 'inactif'}`
-      : 'Site non reconnu par fogbank.';
+    banniereDomaine.textContent = site ? site.domaine : 'Site non reconnu par fogbank.';
+    banniereStatut.textContent = site ? (site.actif ? 'Actif' : 'Inactif') : '—';
+    banniereStatut.classList.toggle('tag-accent', !!site && site.actif);
+    banniereStatut.classList.toggle('tag-neutre', !site || !site.actif);
   }
 
   async function determinerSite() {
@@ -123,6 +136,7 @@
       // Un site peut avoir été retrouvé par un id différent après rechargement des sites
       if (siteActif) siteActif = sites.find((s) => s.id === siteActif.id) || siteActif;
       majAffichageMode();
+      majAffichageConversion();
       afficherOnboarding();
     }
     if (changements['fogbank.annuaire']) {
@@ -233,6 +247,55 @@
     return resultat;
   }
 
+  // --- Pastille compteur (voir UC-001, point 6) -------------------------
+
+  // Entités distinctes actuellement mentionnées dans le composer, dans
+  // l'ordre de leur première mention — une même entité mentionnée
+  // plusieurs fois ne compte que pour une.
+  function entitesMentionneesDistinctes() {
+    const vues = new Set();
+    const resultat = [];
+    mentionMenuHandle.obtenirMentions().forEach((m) => {
+      if (vues.has(m.entite)) return;
+      vues.add(m.entite);
+      resultat.push(m);
+    });
+    return resultat;
+  }
+
+  function fermerMenuCompteur() {
+    compteurMenu.hidden = true;
+  }
+
+  function majCompteur() {
+    const entites = entitesMentionneesDistinctes();
+    const n = entites.length;
+    boutonCompteur.dataset.etat = n > 0 ? 'actif' : 'zero';
+    compteurLibelle.textContent = n > 0 ? `${n} masqué${n > 1 ? 's' : ''}` : '0 masqué';
+
+    compteurListe.innerHTML = '';
+    entites.forEach((m) => {
+      const ligne = document.createElement('div');
+      ligne.className = 'compteur-ligne';
+      const nom = document.createElement('span');
+      nom.textContent = m.entite.nomReel;
+      const tag = document.createElement('span');
+      tag.className = 'compteur-tag';
+      tag.textContent = `[${m.entite.type}:${m.alias}]`;
+      ligne.append(nom, tag);
+      compteurListe.appendChild(ligne);
+    });
+    if (n === 0) fermerMenuCompteur();
+  }
+
+  boutonCompteur.addEventListener('click', () => {
+    compteurMenu.hidden = !compteurMenu.hidden;
+  });
+
+  document.addEventListener('click', (e) => {
+    if (!compteurMenu.hidden && !e.target.closest('.compteur-conteneur')) fermerMenuCompteur();
+  });
+
   // --- Ciblage (M-15, voir UC-003) -------------------------------------
 
   function decrireCiblePourAffichage(cible) {
@@ -263,6 +326,10 @@
   }
 
   boutonRafraichirCible.addEventListener('click', rafraichirCible);
+
+  boutonConfigurerSite.addEventListener('click', () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('options/options.html#sites') });
+  });
 
   // --- Configuration d'un site, onboarding (M-01/M-15, voir UC-005) -----
 
@@ -405,7 +472,7 @@
 
   function majAffichageMode() {
     const mode = (siteActif && siteActif.modeReplication) || 'manuel';
-    selecteurMode.value = mode;
+    toggleEnvoiAuto.checked = mode === 'auto';
     banniereModeResume.textContent = `Réplication : ${mode === 'auto' ? 'auto' : 'manuel'}`;
   }
 
@@ -420,8 +487,8 @@
     }
   }
 
-  selecteurMode.addEventListener('change', () => {
-    definirModeReplication(selecteurMode.value);
+  toggleEnvoiAuto.addEventListener('change', () => {
+    definirModeReplication(toggleEnvoiAuto.checked ? 'auto' : 'manuel');
   });
 
   function modeActuel() {
@@ -468,6 +535,7 @@
   }
 
   handle.onInput(() => {
+    majCompteur();
     if (modeActuel() === 'auto') planifierEnvoiAuto();
   });
 
@@ -490,6 +558,85 @@
     messageSuspension.hidden = true;
     majTemoin('inactif');
     logger('Synchronisation reprise.');
+  });
+
+  // --- Conversion de fichiers (M-12, voir UC-006) -----------------------
+  //
+  // Mode manuel implémenté : lecture locale (FileReader), conversion en
+  // mémoire, téléchargement du résultat avec infixe .fog/.unfog — jamais
+  // d'écrasement du fichier d'origine, jamais d'appel réseau. Le mode
+  // automatique (toggle) n'est que persisté pour l'instant, voir
+  // docs/SPECS.md UC-006, Points ouverts.
+
+  // Remplace chaque nom réel de l'annuaire trouvé tel quel par son tag
+  // [TYP:ALIAS] (génère/rote l'alias comme une mention `&`, voir M-10) —
+  // noms les plus longs d'abord pour ne jamais couper un nom composé au
+  // profit d'un nom plus court qu'il contient.
+  function pseudonymiserTexte(texte) {
+    const entites = [...annuaire].sort((a, b) => b.nomReel.length - a.nomReel.length);
+    let resultat = texte;
+    entites.forEach((entite) => {
+      if (!entite.nomReel) return;
+      const alias = obtenirOuCreerAlias(entite);
+      const tag = `[${entite.type}:${alias}]`;
+      resultat = resultat.split(entite.nomReel).join(tag);
+    });
+    return resultat;
+  }
+
+  function telechargerTexte(texte, nomFichierOriginal, infixe) {
+    const pointIndex = nomFichierOriginal.lastIndexOf('.');
+    const nomFichier =
+      pointIndex === -1
+        ? `${nomFichierOriginal}.${infixe}`
+        : `${nomFichierOriginal.slice(0, pointIndex)}.${infixe}${nomFichierOriginal.slice(pointIndex)}`;
+    const blob = new Blob([texte], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const lien = document.createElement('a');
+    lien.href = url;
+    lien.download = nomFichier;
+    lien.click();
+    URL.revokeObjectURL(url);
+  }
+
+  boutonConvertirFichier.addEventListener('click', () => {
+    entreeFichierConversion.value = '';
+    entreeFichierConversion.click();
+  });
+
+  entreeFichierConversion.addEventListener('change', async () => {
+    const fichier = entreeFichierConversion.files[0];
+    if (!fichier) return;
+    const versTag = window.confirm(
+      `Pseudonymiser « ${fichier.name} » ?\n\nOK — remplacer les noms réels par leurs tags.\nAnnuler — restaurer les tags en noms réels.`
+    );
+    try {
+      const texte = await fichier.text();
+      const resultat = versTag ? pseudonymiserTexte(texte) : resoudreTags(texte);
+      telechargerTexte(resultat, fichier.name, versTag ? 'fog' : 'unfog');
+      logger(`Fichier « ${fichier.name} » converti (${versTag ? 'pseudonymisé' : 'restauré'}).`, 'succes');
+    } catch (err) {
+      logger(`Échec de conversion du fichier : ${err.message || err}`, 'erreur');
+    }
+  });
+
+  function majAffichageConversion() {
+    const mode = (siteActif && siteActif.conversionFichierMode) || 'manuel';
+    toggleConversionAuto.checked = mode === 'auto';
+    boutonConvertirFichier.hidden = mode === 'auto';
+    noteConversionAuto.hidden = mode !== 'auto';
+  }
+
+  async function definirModeConversion(mode) {
+    if (!siteActif) return;
+    await mettreAJourSite((site) => {
+      site.conversionFichierMode = mode;
+    });
+  }
+
+  toggleConversionAuto.addEventListener('change', async () => {
+    await definirModeConversion(toggleConversionAuto.checked ? 'auto' : 'manuel');
+    majAffichageConversion();
   });
 
   // --- Réception (M-07, voir UC-002) ------------------------------------
@@ -569,6 +716,7 @@
   async function reinitialiserPourOngletActif() {
     await determinerSite();
     majAffichageMode();
+    majAffichageConversion();
     syncSuspendue = false;
     compteurEchecs = 0;
     onboardingIgnoree = false;
