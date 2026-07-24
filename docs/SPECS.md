@@ -961,7 +961,8 @@ fichier », imbriqué dans la zone Historique (voir § Ergonomie).
      réel de l'entité correspondante (même mécanisme que UC-002), tous
      sites confondus (unicité globale du code, voir Vue d'ensemble).
    Le sens (pseudonymiser/restaurer) est choisi explicitement par
-   l'utilisateur avant conversion — pas de détection automatique du sens à
+   l'utilisateur avant conversion, via deux boutons distincts affichés
+   après sélection du fichier — pas de détection automatique du sens à
    partir du contenu.
 2. Le résultat est proposé en téléchargement, avec un infixe avant
    l'extension d'origine (`rapport.txt` → `rapport.fog.txt` en

@@ -42,6 +42,10 @@
 
   const boutonConvertirFichier = document.getElementById('bouton-convertir-fichier');
   const entreeFichierConversion = document.getElementById('entree-fichier-conversion');
+  const choixSensConversion = document.getElementById('choix-sens-conversion');
+  const nomFichierConversion = document.getElementById('nom-fichier-conversion');
+  const boutonPseudonymiserFichier = document.getElementById('bouton-pseudonymiser-fichier');
+  const boutonRestaurerFichier = document.getElementById('bouton-restaurer-fichier');
   const toggleConversionAuto = document.getElementById('toggle-conversion-auto');
   const noteConversionAuto = document.getElementById('note-conversion-auto');
 
@@ -602,17 +606,31 @@
     URL.revokeObjectURL(url);
   }
 
+  let fichierEnAttente = null; // fichier choisi, en attente du choix de sens (voir choix-sens-conversion)
+
+  function fermerChoixSensConversion() {
+    fichierEnAttente = null;
+    choixSensConversion.hidden = true;
+    nomFichierConversion.textContent = '';
+  }
+
   boutonConvertirFichier.addEventListener('click', () => {
     entreeFichierConversion.value = '';
     entreeFichierConversion.click();
   });
 
-  entreeFichierConversion.addEventListener('change', async () => {
+  entreeFichierConversion.addEventListener('change', () => {
     const fichier = entreeFichierConversion.files[0];
     if (!fichier) return;
-    const versTag = window.confirm(
-      `Pseudonymiser « ${fichier.name} » ?\n\nOK — remplacer les noms réels par leurs tags.\nAnnuler — restaurer les tags en noms réels.`
-    );
+    fichierEnAttente = fichier;
+    nomFichierConversion.textContent = `« ${fichier.name} » — dans quel sens ?`;
+    choixSensConversion.hidden = false;
+  });
+
+  async function convertirFichierEnAttente(versTag) {
+    const fichier = fichierEnAttente;
+    if (!fichier) return;
+    fermerChoixSensConversion();
     try {
       const texte = await fichier.text();
       const resultat = versTag ? pseudonymiserTexte(texte) : resoudreTags(texte);
@@ -621,13 +639,17 @@
     } catch (err) {
       logger(`Échec de conversion du fichier : ${err.message || err}`, 'erreur');
     }
-  });
+  }
+
+  boutonPseudonymiserFichier.addEventListener('click', () => convertirFichierEnAttente(true));
+  boutonRestaurerFichier.addEventListener('click', () => convertirFichierEnAttente(false));
 
   function majAffichageConversion() {
     const mode = (siteActif && siteActif.conversionFichierMode) || 'manuel';
     toggleConversionAuto.checked = mode === 'auto';
     boutonConvertirFichier.hidden = mode === 'auto';
     noteConversionAuto.hidden = mode !== 'auto';
+    if (mode === 'auto') fermerChoixSensConversion();
   }
 
   async function definirModeConversion(mode) {

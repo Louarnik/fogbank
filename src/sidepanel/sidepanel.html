@@ -122,6 +122,15 @@
           </button>
         </div>
         <input id="entree-fichier-conversion" type="file" accept=".md,.txt,.html" hidden />
+
+        <!-- Choix du sens, affiché après sélection d'un fichier (voir UC-006) -->
+        <div id="choix-sens-conversion" class="ligne-toggle" hidden>
+          <p class="sous-titre" id="nom-fichier-conversion"></p>
+          <div class="actions">
+            <button id="bouton-pseudonymiser-fichier" type="button" class="bouton-secondaire">Pseudonymiser</button>
+            <button id="bouton-restaurer-fichier" type="button" class="bouton-secondaire">Restaurer</button>
+          </div>
+        </div>
         <div class="ligne-toggle">
           <p class="sous-titre">Conversion automatique au téléchargement (.md, .txt)</p>
           <label class="toggle">
