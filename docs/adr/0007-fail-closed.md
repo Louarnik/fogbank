@@ -1,7 +1,19 @@
 # ADR-007 — Mode fail-closed : le tag est la source de vérité
 
-**Statut** : acceptée
+**Statut** : annulée (voir Annulation)
 **Date** : 2026-07-22
+
+## Annulation
+
+**2026-07-24** — Cette ADR est annulée. La notion de « fail-closed » s'est révélée trop
+complexe à porter dans la documentation et l'argumentaire produit : elle demande
+d'expliquer un contraste (fail-open vs fail-closed) que l'utilisateur n'a pas besoin de
+connaître. [ADR-008](0008-side-panel.md) a de toute façon fait disparaître le terrain sur
+lequel cette distinction se posait (composition dans la page du site) : le side panel
+composé en clair, puis répliqué par écrasement total vers le champ ciblé, suffit à décrire
+le comportement sans invoquer « fail-closed ». Le contenu ci-dessous est conservé pour
+mémoire de la décision technique (calque de décoration, `EditorHandle`, etc.) mais ne fait
+plus référence dans les specs ni dans le discours produit.
 
 ## Contexte
 
