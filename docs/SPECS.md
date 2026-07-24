@@ -224,7 +224,7 @@ ci-dessous. Chaque macro-UC deviendra un ou plusieurs UC-XXX.
 | M-09 | Historique des alias | Conserver la trace de tous les pseudonymes jamais attribués à chaque entité, **par site**, y compris expirés |
 | M-10 | Génération du pseudonyme | Générer le pseudonyme `[TYP:ALIAS]` selon le format configuré **pour le site courant** (M-01, commun aux 4 types sur ce site) : reconnaissable (initiales, plusieurs variantes) ou opaque (aléatoire), avec suffixe numérique automatique en cas de collision |
 | M-11 | Typage de l'entité | Faire choisir manuellement le type (PER/ORG/LOC/PRJ/MISC) à l'utilisateur lors de l'ajout, et le conserver en clair dans le tag du pseudonyme |
-| M-12 | Conversion de fichiers générés | Interface dédiée (voir UC-006) pour pseudonymiser ou restaurer le contenu d'un fichier (.md, .csv, .txt...) dans les deux sens, en mode manuel (bouton, geste explicite) ou automatique (toggle par site, au téléchargement) ; le fichier proposé porte un infixe avant l'extension d'origine (`rapport.txt` → `rapport.fog.txt` ou `rapport.unfog.txt`) |
+| M-12 | Conversion de fichiers générés | Interface dédiée (voir UC-006) pour pseudonymiser ou restaurer le contenu d'un fichier (.md, .csv, .txt...) dans les deux sens, en mode manuel (bouton, geste explicite) ou automatique (toggle par site, au téléchargement) ; le fichier proposé porte un infixe avant l'extension d'origine (`rapport.txt` → `rapport.mask.txt` ou `rapport.unmask.txt`) |
 | M-13 | Export / import de l'annuaire (Excel) | Exporter l'annuaire et son historique vers un fichier `.xlsx` local, et importer un tel fichier pour peupler ou mettre à jour l'annuaire |
 | M-14 | Mode « vision site » _(différé, non spécifié)_ | Bascule volontaire affichant les pseudonymes bruts tels que le site IA les voit réellement, sans restauration — voir TODO dans UC-002 |
 | M-15 | Ciblage du champ d'écriture, persistant par site | Cibler un champ éditable du site par clic droit (« écrire ici »), mémoriser ce ciblage pour l'onglet courant et le persister par site pour un retrouvage automatique aux visites suivantes |
@@ -965,8 +965,8 @@ fichier », imbriqué dans la zone Historique (voir § Ergonomie).
    après sélection du fichier — pas de détection automatique du sens à
    partir du contenu.
 2. Le résultat est proposé en téléchargement, avec un infixe avant
-   l'extension d'origine (`rapport.txt` → `rapport.fog.txt` en
-   pseudonymisation, `rapport.unfog.txt` en restauration) — jamais en
+   l'extension d'origine (`rapport.txt` → `rapport.mask.txt` en
+   pseudonymisation, `rapport.unmask.txt` en restauration) — jamais en
    écrasant le fichier d'origine.
 3. Le toggle « Conversion automatique » est persisté par site
    (`fogbank.sites[].conversionFichierMode`, `'manuel' | 'auto'`) même si
@@ -983,7 +983,7 @@ fichier », imbriqué dans la zone Historique (voir § Ergonomie).
   mentionnée n'a pas encore d'alias pour le site courant, un nouvel alias
   est généré et persisté (même effet de bord que M-10 pour une mention
   `&`).
-- Sortie : fichier téléchargé localement (infixe `.fog`/`.unfog`), aucune
+- Sortie : fichier téléchargé localement (infixe `.mask`/`.unmask`), aucune
   écriture réseau.
 
 **Cas d'erreur**

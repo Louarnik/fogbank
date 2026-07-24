@@ -570,25 +570,14 @@
   // --- Conversion de fichiers (M-12, voir UC-006) -----------------------
   //
   // Mode manuel implémenté : lecture locale (FileReader), conversion en
-  // mémoire, téléchargement du résultat avec infixe .fog/.unfog — jamais
-  // d'écrasement du fichier d'origine, jamais d'appel réseau. Le mode
-  // automatique (toggle) n'est que persisté pour l'instant, voir
-  // docs/SPECS.md UC-006, Points ouverts.
+  // mémoire (logique partagée avec les tests, voir
+  // content/conversion-fichier.js), téléchargement du résultat avec infixe
+  // .mask/.unmask — jamais d'écrasement du fichier d'origine, jamais
+  // d'appel réseau. Le mode automatique (toggle) n'est que persisté pour
+  // l'instant, voir docs/SPECS.md UC-006, Points ouverts.
 
-  // Remplace chaque nom réel de l'annuaire trouvé tel quel par son tag
-  // [TYP:ALIAS] (génère/rote l'alias comme une mention `&`, voir M-10) —
-  // noms les plus longs d'abord pour ne jamais couper un nom composé au
-  // profit d'un nom plus court qu'il contient.
   function pseudonymiserTexte(texte) {
-    const entites = [...annuaire].sort((a, b) => b.nomReel.length - a.nomReel.length);
-    let resultat = texte;
-    entites.forEach((entite) => {
-      if (!entite.nomReel) return;
-      const alias = obtenirOuCreerAlias(entite);
-      const tag = `[${entite.type}:${alias}]`;
-      resultat = resultat.split(entite.nomReel).join(tag);
-    });
-    return resultat;
+    return window.fogbankConversionFichier.pseudonymiser(texte, annuaire, obtenirOuCreerAlias);
   }
 
   function telechargerTexte(texte, nomFichierOriginal, infixe) {
@@ -634,7 +623,7 @@
     try {
       const texte = await fichier.text();
       const resultat = versTag ? pseudonymiserTexte(texte) : resoudreTags(texte);
-      telechargerTexte(resultat, fichier.name, versTag ? 'fog' : 'unfog');
+      telechargerTexte(resultat, fichier.name, versTag ? 'mask' : 'unmask');
       logger(`Fichier « ${fichier.name} » converti (${versTag ? 'pseudonymisé' : 'restauré'}).`, 'succes');
     } catch (err) {
       logger(`Échec de conversion du fichier : ${err.message || err}`, 'erreur');
@@ -667,11 +656,7 @@
   // --- Réception (M-07, voir UC-002) ------------------------------------
 
   function resoudreTags(texteBrut) {
-    const regex = window.fogbankPseudonyme.creerRegexTag();
-    return texteBrut.replace(regex, (tagComplet, type, alias) => {
-      const entite = window.fogbankPseudonyme.resoudreEntite(annuaire, type, alias);
-      return entite ? entite.nomReel : tagComplet;
-    });
+    return window.fogbankConversionFichier.restaurer(texteBrut, annuaire);
   }
 
   // Bulles par tour (voir ADR-011, UC-002 révisé) si le content script a pu

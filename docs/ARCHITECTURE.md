@@ -52,7 +52,8 @@ src/
 │   │   └── textarea-handle.js       #   mesure par miroir
 │   ├── display.js            # calque de décoration : racine shadow DOM fermée, infobulle (montre le tag), soulignement — chargé par le panneau, pas par le site
 │   ├── mention-menu.js       # menu déclenché par "&" (M-03/M-04) : insère le tag via EditorHandle — chargé par le panneau
-│   └── pseudonyme.js         # génération/résolution d'alias + regex de tag partagée (M-10) — chargé par le panneau
+│   ├── pseudonyme.js         # génération/résolution d'alias + regex de tag partagée (M-10) — chargé par le panneau
+│   └── conversion-fichier.js # pseudonymiser/restaurer un texte (M-12, voir UC-006) — logique pure, testée (tests/conversion-fichier.test.js)
 ├── sidepanel/                 # surface principale : composition, décoration, ciblage, réplication, lecture
 │   ├── sidepanel.html
 │   ├── sidepanel.js
@@ -81,6 +82,7 @@ s'exécute, seul l'`EditorHandle` qu'on leur passe compte.
 | `content/mention-menu.js` | Détecte `&`, affiche le menu, insère le tag `[TYP:ALIAS]` via l'`EditorHandle` — attaché au champ du panneau | M-03, M-04, M-11 |
 | `content/display.js` | Calque de décoration cloisonné (shadow DOM) : infobulle (montre le tag au survol d'un nom réel), soulignement — attaché au champ du panneau | M-05 |
 | `content/pseudonyme.js` | Génération de code (M-10), résolution inverse, regex de tag partagée — utilisé par le panneau et `options/` | M-10 |
+| `content/conversion-fichier.js` | Pseudonymiser/restaurer un texte de fichier (voir UC-006) — logique pure, sans DOM ni `chrome.*` | M-12 |
 | `content/ecriture.js` | Ciblage persistant par site, écrasement total, lecture de la page (hors champs de saisie), détection de modification externe | M-15, M-16, M-07 |
 | `content/profils-lecture.js` | Identification best-effort des tours de conversation par site (voir ADR-011) — lecture seule, repli automatique si aucun profil ne correspond | M-07 |
 | `sidepanel/` | Orchestration principale : champ de composition (`&` + décoration), statut de ciblage, mode de réplication (manuel/auto) avec témoin de synchro, bouton copier, affichage de la réponse résolue | M-03 à M-07, M-10, M-15, M-16 |

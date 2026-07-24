@@ -47,3 +47,22 @@ types ci-dessus) coûte plus qu'il n'apporte. Le format d'export/import
 Excel reste spécifié dans [ADR-006](../docs/adr/0006-export-import-excel.md)
 et sera testé contre un fichier généré par M-13 lui-même le moment venu,
 pas contre un exemple statique à maintenir à la main.
+
+## Test automatisé — conversion de fichiers (M-12, UC-006)
+
+[`conversion-fichier.test.js`](conversion-fichier.test.js) (`npm test`) est
+le seul test automatisé du projet (le reste se fait UC par UC contre les
+fixtures de sites ci-dessus, à la main dans le navigateur). Il charge le
+vrai code de production (`src/content/pseudonyme.js`,
+`src/content/conversion-fichier.js`) dans un bac à sable Node (`vm`), sans
+navigateur, et vérifie sur trois types de fichiers texte simples
+(`.txt`, `.md`, `.html` — voir
+[fixtures/conversion-fichier/](fixtures/conversion-fichier/) ; pas de
+`.csv`, hors périmètre actuel) :
+
+- aucun nom réel ne subsiste après pseudonymisation ;
+- chaque entité mentionnée reçoit bien son tag `[TYP:ALIAS]` ;
+- les caractères spéciaux français (accents, `«guillemets»`, tiret
+  cadratin) survivent intacts à la pseudonymisation ;
+- l'aller-retour `restaurer(pseudonymiser(texte))` redonne exactement le
+  texte d'origine, à l'octet près.
