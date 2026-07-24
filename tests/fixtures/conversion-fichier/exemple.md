@@ -1,6 +1,6 @@
 # Compte rendu — Projet Aurore
 
-**Présents** : Pierre Dupont, Marie Lefebvre
+**Présents** : Pierre Dupont, Marie-Françoise Lefebvre
 
 ## Résumé
 

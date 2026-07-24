@@ -1,13 +1,13 @@
 Compte rendu de réunion — 24 juillet
 
-Présents : Pierre Dupont, Marie Lefebvre.
+Présents : Pierre Dupont, Marie-Françoise Lefebvre.
 Absent : Paul Dumont (congé).
 
 Pierre Dupont a présenté l'avancement du Projet Aurore pour Acme Corporation.
 La réunion s'est tenue à Paris, en présence d'un représentant de Beta
 Industries venu depuis New York.
 
-Décision : l'Opération Mistral est reportée après validation par Jean Test.
+Décision : l'Opération Mistral est reportée après validation par Maëlys Test.
 
 Prochaine étape : synthèse à envoyer à pierre.dupont@example.test avant
 vendredi.

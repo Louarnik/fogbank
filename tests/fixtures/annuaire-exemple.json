@@ -116,7 +116,7 @@
     {
       "id": "ent-03",
       "type": "PER",
-      "nomReel": "Marie Lefebvre",
+      "nomReel": "Marie-Françoise Lefebvre",
       "email": "marie.lefebvre@example.test",
       "creeLe": "2026-02-15",
       "aliasParSite": [
@@ -133,7 +133,7 @@
     {
       "id": "ent-04",
       "type": "PER",
-      "nomReel": "Jean Test",
+      "nomReel": "Maëlys Test",
       "email": null,
       "creeLe": "2026-07-15",
       "aliasParSite": [
