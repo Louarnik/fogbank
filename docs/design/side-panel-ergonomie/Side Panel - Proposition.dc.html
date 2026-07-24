@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/industry-d39c0910-97e8-43b2-a0b9-e5632d2bcfaa/styles.css">
+<script src="_ds/industry-d39c0910-97e8-43b2-a0b9-e5632d2bcfaa/_ds_bundle.js"></script>
+<style>
+  body{margin:0}
+  .fb-select{appearance:none;-webkit-appearance:none}
+  .fb-mention{border-bottom:1.5px solid var(--color-accent-700);color:var(--color-accent-700);cursor:help;font-family:inherit;font-size:inherit}
+  .fb-mention-bad{border-bottom:1.5px dotted #b3432e;color:#b3432e}
+  .fb-scroll::-webkit-scrollbar{width:8px}
+  .fb-scroll::-webkit-scrollbar-thumb{background:var(--color-divider)}
+</style>
+</helmet>
+
+<div style="width:392px;height:100vh;overflow-y:auto;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);display:flex;flex-direction:column;border-left:1px solid var(--color-divider)">
+
+  <!-- 1. Titre -->
+  <div style="flex-shrink:0;display:flex;align-items:center;gap:var(--space-2);padding:var(--space-4) var(--space-4) var(--space-2)">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-700)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path></svg>
+    <h1 style="font-size:20px;margin:0;letter-spacing:-0.01em">FogBank</h1>
+  </div>
+
+  <!-- 2. Bandeau de site -->
+  <div style="flex-shrink:0;padding:0 var(--space-4) var(--space-3)">
+    <div class="blueprint" style="position:relative;padding:var(--space-3) var(--space-3);display:flex;flex-direction:column;gap:6px">
+      <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-2)">
+        <div style="display:flex;align-items:baseline;gap:8px;min-width:0">
+          <span style="font-family:var(--font-heading);font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">chatgpt.com</span>
+          <span class="tag {{ statutTagClass }}">{{ statutLabel }}</span>
+        </div>
+        <div style="display:flex;gap:4px;flex:none">
+        <button type="button" class="btn btn-icon" title="Configurer le site" style="width:28px;height:28px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 17H5"></path><path d="M19 7h-9"></path><circle cx="17" cy="17" r="3"></circle><circle cx="7" cy="7" r="3"></circle></svg>
+        </button>
+        <button type="button" class="btn btn-icon" title="Rafraîchir le ciblage" style="width:28px;height:28px;flex:none">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 16h5v5"></path></svg>
+        </button>
+        </div>
+      </div>
+
+      <sc-if value="{{ configurationTerminee }}" hint-placeholder-val="{{ true }}">
+        <p style="margin:0;font-size:12px;line-height:1.5;color:color-mix(in srgb, var(--color-text) 62%, transparent)">
+          Rotation : <strong style="color:var(--color-text)">{{ dureeLabel }}</strong>
+          <span style="margin:0 6px;opacity:.5">·</span>
+          Alias : <strong style="color:var(--color-text)">{{ formatLabel }}</strong>
+        </p>
+      </sc-if>
+
+      <sc-if value="{{ configurationIncomplete }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:2px;padding-top:8px;border-top:1px dashed var(--color-divider)">
+          <div style="display:flex;align-items:center;gap:8px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--color-accent-700)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 17H5"></path><path d="M19 7h-9"></path><circle cx="17" cy="17" r="3"></circle><circle cx="7" cy="7" r="3"></circle></svg>
+            <span style="font-size:12px;font-weight:600">Configuration incomplète — 2 étapes restantes</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:color-mix(in srgb, var(--color-text) 65%, transparent)">
+            <span>1. Cibler le champ — <span style="color:#2e8b57;font-weight:600">fait</span></span>
+            <span>2. Tester l'écriture — en attente</span>
+            <span>3. Tester l'envoi — en attente</span>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:2px">
+            <button type="button" class="btn btn-primary" style="font-size:12px;padding:6px 12px">Continuer la configuration</button>
+            <button type="button" class="btn btn-ghost" style="font-size:12px;padding:6px 8px">Passer pour l'instant</button>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+  </div>
+
+  <!-- 3. Historique de la conversation, en clair -->
+  <div style="padding:0 var(--space-4) var(--space-3);display:flex;flex-direction:column;gap:8px;flex:1;min-height:140px">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+      <h6 style="margin:0;color:color-mix(in srgb, var(--color-text) 60%, transparent)">Historique — en clair</h6>
+      <button type="button" class="btn btn-ghost" style="font-size:11px;padding:4px 2px;gap:4px">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 16h5v5"></path></svg>
+        Lire maintenant
+      </button>
+    </div>
+
+    <div class="blueprint fb-scroll" style="position: relative; flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; gap: 8px; padding: 10px"><i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+      <div class="blueprint" style="position:relative;border-left:3px solid var(--color-accent-600);padding:8px 10px;display:flex;flex-direction:column;gap:6px">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span class="tag tag-accent" style="font-size:10px">Vous</span>
+          <div style="display:flex;gap:2px">
+            <button type="button" class="btn btn-icon" title="Copier" style="width:24px;height:24px">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
+            </button>
+            <button type="button" class="btn btn-icon" title="Localiser dans la page" style="width:24px;height:24px">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="22" x2="18" y1="12" y2="12"></line><line x1="6" x2="2" y1="12" y2="12"></line><line x1="12" x2="12" y1="6" y2="2"></line><line x1="12" x2="12" y1="22" y2="18"></line></svg>
+            </button>
+          </div>
+        </div>
+        <p style="margin:0;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12px;line-height:1.6">Prépare un point de statut pour <span class="fb-mention" title="[PER:PDT]">Pierre Dupont</span> avant la réunion avec <span class="fb-mention" title="[ORG:ACM]">Acme Corp</span> lundi.</p>
+      </div>
+
+      <div class="blueprint" style="position:relative;border-left:3px solid var(--color-neutral-500);padding:8px 10px;display:flex;flex-direction:column;gap:6px">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span class="tag tag-neutral" style="font-size:10px">Assistant</span>
+          <div style="display:flex;gap:2px">
+            <button type="button" class="btn btn-icon" title="Copier" style="width:24px;height:24px">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
+            </button>
+            <button type="button" class="btn btn-icon" title="Localiser dans la page" style="width:24px;height:24px">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="22" x2="18" y1="12" y2="12"></line><line x1="6" x2="2" y1="12" y2="12"></line><line x1="12" x2="12" y1="6" y2="2"></line><line x1="12" x2="12" y1="22" y2="18"></line></svg>
+            </button>
+          </div>
+        </div>
+        <p style="margin:0;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12px;line-height:1.6">Voici un résumé pour <span class="fb-mention" title="[PER:PDT]">Pierre Dupont</span> : les livrables d'<span class="fb-mention" title="[ORG:ACM]">Acme Corp</span> sont sur les rails, la revue est prévue à Paris la semaine prochaine.</p>
+      </div>
+  </div>
+  </div>
+
+  <div class="hr" style="flex-shrink:0;margin:0 var(--space-4)"></div>
+
+  <!-- Conversion fichier -->
+  <div style="flex-shrink:0;padding:0 var(--space-4) var(--space-3);display:flex;flex-direction:column;gap:8px">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <h6 style="margin:0;color:color-mix(in srgb, var(--color-text) 60%, transparent)">Conversion fichier</h6>
+      <sc-if value="{{ conversionManuelle }}" hint-placeholder-val="{{ true }}">
+        <button type="button" class="btn btn-ghost" style="font-size:11px;padding:4px 2px;gap:4px">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5z"></path><path d="M14 2v6h6"></path></svg>
+          Convertir un fichier…
+        </button>
+      </sc-if>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <p style="margin:0;font-size:11.5px;line-height:1.4;color:color-mix(in srgb, var(--color-text) 55%, transparent)">Conversion automatique au téléchargement (.md, .txt)</p>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;width:fit-content;flex:none">
+        <span style="position:relative;width:34px;height:18px;border-radius:999px;flex:none;{{ conversionToggleTrackStyle }}">
+          <span style="position:absolute;top:2px;width:14px;height:14px;border-radius:50%;background:var(--color-bg);transition:left .15s;{{ conversionToggleThumbStyle }}"></span>
+        </span>
+      </label>
+    </div>
+
+    <sc-if value="{{ conversionAuto }}" hint-placeholder-val="{{ false }}">
+      <p style="margin:0;font-size:11.5px;line-height:1.5;color:color-mix(in srgb, var(--color-text) 55%, transparent)">Chaque fichier téléchargé sur un site actif est converti automatiquement, sans confirmation.</p>
+    </sc-if>
+  </div>
+
+  <div class="hr" style="flex-shrink:0;margin:0 var(--space-4)"></div>
+
+  <!-- 4. Composer -->
+  <div style="flex-shrink:0;padding:0 var(--space-4) var(--space-3);display:flex;flex-direction:column;gap:8px">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <h6 style="margin:0;color:color-mix(in srgb, var(--color-text) 60%, transparent)">Composer</h6>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;width:fit-content">
+        <span style="font-size:12px;color:color-mix(in srgb, var(--color-text) 60%, transparent)">Envoi automatique</span>
+        <span style="position:relative;width:34px;height:18px;border-radius:999px;flex:none;{{ toggleTrackStyle }}">
+          <span style="position:absolute;top:2px;width:14px;height:14px;border-radius:50%;background:var(--color-bg);transition:left .15s;{{ toggleThumbStyle }}"></span>
+        </span>
+      </label>
+    </div>
+
+    <div style="position:relative">
+      <div class="input fb-scroll" style="min-height: calc(4 * 1.5em + 20px); max-height: calc(4 * 1.5em + 20px); overflow-y: auto; white-space: pre-wrap; line-height: 1.5; font-size: 13px">Merci de préparer un point de statut pour <span class="fb-mention" title="[PER:PDT]">Pierre Dupont</span>, à partager avec <span class="fb-mention" title="[ORG:ACM]">Acme Corp</span> avant la réunion de lundi. Tape&nbsp;<strong>&amp;</strong> pour mentionner une autre entité…</div>
+    </div>
+
+    <sc-if value="{{ estSuspendu }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;background:color-mix(in srgb, #c17a2e 12%, transparent);border:1px solid color-mix(in srgb, #c17a2e 35%, transparent)">
+        <span style="font-size:11.5px;line-height:1.4">Synchronisation suspendue : le champ du site a été modifié en dehors du panneau.</span>
+        <button type="button" class="btn btn-secondary" style="font-size:11px;padding:4px 8px;flex:none">Reprendre</button>
+      </div>
+    </sc-if>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px">
+      <div style="position:relative;flex:none">
+        <button type="button" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='flex'?'none':'flex'" style="display:flex;align-items:center;gap:6px;border:none;cursor:pointer;padding:6px 10px;border-radius:var(--radius-md);font-family:var(--font-body);font-size:12px;font-weight:600;{{ compteurStyle }}">
+          <sc-if value="{{ entitesMasqueesCount }}" hint-placeholder-val="{{ 0 }}">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"></path><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"></path><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"></path><path d="m2 2 20 20"></path></svg>
+          </sc-if>
+          <sc-if value="{{ compteurEstZero }}" hint-placeholder-val="{{ false }}">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+          </sc-if>
+          {{ compteurLabel }}
+        </button>
+        <div style="display:none;position:absolute;bottom:100%;left:0;margin-bottom:6px;min-width:210px;background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-md);padding:8px;flex-direction:column;gap:6px;box-shadow:var(--shadow-md);z-index:1">
+          <span style="font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:color-mix(in srgb, var(--color-text) 55%, transparent)">Entités masquées</span>
+          <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--color-text)"><span>Pierre Dupont</span><span style="font-family:ui-monospace,monospace;color:var(--color-accent-700)">[PER:PDT]</span></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--color-text)"><span>Acme Corp</span><span style="font-family:ui-monospace,monospace;color:var(--color-accent-700)">[ORG:ACM]</span></div>
+        </div>
+      </div>
+      <button type="button" class="btn btn-primary blueprint" style="position:relative;flex:none;gap:6px">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"></path><path d="m21.854 2.147-10.94 10.939"></path></svg>
+        Envoyer
+      </button>
+    </div>
+  </div>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;$preview&quot;: {&quot;width&quot;: 392, &quot;height&quot;: 940},
+  &quot;statutSite&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;actif&quot;, &quot;options&quot;: [&quot;actif&quot;, &quot;inactif&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;État du site&quot;},
+  &quot;modeReplication&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;manuel&quot;, &quot;options&quot;: [&quot;manuel&quot;, &quot;auto&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Composer&quot;},
+  &quot;etatSynchro&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;synchronise&quot;, &quot;options&quot;: [&quot;synchronise&quot;, &quot;attente&quot;, &quot;echec&quot;, &quot;suspendu&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Composer&quot;},
+  &quot;entitesMasqueesCount&quot;: {&quot;editor&quot;: &quot;int&quot;, &quot;default&quot;: 2, &quot;min&quot;: 0, &quot;max&quot;: 9, &quot;tsType&quot;: &quot;number&quot;, &quot;section&quot;: &quot;Composer&quot;},
+  &quot;dureeViePseudonyme&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;1a&quot;, &quot;options&quot;: [&quot;1s&quot;, &quot;1t&quot;, &quot;1a&quot;, &quot;infini&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Paramètres alias&quot;},
+  &quot;formatPseudonyme&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;court&quot;, &quot;options&quot;: [&quot;court&quot;, &quot;etendu&quot;, &quot;opaque&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Paramètres alias&quot;},
+  &quot;conversionFichierMode&quot;: {&quot;editor&quot;: &quot;enum&quot;, &quot;default&quot;: &quot;manuel&quot;, &quot;options&quot;: [&quot;manuel&quot;, &quot;auto&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Conversion fichier&quot;},
+  &quot;configurationTerminee&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;État du site&quot;}
+}">
+class Component extends DCLogic {
+  renderVals() {
+    const statutSite = this.props.statutSite ?? 'actif';
+    const modeReplication = this.props.modeReplication ?? 'manuel';
+    const etatSynchro = this.props.etatSynchro ?? 'synchronise';
+    const configurationTerminee = this.props.configurationTerminee ?? true;
+    const journalOuvert = this.props.journalOuvert ?? false;
+
+    const temoins = {
+      synchronise: { label: 'Synchronisé', bg: 'rgba(46,139,87,.16)', fg: '#2e8b57' },
+      attente: { label: 'En attente', bg: 'rgba(193,122,46,.16)', fg: '#c17a2e' },
+      echec: { label: 'Échec', bg: 'rgba(179,67,46,.16)', fg: '#b3432e' },
+      suspendu: { label: 'Suspendu', bg: 'rgba(193,122,46,.16)', fg: '#c17a2e' },
+    };
+    const t = temoins[etatSynchro] ?? temoins.synchronise;
+
+    const dureeLabels = { '1s': '1 semaine', '1t': '1 trimestre', '1a': '1 an', 'infini': 'infinie' };
+    const formatLabels = { court: 'court', etendu: 'étendu', opaque: 'opaque' };
+    const dureeViePseudonyme = this.props.dureeViePseudonyme ?? '1a';
+    const formatPseudonyme = this.props.formatPseudonyme ?? 'court';
+    const conversionFichierMode = this.props.conversionFichierMode ?? 'manuel';
+    const entitesMasqueesCount = this.props.entitesMasqueesCount ?? 3;
+    const compteurLabel = entitesMasqueesCount > 0
+      ? `${entitesMasqueesCount} masqué${entitesMasqueesCount > 1 ? 's' : ''}`
+      : '0 masqué';
+    const compteurStyle = entitesMasqueesCount > 0
+      ? 'background:var(--color-accent-100);color:var(--color-accent-800)'
+      : 'background:color-mix(in srgb, #c17a2e 16%, transparent);color:#8a4c1e';
+
+    return {
+      entitesMasqueesCount,
+      compteurEstZero: entitesMasqueesCount === 0,
+      compteurLabel,
+      compteurStyle,
+      dureeLabel: dureeLabels[dureeViePseudonyme] ?? dureeViePseudonyme,
+      formatLabel: formatLabels[formatPseudonyme] ?? formatPseudonyme,
+      conversionAuto: conversionFichierMode === 'auto',
+      conversionManuelle: conversionFichierMode !== 'auto',
+      conversionAutoChecked: conversionFichierMode === 'auto',
+      conversionManuelleChecked: conversionFichierMode !== 'auto',
+      conversionToggleTrackStyle: conversionFichierMode === 'auto' ? 'background:var(--color-accent)' : 'background:var(--color-neutral-400)',
+      conversionToggleThumbStyle: conversionFichierMode === 'auto' ? 'left:18px' : 'left:2px',
+      statutLabel: statutSite === 'actif' ? 'Actif' : 'Inactif',
+      statutTagClass: statutSite === 'actif' ? 'tag-accent' : 'tag-neutral',
+      modeLabel: modeReplication === 'auto' ? 'automatique' : 'manuel',
+      modeManuelChecked: modeReplication !== 'auto',
+      modeAutoChecked: modeReplication === 'auto',
+      toggleTrackStyle: modeReplication === 'auto' ? 'background:var(--color-accent)' : 'background:var(--color-neutral-400)',
+      toggleThumbStyle: modeReplication === 'auto' ? 'left:18px' : 'left:2px',
+      temoinLabel: t.label,
+      temoinStyle: `background:${t.bg};color:${t.fg}`,
+      estSuspendu: etatSynchro === 'suspendu',
+      configurationTerminee,
+      configurationIncomplete: !configurationTerminee,
+      journalOuvert,
+      journalToggleTrackStyle: journalOuvert ? 'background:var(--color-accent)' : 'background:var(--color-neutral-400)',
+      journalToggleThumbStyle: journalOuvert ? 'left:18px' : 'left:2px',
+    };
+  }
+}
+
+</script>
+</body>
+</html>

@@ -154,6 +154,18 @@ le bas :
 5. **Journal** : masqué par défaut, réservé au débogage — pas un élément
    de l'usage normal.
 
+**Référence visuelle cible (haute fidélité)** : prototype HTML/CSS dans
+[docs/design/side-panel-ergonomie/](design/side-panel-ergonomie/) — couleurs,
+typographie, espacements et interactions du design system « Industry » y
+sont définitifs, à recréer au pixel près dans `src/sidepanel/` en
+respectant ses conventions actuelles (ce prototype est une référence de
+valeurs, pas du code à injecter tel quel — voir le README du dossier).
+Couvre notamment : cadre « blueprint » (bordure fine + coins `+`), bandeau
+de site à 2 lignes avec variante configuration incomplète, bulles
+d'historique avec actions copier/localiser, pastille compteur d'entités
+masquées (accent si N>0, avertissement ambre si N=0) avec menu déroulant
+alias → nom réel, toggles envoi automatique / conversion fichier.
+
 ## Macro-UC (vue d'ensemble)
 
 Liste de haut niveau, à décliner ensuite en UC détaillés avec le template
