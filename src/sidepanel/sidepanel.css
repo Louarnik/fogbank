@@ -303,6 +303,41 @@ h6 {
   line-height: 1.6;
 }
 
+/* --- Bulles par tour (voir ADR-011, UC-002 révisé) --- */
+#bulles-historique {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bulle {
+  position: relative;
+  border: 1px solid var(--color-divider);
+  border-left: 3px solid var(--color-neutral-500);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.bulle-utilisateur { border-left-color: var(--color-accent); }
+
+.bulle-entete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.bulle-actions { display: flex; gap: 2px; }
+.bulle-actions .btn-icone { width: 24px; height: 24px; border: none; }
+
+.bulle-texte {
+  margin: 0;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* --- Conversion fichier (imbriqué dans Historique, voir UC-006) --- */
 #section-conversion {
   flex-shrink: 0;

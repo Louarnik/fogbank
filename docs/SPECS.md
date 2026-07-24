@@ -162,20 +162,14 @@ le bas :
    panneau à grandir/rétrécir avec la fenêtre) :
    - En-tête : « Historique — en clair » + bouton ghost « Lire
      maintenant ».
-   - Cadre « blueprint » à ascenseur interne, texte en monospace, actions
-     **copier** et **localiser dans la page** (aller simple, jamais une
-     navigation synchronisée) au-dessus du cadre.
-     - **Écart connu avec la référence visuelle** : le prototype découpe
-       l'historique en bulles par message (bordure colorée par rôle, tag
-       de rôle, actions par bulle). UC-002 extrait volontairement **tout
-       le texte visible de la page en un seul bloc**, sans identifier de
-       zone de réponse ni de tour de conversation par site (voir ADR-008,
-       « pourquoi il n'y a pas d'adaptateur de site ») — segmenter en
-       bulles par message nécessiterait de réintroduire cette
-       identification par site, à l'opposé du choix fait. Non réconcilié
-       dans cette itération : le panneau affiche un bloc de texte unique,
-       pas des bulles. À reconsidérer si l'usage réel montre que
-       l'absence de séparation par tour gêne la lecture.
+   - Cadre « blueprint » à ascenseur interne, **une bulle par tour de
+     conversation** quand un profil de lecture identifie le site (voir
+     UC-002, [ADR-011](adr/0011-lecture-par-tour.md)) : bordure gauche
+     colorée par rôle (accent = « Vous », neutre = « Assistant »), tag de
+     rôle, actions **copier** et **localiser** par bulle. **Repli bloc
+     unique** (texte en monospace, actions copier/localiser globales
+     au-dessus du cadre) si aucun profil ne correspond au site ou n'y
+     trouve rien — jamais d'échec, seulement une dégradation.
    - **Conversion fichier** (M-12, voir UC-006), imbriqué dans ce même bloc
      sans padding latéral propre, aligné avec les autres en-têtes : bouton
      ghost « Convertir un fichier… » (visible seulement en mode manuel) +
@@ -448,35 +442,56 @@ page — le même pour tout site, pas de hook réseau.
   rien ne se passe. Un premier passage est aussi planifié
   inconditionnellement au chargement (couvre une conversation déjà rendue,
   sans aucune mutation à observer).
-- Une fois la page stable, le content script extrait tout le texte visible
-  de `document.body`, **hors champs de saisie** (`[contenteditable="true"],
-  textarea` — jamais touchés), et l'envoie au panneau (message
-  `fogbank:page-stable`).
+- Une fois la page stable, le content script extrait **deux choses en
+  parallèle** et les envoie au panneau (message `fogbank:page-stable`) :
+  1. Tout le texte visible de `document.body`, **hors champs de saisie**
+     (`[contenteditable="true"], textarea` — jamais touchés) — le bloc
+     unique, calculé **systématiquement**, quel que soit le site (repli
+     garanti, voir point 3).
+  2. Les **tours de conversation**, si un profil de lecture (voir
+     [ADR-011](adr/0011-lecture-par-tour.md),
+     `content/profils-lecture.js`) correspond au site **et** trouve au
+     moins un élément : un tableau `{index, role, texte}` ordonné, `role`
+     valant `utilisateur` ou `assistant`. `null` sinon (site sans profil,
+     ou profil dont le sélecteur ne trouve plus rien).
 - Le panneau résout chaque tag `[TYP:ALIAS]` complet trouvé via l'annuaire
-  (même regex/logique que `pseudonyme.js`) et affiche le résultat en
-  lecture seule — remplacement textuel simple (`String.replace`), pas de
-  DOM à construire côté site puisque rien n'y est écrit.
+  (même regex/logique que `pseudonyme.js`), tour par tour si disponibles,
+  sinon sur le bloc unique — remplacement textuel simple
+  (`String.replace`), pas de DOM à construire côté site puisque rien n'y
+  est écrit.
+- **Affichage** : une bulle par tour (bordure colorée par rôle, actions
+  copier/localiser propres à la bulle — voir § Ergonomie) si des tours ont
+  été trouvés ; sinon le bloc de texte unique avec ses actions globales
+  (comportement historique, avant [ADR-011](adr/0011-lecture-par-tour.md)).
+  Jamais d'échec entre les deux : au pire, dégradation vers le bloc
+  unique.
 - Un rafraîchissement manuel (bouton dans le panneau) reste possible pour
   forcer une relecture immédiate sans attendre la stabilisation.
 
-Scanner toute la page dès qu'elle cesse de bouger est le mécanisme retenu
-pour rester robuste face à des sites dont la structure n'est pas maîtrisée.
-Afficher le résultat dans le panneau plutôt que le substituer dans le DOM
-du site élimine aussi tout risque d'interférence avec le rendu React/Vue
-du site (une insertion dans un sous-arbre géré par un framework peut
-provoquer un rendu incohérent côté site).
+Scanner toute la page dès qu'elle cesse de bouger (plutôt qu'un hook
+réseau) est le mécanisme retenu pour rester robuste face à des sites dont
+la structure n'est pas maîtrisée — ce principe ne change pas. Ce qui change
+avec ADR-011, c'est l'ajout d'une identification **best-effort** des tours
+par-dessus ce même scan, sans jamais rien écrire dans le DOM du site : le
+risque d'un sélecteur pour la lecture n'est pas comparable à celui d'un
+sélecteur pour l'écriture (voir ADR-011, Contexte) — il dégrade, il ne
+casse jamais rien côté site.
 
 **Données**
 
 Entrée :
 - Tout le texte rendu de la page (`document.body`), hors champs de saisie.
+- Les tours de conversation, si un profil de lecture correspond au site
+  (voir `content/profils-lecture.js`) — `null` sinon.
 - Annuaire `fogbank.annuaire[]` en lecture (côté panneau) pour la
-  résolution `type + CODE → { nomReel, siteId d'origine }`.
+  résolution `type + ALIAS → { nomReel, siteId d'origine }`.
 
 Sortie :
-- Zone d'affichage en lecture seule dans le panneau, texte résolu. Aucune
-  écriture vers le site IA, ni dans son DOM ni dans son transport : la
-  page du site n'est jamais modifiée par cet UC.
+- Zone d'affichage en lecture seule dans le panneau (bulles ou bloc
+  unique), texte résolu. Aucune écriture vers le site IA, ni dans son DOM
+  ni dans son transport : la page du site n'est jamais modifiée par cet
+  UC, y compris quand un profil de lecture est utilisé (lecture seule,
+  jamais de ciblage ni d'écrasement — voir ADR-011).
 
 Non-écriture en storage :
 - La restauration ne modifie ni `fogbank.annuaire[]` ni `fogbank.sites[]`.
@@ -490,15 +505,30 @@ Non-écriture en storage :
 | Type valide mais CODE inconnu pour ce type | Idem : traité comme un pseudonyme inconnu, aucun remplacement. |
 | Tag mal formé (ex : `[per:PDT]` en minuscule, `[PER:PD T]` avec espace) | Non détecté par la regex, laissé brut. Comportement attendu, pas de tentative de correction. |
 | La page ne cesse jamais de bouger (animation continue, polling du site) | Le minuteur de stabilité ne se déclenche jamais ; le rafraîchissement manuel reste disponible en repli. |
-| Texte extrait trop bruyant (navigation, barre latérale, contenu hors conversation) | Non filtré dans cette itération : le panneau affiche tout, y compris du texte non pertinent. Dégradé mais fonctionnel ; à affiner (ex. limiter aux ancêtres contenant un tag) si ça s'avère gênant en usage réel. |
+| Texte extrait trop bruyant (navigation, barre latérale, contenu hors conversation) | En mode bloc unique (pas de profil de lecture) : non filtré, le panneau affiche tout, y compris du texte non pertinent. En mode bulles, chaque bulle ne contient que le texte de son tour — ce bruit ne se pose plus, sous réserve que le sélecteur du profil cible bien l'élément de message. |
 | Réponse ne contenant aucun tag | Le texte affiché dans le panneau est identique au texte brut de la page ; aucune erreur. |
+| Aucun profil de lecture pour le site, ou profil dont le sélecteur ne trouve aucun élément (structure du site changée) | `obtenirTours()` renvoie `null` ; repli automatique sur le bloc unique, sans erreur visible pour l'utilisateur. |
+| Action « localiser » sur une bulle dont l'élément d'origine a disparu du DOM entre la lecture et le clic (nouveau message, re-render) | `fogbank:localiser-tour` re-requête le sélecteur au moment du clic ; si l'index ne correspond plus au bon tour (décalage), le scroll peut cibler un autre message. Limite assumée du best-effort — voir Contraintes. |
 
 **Contraintes**
 
 - **Pas de hook réseau** pour M-07 : la lecture se fait par scan de page
   (`MutationObserver`), pas par interception du trafic réseau.
-- **Pas de zone de réponse identifiée** : le scan porte sur `document.body`
-  entier, sans tenter de délimiter une zone propre au site.
+- **Le bloc unique reste calculé systématiquement**, même quand un profil
+  de lecture trouve des tours : c'est le repli garanti, jamais une valeur
+  qui pourrait manquer. Le scan `document.body` entier (sans délimiter de
+  zone propre au site) reste donc le mécanisme de base ; les profils de
+  lecture (voir [ADR-011](adr/0011-lecture-par-tour.md)) s'y ajoutent,
+  sans le remplacer.
+- **Aucun profil de lecture n'est utilisé pour cibler ou écrire** : le
+  ciblage (UC-003) et l'écrasement (UC-004) restent entièrement
+  génériques, sans sélecteur par site — voir ADR-011, qui distingue
+  explicitement ce cas du contrat d'adaptateur abandonné par ADR-008.
+- L'index d'un tour (`{index, ...}`) n'est valable que jusqu'au prochain
+  changement de structure de la page : `fogbank:localiser-tour` re-requête
+  le sélecteur du profil au moment du clic plutôt que de garder une
+  référence DOM vivante (qui deviendrait invalide après un rechargement ou
+  un re-render complet) — voir Cas d'erreur.
 - Un tag est considéré complet quand la regex
   `\[(PER|ORG|LOC|PRJ|MISC):[A-Z0-9-]+\]` matche entièrement dans le texte
   extrait.
@@ -519,26 +549,40 @@ Performance :
   s'avère plus volumineuse que prévu.
 
 Implémentation :
-- `content/ecriture.js` pose l'unique `MutationObserver`, extrait le texte,
-  diffuse `fogbank:page-stable` ; `sidepanel/sidepanel.js` résout et
-  affiche.
+- `content/ecriture.js` pose l'unique `MutationObserver`, extrait le bloc
+  unique et, via `content/profils-lecture.js` (voir ADR-011), les tours du
+  site s'il en existe un profil ; diffuse `fogbank:page-stable` ;
+  `sidepanel/sidepanel.js` résout et affiche (bulles ou bloc unique).
 
 **Points ouverts**
 
-- **Bruit du texte extrait** : voir Cas d'erreur — pas bloquant, mais un
-  filtrage (ex. ne garder que le texte à proximité d'un tag trouvé, ou
-  ignorer certains conteneurs connus comme navigation/sidebar) reste à
-  envisager si l'usage réel s'avère gênant.
-- **Infobulle par tag** : l'affichage panneau (bloc de texte simple) ne
-  permet pas de survoler chaque nom restauré pour revoir son tag d'origine
-  — à réintroduire si jugé utile (ex. affichage tag par tag dans une liste
-  séparée).
+- **Bruit du texte extrait en mode bloc unique** : voir Cas d'erreur — pas
+  bloquant (et déjà résolu en mode bulles, quand un profil de lecture
+  s'applique), mais un filtrage du bloc unique reste envisageable pour les
+  sites sans profil, si l'usage réel s'avère gênant.
+- **Doublon de libellé d'accessibilité** (voir ADR-011, Contexte) : un
+  extrait réel de Claude.ai montre un texte dupliqué (« Vous avez dit :
+  X... X », probablement un libellé d'accessibilité suivi du texte visible
+  qu'il annonce), visible en mode bloc unique. Les sélecteurs de profil
+  ciblent directement l'élément de message, ce qui devrait éviter ce bruit
+  en mode bulles — **à confirmer contre le vrai site**, pas seulement
+  contre les fixtures locales (voir ADR-011, Conséquences).
+- **Infobulle par tag** : en mode bloc unique toujours (bloc de texte
+  simple, pas de `<span>` par tag) ; en mode bulles, chaque bulle affiche
+  déjà le texte résolu d'un seul tour, mais sans infobulle par nom restauré
+  — à réintroduire si jugé utile.
 - **Historique de conversation / SPA** : un rechargement réel (F5) comme un
   changement de conversation en SPA (`pushState`) sont couverts par le même
   mécanisme, sans traitement spécial (le passage de stabilisation planifié
   au chargement couvre une conversation déjà rendue ; le `MutationObserver`
-  capte tout changement de contenu quel que soit le conteneur concerné,
-  puisqu'aucun conteneur précis n'est identifié).
+  capte tout changement de contenu quel que soit le conteneur concerné). En
+  mode bulles, un changement de conversation republie une liste de tours
+  entièrement nouvelle à la stabilisation suivante — pas de fusion avec la
+  précédente.
+- **Périmètre des profils de lecture** : seuls ChatGPT, Claude.ai et
+  Copilot grand public ont un profil (voir ADR-011) ; tout autre site reste
+  en mode bloc unique, sans régression par rapport au comportement
+  antérieur à ADR-011.
 
 **TODO — Mode « vision site »**
 

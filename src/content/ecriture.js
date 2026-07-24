@@ -202,6 +202,15 @@
     return texte;
   }
 
+  // Lecture par tour (voir ADR-011, UC-002 révisé) — `null` si aucun profil
+  // de site ne correspond ou n'a rien trouvé : le panneau se rabat alors
+  // sur `texteVisibleHorsChamps()` (bloc unique), toujours calculé en
+  // parallèle pour ce repli et pour la vérification par sous-chaîne
+  // (UC-005, insensible au découpage en tours).
+  function toursConversation() {
+    return window.fogbankProfilsLecture.obtenirTours(location.hostname);
+  }
+
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!message) return undefined;
 
@@ -236,12 +245,22 @@
     }
 
     if (message.type === 'fogbank:lire-clair') {
-      sendResponse({ ok: true, texte: texteVisibleHorsChamps() });
+      sendResponse({ ok: true, texte: texteVisibleHorsChamps(), tours: toursConversation() });
       return undefined;
     }
 
     if (message.type === 'fogbank:localiser') {
       sendResponse({ ok: localiserTexte(message.texte) });
+      return undefined;
+    }
+
+    if (message.type === 'fogbank:localiser-tour') {
+      const el = window.fogbankProfilsLecture.obtenirElementTour(location.hostname, message.index);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        flashCible(el);
+      }
+      sendResponse({ ok: !!el });
       return undefined;
     }
 
@@ -257,7 +276,11 @@
     clearTimeout(minuteurStabilite);
     minuteurStabilite = setTimeout(() => {
       chrome.runtime
-        .sendMessage({ type: 'fogbank:page-stable', texte: texteVisibleHorsChamps() })
+        .sendMessage({
+          type: 'fogbank:page-stable',
+          texte: texteVisibleHorsChamps(),
+          tours: toursConversation(),
+        })
         .catch(() => {});
     }, DELAI_STABILITE_MS);
   }

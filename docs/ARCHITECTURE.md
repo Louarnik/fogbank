@@ -47,6 +47,7 @@ src/
 │   └── donnees-test.js       # données de développement (voir background.js)
 ├── content/
 │   ├── ecriture.js           # seul content script de production — ciblage, écrasement, lecture de page
+│   ├── profils-lecture.js    # tours par site, lecture seule, best-effort (voir ADR-011) — jamais de ciblage/écriture
 │   ├── editor-handle/        # façade de saisie — le champ du panneau est toujours un <textarea>
 │   │   └── textarea-handle.js       #   mesure par miroir
 │   ├── display.js            # calque de décoration : racine shadow DOM fermée, infobulle (montre le tag), soulignement — chargé par le panneau, pas par le site
@@ -80,6 +81,7 @@ s'exécute, seul l'`EditorHandle` qu'on leur passe compte.
 | `content/display.js` | Calque de décoration cloisonné (shadow DOM) : infobulle (montre le tag au survol d'un nom réel), soulignement — attaché au champ du panneau | M-05 |
 | `content/pseudonyme.js` | Génération de code (M-10), résolution inverse, regex de tag partagée — utilisé par le panneau et `options/` | M-10 |
 | `content/ecriture.js` | Ciblage persistant par site, écrasement total, lecture de la page (hors champs de saisie), détection de modification externe | M-15, M-16, M-07 |
+| `content/profils-lecture.js` | Identification best-effort des tours de conversation par site (voir ADR-011) — lecture seule, repli automatique si aucun profil ne correspond | M-07 |
 | `sidepanel/` | Orchestration principale : champ de composition (`&` + décoration), statut de ciblage, mode de réplication (manuel/auto) avec témoin de synchro, bouton copier, affichage de la réponse résolue | M-03 à M-07, M-10, M-15, M-16 |
 | `background/background.js` | Cycle de vie de l'extension, menu contextuel (« écrire ici »), ouverture du panel sur clic | M-15 |
 | `options/` | Deux onglets : CRUD de l'annuaire (entités), CRUD des sites (`fogbank.sites`) — format de pseudonyme, durée de vie, actif/inactif, mode de réplication | M-01, M-02, M-09, M-10, M-12 |
@@ -105,27 +107,40 @@ lignes) → `#section-lecture` (historique en clair, copier + localiser) →
 `#section-composition` (champ `&` + réplication) → `#section-journal`
 (`<details>` replié par défaut, debug uniquement).
 
-« Localiser dans la page » (`fogbank:localiser`, voir `content/ecriture.js`)
-est un **v1 best-effort** : cherche tel quel, dans le texte visible hors
-champs de saisie, la sélection courante du panneau (ou les 200 premiers
-caractères de l'historique à défaut) — `scrollIntoView` + réutilisation de
-`flashCible` (déjà utilisée pour confirmer un ciblage) sur le premier nœud
-texte correspondant. Limite connue et non résolue : un texte fourni sous
-sa forme résolue (nom réel affiché dans le panneau) ne correspond pas au
-tag brut réellement présent sur la page — la recherche échoue dans ce cas,
-voir SPECS.md § Ergonomie.
+« Localiser dans la page » a deux mécanismes selon le mode d'affichage de
+l'historique (voir ADR-011) :
+- **Mode bulles** (`fogbank:localiser-tour`, voir
+  `content/profils-lecture.js`) : re-requête le sélecteur du profil de
+  lecture au moment du clic et scrolle directement vers l'élément du tour
+  concerné — fiable tant que la page n'a pas changé de structure entre la
+  lecture et le clic.
+- **Repli bloc unique** (`fogbank:localiser`, voir `content/ecriture.js`) :
+  **v1 best-effort**, cherche tel quel, dans le texte visible hors champs
+  de saisie, la sélection courante du panneau (ou les 200 premiers
+  caractères de l'historique à défaut) — `scrollIntoView` + réutilisation
+  de `flashCible` sur le premier nœud texte correspondant. Limite connue et
+  non résolue : un texte fourni sous sa forme résolue (nom réel affiché
+  dans le panneau) ne correspond pas au tag brut réellement présent sur la
+  page — la recherche échoue dans ce cas, voir SPECS.md § Ergonomie.
 
-### Pourquoi il n'y a pas d'adaptateur de site
+### Pourquoi il n'y a pas d'adaptateur de site — pour écrire
 
 fogbank ne cherche jamais à deviner un composer ou une zone de réponse par
-heuristique ou par sélecteur ([ADR-008](adr/0008-side-panel.md)) :
+heuristique ou par sélecteur **pour y écrire** ([ADR-008](adr/0008-side-panel.md)) :
 composition et lecture vivent dans le panneau, le site n'est atteint que
 sur un ciblage **explicite** (clic droit) et persistant (descripteur par
 site, pas une détection à chaque chargement). Il n'existe donc pas de
-dossier `site-adapters/` ni de contrat d'adaptateur
+dossier `site-adapters/` ni de contrat d'adaptateur d'écriture
 (`matches`/`getInputFields`/`getResponseContainer`/`isStreaming`/
 `onStreamingEnd`) : aucun composant ne cherche à identifier automatiquement
-un champ ou une zone sur le site.
+un champ ou une zone sur le site pour y cibler ou y écrire.
+
+**Nuance côté lecture** (voir [ADR-011](adr/0011-lecture-par-tour.md)) :
+`content/profils-lecture.js` identifie best-effort les tours de
+conversation par site, mais **exclusivement en lecture** — jamais pour
+cibler un champ ni écrire. Le risque n'est pas le même : un sélecteur de
+lecture qui se trompe dégrade vers le bloc unique déjà existant, il ne
+casse jamais le site ni la composition de l'utilisateur.
 
 ## Modèle de données (`chrome.storage.local`)
 
@@ -386,7 +401,7 @@ Permissions actuellement déclarées : `storage`, `unlimitedStorage`,
 | M-03, M-04, M-11 | `content/mention-menu.js` + `content/editor-handle/`, chargés par `sidepanel/` |
 | M-05 | `content/display.js`, chargé par `sidepanel/` |
 | M-06 | vestigial — absorbé par M-16 (réplication), voir Flux Composition/Réplication |
-| M-07 | `content/ecriture.js` (extraction) + `sidepanel/` (résolution et affichage) |
+| M-07 | `content/ecriture.js` (extraction) + `content/profils-lecture.js` (tours par site, voir ADR-011) + `sidepanel/` (résolution et affichage, bulles ou bloc unique) |
 | M-08 | `sidepanel/sidepanel.js`, inline lors de l'insertion d'une mention (rotation paresseuse, pas de composant dédié) |
 | M-09 | `fogbank.annuaire[].aliasParSite[].historique`, affiché via `options/` |
 | M-10 | logique partagée (`content/pseudonyme.js`, utilisé par `sidepanel/` et `options/`) |

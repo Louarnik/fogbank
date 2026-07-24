@@ -106,14 +106,18 @@
 
       <div id="cadre-historique" class="blueprint">
         <i class="coin coin-hg"></i><i class="coin coin-hd"></i><i class="coin coin-bg"></i><i class="coin coin-bd"></i>
+        <div id="bulles-historique" hidden></div>
         <pre id="texte-clair"></pre>
       </div>
 
-      <div class="actions">
+      <!-- Repli bloc unique uniquement (voir UC-002) : masqué dès que des
+           bulles par tour sont affichées, chaque bulle porte alors ses
+           propres actions copier/localiser. -->
+      <div id="actions-repli-historique" class="actions">
         <button id="bouton-copier-lecture" type="button" class="bouton-secondaire">Copier</button>
         <button id="bouton-localiser" type="button" class="bouton-secondaire">Localiser dans la page</button>
       </div>
-      <p class="sous-titre">« Localiser » cherche, sur la page du site, le texte sélectionné ci-dessus (ou le début de l'historique à défaut de sélection) — un aller simple, pas une navigation synchronisée.</p>
+      <p id="sous-titre-repli-historique" class="sous-titre">« Localiser » cherche, sur la page du site, le texte sélectionné ci-dessus (ou le début de l'historique à défaut de sélection) — un aller simple, pas une navigation synchronisée.</p>
 
       <!-- Conversion fichier (M-12, voir UC-006) : imbriqué ici, sans padding latéral propre -->
       <div id="section-conversion">

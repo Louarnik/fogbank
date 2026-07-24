@@ -30,6 +30,9 @@
   const boutonCopierLecture = document.getElementById('bouton-copier-lecture');
   const boutonLocaliser = document.getElementById('bouton-localiser');
   const texteClair = document.getElementById('texte-clair');
+  const bullesHistorique = document.getElementById('bulles-historique');
+  const actionsRepliHistorique = document.getElementById('actions-repli-historique');
+  const sousTitreRepliHistorique = document.getElementById('sous-titre-repli-historique');
   const journal = document.getElementById('journal');
 
   const boutonCompteur = document.getElementById('bouton-compteur');
@@ -649,14 +652,95 @@
     });
   }
 
-  function afficherTexteClair(texteBrut) {
-    texteClair.textContent = resoudreTags(texteBrut);
+  // Bulles par tour (voir ADR-011, UC-002 révisé) si le content script a pu
+  // les identifier (profil de site, voir profils-lecture.js) ; sinon repli
+  // sur le bloc de texte unique (comportement historique) — jamais
+  // d'échec, seulement une dégradation.
+  let texteResoluCourant = ''; // pour Copier/Localiser globaux (mode repli)
+
+  const ICONE_COPIER =
+    '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>';
+  const ICONE_LOCALISER =
+    '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="22" x2="18" y1="12" y2="12"></line><line x1="6" x2="2" y1="12" y2="12"></line><line x1="12" x2="12" y1="6" y2="2"></line><line x1="12" x2="12" y1="22" y2="18"></line></svg>';
+
+  function construireBulle(tour, texteResolu) {
+    const bulle = document.createElement('div');
+    bulle.className = `bulle bulle-${tour.role}`;
+
+    const entete = document.createElement('div');
+    entete.className = 'bulle-entete';
+    const tag = document.createElement('span');
+    tag.className = `tag ${tour.role === 'utilisateur' ? 'tag-accent' : 'tag-neutre'}`;
+    tag.textContent = tour.role === 'utilisateur' ? 'Vous' : 'Assistant';
+
+    const actions = document.createElement('div');
+    actions.className = 'bulle-actions';
+    const boutonCopierBulle = document.createElement('button');
+    boutonCopierBulle.type = 'button';
+    boutonCopierBulle.className = 'btn-icone';
+    boutonCopierBulle.title = 'Copier';
+    boutonCopierBulle.innerHTML = ICONE_COPIER;
+    boutonCopierBulle.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(texteResolu);
+        logger('Message copié dans le presse-papier.', 'succes');
+      } catch (err) {
+        logger(`Échec de copie : ${err.message || err}`, 'erreur');
+      }
+    });
+    const boutonLocaliserBulle = document.createElement('button');
+    boutonLocaliserBulle.type = 'button';
+    boutonLocaliserBulle.className = 'btn-icone';
+    boutonLocaliserBulle.title = 'Localiser dans la page';
+    boutonLocaliserBulle.innerHTML = ICONE_LOCALISER;
+    boutonLocaliserBulle.addEventListener('click', async () => {
+      const reponse = await envoyerAuContentScript({ type: 'fogbank:localiser-tour', index: tour.index });
+      if (reponse && reponse.ok) {
+        logger('Message localisé sur la page.', 'succes');
+      } else {
+        logger('Message introuvable sur la page (structure du site changée ?).', 'erreur');
+      }
+    });
+    actions.append(boutonCopierBulle, boutonLocaliserBulle);
+    entete.append(tag, actions);
+
+    const corps = document.createElement('p');
+    corps.className = 'bulle-texte';
+    corps.textContent = texteResolu;
+
+    bulle.append(entete, corps);
+    return bulle;
+  }
+
+  // `tours` : `null`/vide → repli bloc unique ; sinon une bulle par tour,
+  // dans l'ordre renvoyé par le profil de site (voir profils-lecture.js).
+  function afficherHistorique(texteBrut, tours) {
+    texteResoluCourant = resoudreTags(texteBrut);
+
+    if (tours && tours.length > 0) {
+      actionsRepliHistorique.hidden = true;
+      sousTitreRepliHistorique.hidden = true;
+      texteClair.hidden = true;
+      texteClair.textContent = '';
+      bullesHistorique.hidden = false;
+      bullesHistorique.innerHTML = '';
+      tours.forEach((tour) => {
+        bullesHistorique.appendChild(construireBulle(tour, resoudreTags(tour.texte)));
+      });
+    } else {
+      bullesHistorique.hidden = true;
+      bullesHistorique.innerHTML = '';
+      texteClair.hidden = false;
+      texteClair.textContent = texteResoluCourant;
+      actionsRepliHistorique.hidden = false;
+      sousTitreRepliHistorique.hidden = false;
+    }
   }
 
   boutonLire.addEventListener('click', async () => {
     const reponse = await envoyerAuContentScript({ type: 'fogbank:lire-clair' });
     if (reponse && reponse.ok) {
-      afficherTexteClair(reponse.texte);
+      afficherHistorique(reponse.texte, reponse.tours);
     } else {
       logger(`Échec de lecture : ${(reponse && reponse.erreur) || 'réponse vide'}`, 'erreur');
     }
@@ -664,7 +748,7 @@
 
   boutonCopierLecture.addEventListener('click', async () => {
     try {
-      await navigator.clipboard.writeText(texteClair.textContent);
+      await navigator.clipboard.writeText(texteResoluCourant);
       logger('Historique copié dans le presse-papier.', 'succes');
     } catch (err) {
       logger(`Échec de copie : ${err.message || err}`, 'erreur');
@@ -676,10 +760,12 @@
   // synchronisée. V1 best-effort : cherche le texte tel quel — s'il
   // provient d'une portion résolue de l'historique (nom réel affiché à la
   // place d'un tag), la recherche échoue sur le site, qui ne connaît que
-  // le tag brut. Cas non résolu pour l'instant, voir SPECS.md.
+  // le tag brut. Cas non résolu pour l'instant, voir SPECS.md. Réservé au
+  // repli bloc unique — en mode bulles, chaque bulle a sa propre action
+  // (voir construireBulle), plus fiable (cible le tour directement).
   boutonLocaliser.addEventListener('click', async () => {
     const selection = window.getSelection().toString().trim();
-    const texte = selection || texteClair.textContent.slice(0, 200).trim();
+    const texte = selection || texteResoluCourant.slice(0, 200).trim();
     if (!texte) {
       logger('Rien à localiser — sélectionnez du texte dans l’historique, ou lisez la page d’abord.', 'erreur');
       return;
@@ -702,7 +788,7 @@
     if (message.type === 'fogbank:cible-mise-a-jour') {
       afficherCible(message.cible);
     } else if (message.type === 'fogbank:page-stable') {
-      afficherTexteClair(message.texte);
+      afficherHistorique(message.texte, message.tours);
     } else if (message.type === 'fogbank:modification-externe') {
       syncSuspendue = true;
       majTemoin('suspendu');
