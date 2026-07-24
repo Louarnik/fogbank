@@ -34,11 +34,6 @@ donne la vue d'ensemble assemblée.
   moment de la réplication ([ADR-009](adr/0009-replication.md)), reconstruit
   à partir des mentions suivies par position — c'est lui, et seulement
   lui, qui atteint le champ du site.
-- **Le site n'est qu'une destination** ([ADR-008](adr/0008-side-panel.md)) :
-  fogbank ne cherche plus à identifier un composer ou une zone de réponse
-  par heuristique ou sélecteur — la composition et la lecture vivent dans
-  le panneau, le site ne reçoit qu'un écrasement total sur un champ ciblé
-  explicitement.
 
 ## Composants de l'extension (Manifest V3)
 
