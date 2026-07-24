@@ -104,12 +104,20 @@ body {
   background: var(--color-bg);
 }
 
+/* Hauteur fixe (pas min-height) : nécessaire pour que #section-lecture
+   (flex:1) calcule une hauteur réelle et que son ascenseur interne
+   (#cadre-historique) prenne le relais avant que le panneau entier ne
+   déborde. overflow-y:auto ici reproduit l'ascenseur global "natif" du
+   prototype (voir docs/design/side-panel-ergonomie/README.md,
+   Redimensionnement fenêtre) — il ne se déclenche que si l'ensemble du
+   panneau dépasse la fenêtre malgré les ascenseurs internes. */
 #panneau {
   width: 100%;
-  min-height: 100vh;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  overflow-x: hidden;
 }
 
 h6 {
@@ -177,20 +185,21 @@ h6 {
 }
 .tag-accent { background: var(--color-accent-100); color: var(--color-accent-800); }
 .tag-neutre { background: var(--color-neutral-100); color: var(--color-neutral-900); }
-.banniere-actions { display: flex; gap: 4px; flex: none; }
 
-#banniere-ligne2 {
-  margin: 0;
-  font-size: 12px;
-  color: color-mix(in srgb, var(--color-text) 62%, transparent);
-  word-break: break-word;
+/* Hors scope / configuration non terminée (voir sidepanel.js,
+   majAccessibiliteSections) : grisé + inerte plutôt que de laisser les
+   actions échouer silencieusement (ou avec une erreur) sur un onglet où
+   fogbank n'a rien à faire. */
+.section-desactivee {
+  opacity: .45;
+  pointer-events: none;
+  filter: grayscale(.6);
 }
-#etat-cible { font-family: ui-monospace, monospace; }
-.separateur { margin: 0 6px; opacity: .5; }
 
 .btn-icone {
   width: 28px;
   height: 28px;
+  padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -312,24 +321,44 @@ h6 {
   gap: 8px;
 }
 
+/* Ligne = bulle + ses actions (copier/localiser), placées à côté plutôt
+   que dans une entête interne — ne mordent pas sur la largeur de texte.
+   Vous (aligné à droite) : actions à gauche de la bulle. Assistant
+   (aligné à gauche) : actions à droite (voir construireBulle,
+   sidepanel.js, pour l'ordre d'ajout au DOM). */
+.ligne-bulle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ligne-bulle-utilisateur { justify-content: flex-end; }
+.ligne-bulle-assistant { justify-content: flex-start; }
+
 .bulle {
   position: relative;
+  max-width: 85%;
+  min-width: 0;
   border: 1px solid var(--color-divider);
   border-left: 3px solid var(--color-neutral-500);
   padding: 8px 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
-.bulle-utilisateur { border-left-color: var(--color-accent); }
+/* Vous : bordure gauche devient une bordure droite, pour rester du côté
+   de l'alignement (voir .ligne-bulle-utilisateur ci-dessus). */
+.bulle-utilisateur {
+  border-left-color: var(--color-divider);
+  border-right: 3px solid var(--color-accent);
+}
 
-.bulle-entete {
+/* Rangée (pas colonne) et centrée verticalement sur la bulle (voir
+   .ligne-bulle) : une colonne de 2 icônes empilées dépasserait la hauteur
+   d'une bulle à une seule ligne de texte. */
+.bulle-actions {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: row;
+  gap: 2px;
+  flex: none;
 }
-.bulle-actions { display: flex; gap: 2px; }
-.bulle-actions .btn-icone { width: 24px; height: 24px; border: none; }
+.bulle-actions .btn-icone { width: 20px; height: 20px; border: none; }
 
 .bulle-texte {
   margin: 0;
@@ -411,12 +440,11 @@ h6 {
   background: var(--color-surface);
   color: color-mix(in srgb, var(--color-text) 60%, transparent);
 }
-.temoin[data-etat="synchronise"] { background: rgba(46, 139, 87, .16); color: var(--color-succes); }
-.temoin[data-etat="attente"] { background: rgba(193, 122, 46, .16); color: var(--color-avertissement); }
-.temoin[data-etat="echec"] { background: rgba(179, 67, 46, .16); color: var(--color-erreur); }
-.temoin[data-etat="suspendu"] { background: rgba(193, 122, 46, .16); color: var(--color-avertissement); }
+.temoin[data-etat="ok"] { background: rgba(46, 139, 87, .16); color: var(--color-succes); }
+.temoin[data-etat="nok"] { background: rgba(179, 67, 46, .16); color: var(--color-erreur); }
 
 #champ-compose {
+  display: block;
   width: 100%;
   min-height: calc(4 * 1.5em + 20px);
   max-height: calc(4 * 1.5em + 20px);
@@ -427,9 +455,23 @@ h6 {
   padding: .5rem .625rem;
   border: 1px solid var(--color-divider);
   border-radius: var(--radius-md);
-  background: transparent;
-  color: inherit;
-  resize: none;
+  /* Fond blanc fixe (pas var(--color-surface)) : la zone de saisie doit
+     rester la plus visible du panneau, y compris en thème sombre — donc
+     une couleur de texte fixe assortie plutôt que `color: inherit`, sinon
+     illisible sur fond clair une fois le thème sombre appliqué. */
+  background: #fff;
+  color: #1d1f20;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  cursor: text;
+  outline: none;
+}
+/* Placeholder d'un contenteditable : pas d'attribut natif, seul un
+   pseudo-élément sur l'état vide en tient lieu. */
+#champ-compose:empty::before {
+  content: attr(data-placeholder);
+  color: #6b6b6e;
+  pointer-events: none;
 }
 
 .message-avertissement {
@@ -540,36 +582,3 @@ button {
   display: flex;
   gap: .5rem;
 }
-
-/* --- Journal (debug) --- */
-#section-journal {
-  margin: 0 var(--space-4) var(--space-3);
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--color-divider);
-}
-#section-journal summary {
-  cursor: pointer;
-  font-size: 11px;
-  color: color-mix(in srgb, var(--color-text) 60%, transparent);
-}
-#section-journal[open] summary { margin-bottom: .625rem; }
-
-#journal {
-  display: flex;
-  flex-direction: column;
-  gap: .3rem;
-  max-height: 240px;
-  overflow-y: auto;
-  margin-top: .625rem;
-}
-
-.ligne-journal {
-  font-family: ui-monospace, monospace;
-  font-size: .75rem;
-  padding: .375rem .5rem;
-  border-radius: .3rem;
-  background: var(--color-surface);
-  word-break: break-word;
-}
-.ligne-journal.succes { border-left: 3px solid var(--color-succes); }
-.ligne-journal.erreur { border-left: 3px solid var(--color-erreur); color: var(--color-erreur); }

@@ -50,15 +50,18 @@
   // --- Onglets ---------------------------------------------------------
   const boutonOngletAnnuaire = document.getElementById('onglet-bouton-annuaire');
   const boutonOngletSites = document.getElementById('onglet-bouton-sites');
+  const boutonOngletJournal = document.getElementById('onglet-bouton-journal');
   const sectionAnnuaire = document.getElementById('onglet-annuaire');
   const sectionSites = document.getElementById('onglet-sites');
+  const sectionJournal = document.getElementById('onglet-journal');
 
   function activerOnglet(nom) {
-    const estSites = nom === 'sites';
-    sectionAnnuaire.hidden = estSites;
-    sectionSites.hidden = !estSites;
-    boutonOngletAnnuaire.setAttribute('aria-selected', String(!estSites));
-    boutonOngletSites.setAttribute('aria-selected', String(estSites));
+    sectionAnnuaire.hidden = nom !== 'annuaire';
+    sectionSites.hidden = nom !== 'sites';
+    sectionJournal.hidden = nom !== 'journal';
+    boutonOngletAnnuaire.setAttribute('aria-selected', String(nom === 'annuaire'));
+    boutonOngletSites.setAttribute('aria-selected', String(nom === 'sites'));
+    boutonOngletJournal.setAttribute('aria-selected', String(nom === 'journal'));
   }
   boutonOngletAnnuaire.addEventListener('click', () => {
     location.hash = '';
@@ -68,7 +71,13 @@
     location.hash = 'sites';
     activerOnglet('sites');
   });
-  activerOnglet(location.hash === '#sites' ? 'sites' : 'annuaire');
+  boutonOngletJournal.addEventListener('click', () => {
+    location.hash = 'journal';
+    activerOnglet('journal');
+  });
+  const ongletsValides = ['sites', 'journal'];
+  const ongletInitial = ongletsValides.includes(location.hash.slice(1)) ? location.hash.slice(1) : 'annuaire';
+  activerOnglet(ongletInitial);
 
   // --- Onglet Annuaire ---------------------------------------------------
   const corpsTableau = document.getElementById('corps-tableau');
@@ -514,18 +523,50 @@
     if (e.target === dialogueSite) fermerFormulaireSite();
   });
 
+  // --- Onglet Journal (debug) -------------------------------------------
+  // Déplacé depuis le side panel (voir handoff side panel ergonomie) :
+  // fogbank.journal est alimenté par sidepanel.js (logger()), affiché ici
+  // en lecture seule, du plus récent au plus ancien (déjà cet ordre en
+  // stockage, voir sidepanel.js).
+  let journal = [];
+  const listeJournal = document.getElementById('liste-journal');
+  const etatVideJournal = document.getElementById('etat-vide-journal');
+  const boutonViderJournal = document.getElementById('bouton-vider-journal');
+
+  function rendreJournal() {
+    listeJournal.textContent = '';
+    etatVideJournal.hidden = journal.length > 0;
+
+    journal.forEach((entree) => {
+      const ligne = document.createElement('div');
+      ligne.className = `ligne-journal ${entree.niveau || ''}`;
+      ligne.textContent = `[${entree.horodatage}] ${entree.texte}`;
+      listeJournal.appendChild(ligne);
+    });
+  }
+
+  async function viderJournal() {
+    const confirmation = confirm('Vider le journal de débogage ? Irréversible.');
+    if (!confirmation) return;
+    await chrome.storage.local.set({ 'fogbank.journal': [] });
+  }
+
+  boutonViderJournal.addEventListener('click', viderJournal);
+
   // --- Chargement partagé -------------------------------------------------
   async function chargerEtRendre() {
-    const donnees = await chrome.storage.local.get(['fogbank.annuaire', 'fogbank.sites']);
+    const donnees = await chrome.storage.local.get(['fogbank.annuaire', 'fogbank.sites', 'fogbank.journal']);
     annuaire = donnees['fogbank.annuaire'] || [];
     sites = donnees['fogbank.sites'] || [];
+    journal = donnees['fogbank.journal'] || [];
     rendreTableau();
     rendreTableauSites();
+    rendreJournal();
   }
 
   chrome.storage.onChanged.addListener((changements, zone) => {
     if (zone !== 'local') return;
-    if (changements['fogbank.annuaire'] || changements['fogbank.sites']) {
+    if (changements['fogbank.annuaire'] || changements['fogbank.sites'] || changements['fogbank.journal']) {
       chargerEtRendre();
     }
   });

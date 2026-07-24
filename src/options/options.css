@@ -193,3 +193,21 @@ dialog::backdrop { background: rgba(0, 0, 0, .4); }
   gap: .5rem;
   margin-top: .25rem;
 }
+
+#liste-journal {
+  display: flex;
+  flex-direction: column;
+  gap: .375rem;
+}
+
+.ligne-journal {
+  font-family: ui-monospace, monospace;
+  font-size: .8rem;
+  padding: .5rem .625rem;
+  border-radius: .375rem;
+  background: var(--fond-alterne);
+  border: 1px solid var(--bordure);
+  word-break: break-word;
+}
+.ligne-journal.succes { border-left: 3px solid #2e8b57; }
+.ligne-journal.erreur { border-left: 3px solid #d33; color: #d33; }

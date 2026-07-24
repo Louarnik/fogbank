@@ -8,30 +8,18 @@
 <body>
   <div id="panneau">
 
-    <!-- 2. Bandeau de site : cadre "blueprint", 2 lignes max sauf config incomplète.
-         Pas de titre/icône dupliqué ici — déjà fournis par l'onglet du side panel (Chrome). -->
+    <!-- 2. Bandeau de site : cadre "blueprint", une seule ligne — le
+         ciblage (OK/NOK) et l'instruction de clic droit vivent désormais
+         dans le badge et le placeholder du composer, plus dans la
+         bannière (voir section-composition plus bas). Pas de titre/icône
+         dupliqué ici — déjà fournis par l'onglet du side panel (Chrome). -->
     <section id="section-banniere" class="blueprint">
-
       <div class="banniere-ligne1">
         <div class="banniere-site">
           <span id="banniere-domaine">Site : vérification…</span>
           <span id="banniere-statut" class="tag">—</span>
         </div>
-        <div class="banniere-actions">
-          <button id="bouton-configurer-site" type="button" class="btn-icone" title="Configurer le site">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 17H5"></path><path d="M19 7h-9"></path><circle cx="17" cy="17" r="3"></circle><circle cx="7" cy="7" r="3"></circle></svg>
-          </button>
-          <button id="bouton-rafraichir-cible" type="button" class="btn-icone" title="Rafraîchir le ciblage">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"></path><path d="M16 16h5v5"></path></svg>
-          </button>
-        </div>
       </div>
-
-      <p id="banniere-ligne2">
-        <span id="etat-cible">Vérification…</span>
-        <span class="separateur">·</span>
-        <span id="banniere-mode-resume">Réplication : manuel</span>
-      </p>
     </section>
 
     <section id="section-onboarding" hidden>
@@ -146,7 +134,7 @@
     <section id="section-composition">
       <div class="entete-section">
         <h6>Composer</h6>
-        <span id="temoin-synchro" class="temoin" data-etat="inactif">—</span>
+        <span id="temoin-cible" class="temoin" data-etat="inconnu">Cible : vérification…</span>
         <label class="toggle toggle-libelle">
           <span>Envoi automatique</span>
           <input id="toggle-envoi-auto" type="checkbox" />
@@ -154,7 +142,7 @@
         </label>
       </div>
 
-      <textarea id="champ-compose" placeholder="Tapez & pour mentionner une entité…"></textarea>
+      <div id="champ-compose" data-placeholder="Tapez & pour mentionner une entité…"></div>
 
       <div id="message-suspension" class="message-avertissement" hidden>
         <span>Synchronisation suspendue : le champ du site a été modifié en dehors du panneau.</span>
@@ -178,23 +166,14 @@
           Envoyer
         </button>
       </div>
-      <div class="actions">
-        <button id="bouton-copier" type="button" class="bouton-secondaire">Copier (version pseudonymisée)</button>
-      </div>
     </section>
-
-    <!-- Réservé au débogage : replié par défaut -->
-    <details id="section-journal">
-      <summary>Journal (debug)</summary>
-      <div id="journal"></div>
-    </details>
 
   </div>
 
   <script src="../shared/site-matching.js"></script>
   <script src="../content/pseudonyme.js"></script>
   <script src="../content/conversion-fichier.js"></script>
-  <script src="../content/editor-handle/textarea-handle.js"></script>
+  <script src="../content/editor-handle/contenteditable-handle.js"></script>
   <script src="../content/display.js"></script>
   <script src="../content/mention-menu.js"></script>
   <script src="sidepanel.js"></script>

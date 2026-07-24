@@ -48,8 +48,8 @@ src/
 ├── content/
 │   ├── ecriture.js           # seul content script de production — ciblage, écrasement, lecture de page
 │   ├── profils-lecture.js    # tours par site, lecture seule, best-effort (voir ADR-011) — jamais de ciblage/écriture
-│   ├── editor-handle/        # façade de saisie — le champ du panneau est toujours un <textarea>
-│   │   └── textarea-handle.js       #   mesure par miroir
+│   ├── editor-handle/        # façade de saisie — le champ du panneau est un <div contenteditable>
+│   │   └── contenteditable-handle.js  #   Range/getClientRects natifs, texte gardé plat (voir fichier)
 │   ├── display.js            # calque de décoration : racine shadow DOM fermée, infobulle (montre le tag), soulignement — chargé par le panneau, pas par le site
 │   ├── mention-menu.js       # menu déclenché par "&" (M-03/M-04) : insère le tag via EditorHandle — chargé par le panneau
 │   ├── pseudonyme.js         # génération/résolution d'alias + regex de tag partagée (M-10) — chargé par le panneau
@@ -78,7 +78,7 @@ s'exécute, seul l'`EditorHandle` qu'on leur passe compte.
 
 | Composant | Rôle | Macro-UC couverts |
 |-----------|------|--------------------|
-| `content/editor-handle/` | Façade de saisie pour le `<textarea>` du panneau (`getText`, `replaceRange`, `getRangeRects`...) | M-04 |
+| `content/editor-handle/` | Façade de saisie pour le `<div contenteditable>` du panneau (`getText`, `replaceRange`, `getRangeRects`...) | M-04 |
 | `content/mention-menu.js` | Détecte `&`, affiche le menu, insère le tag `[TYP:ALIAS]` via l'`EditorHandle` — attaché au champ du panneau | M-03, M-04, M-11 |
 | `content/display.js` | Calque de décoration cloisonné (shadow DOM) : infobulle (montre le tag au survol d'un nom réel), soulignement — attaché au champ du panneau | M-05 |
 | `content/pseudonyme.js` | Génération de code (M-10), résolution inverse, regex de tag partagée — utilisé par le panneau et `options/` | M-10 |
@@ -245,8 +245,8 @@ mention réelle de « Paris ».
 
 **Composition (M-03/M-04/M-05, dans le panneau, en clair — voir UC-001)**
 1. Le panneau attache, à son unique champ de composition
-   (`<textarea>` propre à fogbank), un `EditorHandle` (`TextareaHandle`),
-   `mention-menu.js` et `display.js`.
+   (`<div contenteditable>` propre à fogbank), un `EditorHandle`
+   (`ContentEditableHandle`), `mention-menu.js` et `display.js`.
 2. `mention-menu.js` écoute la frappe du caractère déclencheur, interroge
    `fogbank.annuaire` (lecture directe de `chrome.storage.local`,
    accessible depuis une page d'extension), filtre par texte tapé.

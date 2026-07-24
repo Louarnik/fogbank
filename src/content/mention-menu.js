@@ -152,6 +152,12 @@ window.fogbankMentionMenu = (function () {
   // décale déjà les mentions existantes via `ajusterMentions` avant qu'on
   // revienne ici — ne reste qu'à ajouter la nouvelle, jamais à redécaler
   // les autres soi-même (double décalage sinon).
+  // Cette réentrance a un effet de bord sur le soulignement (fogbankDisplay) :
+  // son propre listener `input` s'exécute lui aussi pendant ce
+  // `replaceRange`, donc *avant* le `mentions.push` juste en dessous — le
+  // trait de la mention qu'on est en train d'ajouter est alors dessiné une
+  // frappe en retard. `options.onMentionsChanged()` prévient explicitement
+  // fogbankDisplay une fois la mention réellement en place.
   function inserer(mention, entite, handle, options, mentions) {
     const alias = options.obtenirOuCreerAlias(entite);
     const nomReel = entite.nomReel;
@@ -160,6 +166,7 @@ window.fogbankMentionMenu = (function () {
     mentions.sort((a, b) => a.debut - b.debut);
     const position = mention.debut + nomReel.length;
     handle.setSelection(position, position);
+    if (options.onMentionsChanged) options.onMentionsChanged();
   }
 
   // Suppression atomique : Backspace/Delete au bord ou à l'intérieur

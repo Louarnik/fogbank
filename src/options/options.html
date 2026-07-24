@@ -11,6 +11,7 @@
     <nav class="onglets">
       <button id="onglet-bouton-annuaire" class="bouton-onglet" type="button" aria-selected="true">Annuaire</button>
       <button id="onglet-bouton-sites" class="bouton-onglet" type="button" aria-selected="false">Sites</button>
+      <button id="onglet-bouton-journal" class="bouton-onglet" type="button" aria-selected="false">Journal</button>
     </nav>
   </header>
 
@@ -75,6 +76,22 @@
       </table>
 
       <p id="etat-vide-sites" hidden>Aucun site configuré.</p>
+    </section>
+
+    <section id="onglet-journal" hidden>
+      <p class="sous-titre">
+        Historique des événements de débogage du panneau (side panel) : tests
+        de ciblage/écriture/envoi, réplications, échecs. Local à cet appareil,
+        non synchronisé.
+      </p>
+
+      <div class="barre-outils">
+        <button id="bouton-vider-journal" class="bouton-secondaire" type="button">Vider le journal</button>
+      </div>
+
+      <div id="liste-journal"></div>
+
+      <p id="etat-vide-journal" hidden>Journal vide.</p>
     </section>
   </main>
 

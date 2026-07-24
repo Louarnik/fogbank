@@ -12,28 +12,26 @@
   const PHRASE_TEST_ENVOI = 'test bien reçu [LOC:PA0001]';
   const TEXTE_TEST_ENVOI = `Ceci est un test, merci de répondre par « ${PHRASE_TEST_ENVOI} ».`;
   const MARGE_CONTEXTE = 150;
+  const PLACEHOLDER_DEFAUT = 'Tapez & pour mentionner une entité…';
+  const PLACEHOLDER_CLIC_DROIT =
+    'Faites un clic droit dans la zone de saisie du site pour commencer la configuration.';
 
   const banniereDomaine = document.getElementById('banniere-domaine');
   const banniereStatut = document.getElementById('banniere-statut');
-  const banniereModeResume = document.getElementById('banniere-mode-resume');
-  const etatCible = document.getElementById('etat-cible');
-  const boutonConfigurerSite = document.getElementById('bouton-configurer-site');
-  const boutonRafraichirCible = document.getElementById('bouton-rafraichir-cible');
   const champCompose = document.getElementById('champ-compose');
   const toggleEnvoiAuto = document.getElementById('toggle-envoi-auto');
-  const temoinSynchro = document.getElementById('temoin-synchro');
+  const temoinCible = document.getElementById('temoin-cible');
   const messageSuspension = document.getElementById('message-suspension');
   const boutonReprendre = document.getElementById('bouton-reprendre');
   const boutonEnvoyer = document.getElementById('bouton-envoyer');
-  const boutonCopier = document.getElementById('bouton-copier');
   const boutonLire = document.getElementById('bouton-lire');
   const boutonCopierLecture = document.getElementById('bouton-copier-lecture');
   const boutonLocaliser = document.getElementById('bouton-localiser');
   const texteClair = document.getElementById('texte-clair');
+  const cadreHistorique = document.getElementById('cadre-historique');
   const bullesHistorique = document.getElementById('bulles-historique');
   const actionsRepliHistorique = document.getElementById('actions-repli-historique');
   const sousTitreRepliHistorique = document.getElementById('sous-titre-repli-historique');
-  const journal = document.getElementById('journal');
 
   const boutonCompteur = document.getElementById('bouton-compteur');
   const compteurLibelle = document.getElementById('compteur-libelle');
@@ -49,6 +47,8 @@
   const toggleConversionAuto = document.getElementById('toggle-conversion-auto');
   const noteConversionAuto = document.getElementById('note-conversion-auto');
 
+  const sectionLecture = document.getElementById('section-lecture');
+  const sectionComposition = document.getElementById('section-composition');
   const sectionOnboarding = document.getElementById('section-onboarding');
   const onboardingEtatCiblage = document.getElementById('onboarding-etat-ciblage');
   const boutonTestEcriture = document.getElementById('bouton-test-ecriture');
@@ -61,9 +61,12 @@
   const boutonTerminerConfig = document.getElementById('bouton-terminer-config');
   const boutonPasserConfig = document.getElementById('bouton-passer-config');
 
+  const TAILLE_MAX_JOURNAL = 200;
+
   let config = {};
   let sites = [];
   let annuaire = [];
+  let journal = []; // fogbank.journal — voir la page Journal des options
   let siteActif = null; // site fogbank.sites[] correspondant à l'onglet actif
   let ongletId = null;
   let compteurEchecs = 0;
@@ -77,11 +80,15 @@
     return new Date().toLocaleTimeString('fr-FR');
   }
 
+  // Journal (debug) — n'est plus affiché dans le panneau (voir ADR /
+  // handoff side panel ergonomie) : persisté dans fogbank.journal et
+  // consultable depuis une page dédiée des options.
   function logger(texte, niveau) {
-    const ligne = document.createElement('div');
-    ligne.className = `ligne-journal ${niveau || ''}`;
-    ligne.textContent = `[${horodatage()}] ${texte}`;
-    journal.prepend(ligne);
+    journal.unshift({ horodatage: horodatage(), texte, niveau: niveau || '' });
+    if (journal.length > TAILLE_MAX_JOURNAL) journal.length = TAILLE_MAX_JOURNAL;
+    chrome.storage.local.set({ 'fogbank.journal': journal }).catch((err) => {
+      console.error('[fogbank] échec de sauvegarde du journal :', err);
+    });
   }
 
   async function ongletActifCourant() {
@@ -109,10 +116,12 @@
       'fogbank.config',
       'fogbank.sites',
       'fogbank.annuaire',
+      'fogbank.journal',
     ]);
     config = donnees['fogbank.config'] || { caractereDeclencheur: '&', formatParDefaut: 'court' };
     sites = donnees['fogbank.sites'] || [];
     annuaire = donnees['fogbank.annuaire'] || [];
+    journal = donnees['fogbank.journal'] || [];
   }
 
   // Ligne 1 de la bannière (voir docs/SPECS.md, § Ergonomie) : distincte de
@@ -145,6 +154,7 @@
       majAffichageMode();
       majAffichageConversion();
       afficherOnboarding();
+      majAccessibiliteSections();
     }
     if (changements['fogbank.annuaire']) {
       annuaire = changements['fogbank.annuaire'].newValue || [];
@@ -221,19 +231,26 @@
 
   // --- Composition (M-03/M-04/M-05, voir UC-001) ------------------------
 
-  const handle = window.fogbankTextareaHandle.creer(champCompose);
+  const handle = window.fogbankContentEditableHandle.creer(champCompose);
 
   // mentionMenuHandle.obtenirMentions() est la source de vérité des
   // mentions actuellement suivies (voir mention-menu.js) — display.js
   // décore d'après cette même liste, et la réplication (plus bas) s'en
   // sert pour reconstruire la version taguée envoyée au site.
+  // `onMentionsChanged` compense la réentrance décrite dans
+  // mention-menu.js (`inserer`) : sans cet appel explicite, le trait de la
+  // mention qu'on vient d'insérer n'est dessiné qu'au prochain événement
+  // fortuit (resize/scroll/frappe suivante) — visible comme un
+  // soulignement manquant, ou plusieurs qui apparaissent d'un coup plus
+  // tard une fois plusieurs mentions accumulées.
   const mentionMenuHandle = window.fogbankMentionMenu.attacher(champCompose, handle, {
     caractereDeclencheur: config.caractereDeclencheur || '&',
     rechercherEntites,
     obtenirOuCreerAlias,
+    onMentionsChanged: () => displayHandle.rafraichir(),
   });
 
-  window.fogbankDisplay.attacher(champCompose, handle, {
+  const displayHandle = window.fogbankDisplay.attacher(champCompose, handle, {
     obtenirMentions: mentionMenuHandle.obtenirMentions,
   });
 
@@ -306,37 +323,66 @@
   // --- Ciblage (M-15, voir UC-003) -------------------------------------
 
   function decrireCiblePourAffichage(cible) {
-    if (!cible) return 'Aucune cible — clic droit sur un champ du site.';
-    const morceaux = [cible.tag];
-    if (cible.id) morceaux.push(`#${cible.id}`);
-    if (cible.placeholder) morceaux.push(`« ${cible.placeholder} »`);
-    morceaux.push(cible.contentEditable ? '(contenteditable)' : '(natif)');
-    return morceaux.join(' ');
+    return cible
+      ? 'Cible écriture OK'
+      : 'Cible écriture NOK — faites un clic droit dans la zone de saisie du site pour commencer la configuration.';
   }
 
+  // L'encart à droite de « Composer » (`temoinCible`) reflète uniquement la
+  // cible d'écriture — vert « Cible OK » si un champ du site est ciblé,
+  // rouge « Cible NOK » sinon. Pas de notion de synchronisation ici : le
+  // succès/échec d'un envoi est uniquement journalisé (voir logger() dans
+  // envoyer()), il ne change plus la couleur de ce badge.
+  // L'instruction elle-même (« faites un clic droit… ») s'affiche dans le
+  // champ de composition (son placeholder) plutôt que dans une bulle
+  // d'aide : c'est là que le regard est déjà posé pour écrire.
   function afficherCible(cible) {
-    const texte = decrireCiblePourAffichage(cible);
-    etatCible.textContent = texte;
-    onboardingEtatCiblage.textContent = cible
-      ? `Ciblé : ${texte}`
-      : 'Aucune cible — clic droit sur un champ du site → « fogbank : écrire ici ».';
+    onboardingEtatCiblage.textContent = decrireCiblePourAffichage(cible);
+    temoinCible.dataset.etat = cible ? 'ok' : 'nok';
+    temoinCible.textContent = cible ? 'Cible OK' : 'Cible NOK';
+    champCompose.dataset.placeholder = cible ? PLACEHOLDER_DEFAUT : PLACEHOLDER_CLIC_DROIT;
+  }
+
+  // Site actif (voir site-matching.js, trouverSiteActifPour) déjà filtré sur
+  // `actif`, ne reste qu'à vérifier la configuration : hors scope (aucun
+  // site ne correspond, ou site désactivé) ou configuration inachevée, les
+  // sections lecture/composition n'ont rien de valide à faire — les griser
+  // et les rendre inertes évite d'y déclencher des actions qui
+  // échoueraient (ou pire, réussiraient sur le mauvais onglet) et
+  // d'afficher des erreurs de ciblage/synchro sans objet sur ces pages.
+  function siteUtilisable() {
+    return !!siteActif && !!siteActif.configurationTerminee;
+  }
+
+  function majAccessibiliteSections() {
+    const utilisable = siteUtilisable();
+    [sectionLecture, sectionComposition].forEach((section) => {
+      section.classList.toggle('section-desactivee', !utilisable);
+      section.querySelectorAll('button, input, select, textarea').forEach((el) => {
+        el.disabled = !utilisable;
+      });
+    });
+    // #champ-compose est un <div contenteditable>, pas un <textarea> :
+    // `.disabled` n'existe pas dessus, il faut couper l'édition elle-même
+    // (sans quoi le clavier resterait actif malgré section-desactivee).
+    champCompose.contentEditable = utilisable ? 'true' : 'false';
+    if (!utilisable) {
+      onboardingEtatCiblage.textContent = '—';
+      temoinCible.dataset.etat = 'inconnu';
+      temoinCible.textContent = '—';
+      champCompose.dataset.placeholder = PLACEHOLDER_CLIC_DROIT;
+    }
   }
 
   async function rafraichirCible() {
+    if (!siteUtilisable()) return;
     const reponse = await envoyerAuContentScript({ type: 'fogbank:etat-cible' });
     if (reponse && reponse.ok) {
       afficherCible(reponse.cible);
     } else {
-      etatCible.textContent = (reponse && reponse.erreur) || 'Statut de ciblage indisponible.';
-      onboardingEtatCiblage.textContent = etatCible.textContent;
+      onboardingEtatCiblage.textContent = (reponse && reponse.erreur) || 'Statut de ciblage indisponible.';
     }
   }
-
-  boutonRafraichirCible.addEventListener('click', rafraichirCible);
-
-  boutonConfigurerSite.addEventListener('click', () => {
-    chrome.tabs.create({ url: chrome.runtime.getURL('options/options.html#sites') });
-  });
 
   // --- Configuration d'un site, onboarding (M-01/M-15, voir UC-005) -----
 
@@ -469,18 +515,9 @@
 
   // --- Réplication (M-16, voir UC-004) ----------------------------------
 
-  function majTemoin(etat) {
-    temoinSynchro.dataset.etat = etat;
-    temoinSynchro.textContent =
-      { synchronise: 'Synchronisé', attente: 'En attente', echec: 'Échec', suspendu: 'Suspendu', inactif: '—' }[
-        etat
-      ] || etat;
-  }
-
   function majAffichageMode() {
     const mode = (siteActif && siteActif.modeReplication) || 'manuel';
     toggleEnvoiAuto.checked = mode === 'auto';
-    banniereModeResume.textContent = `Réplication : ${mode === 'auto' ? 'auto' : 'manuel'}`;
   }
 
   async function definirModeReplication(mode) {
@@ -504,12 +541,10 @@
 
   async function envoyer(estAuto) {
     if (estAuto && syncSuspendue) return; // panneau maître : pas de reprise silencieuse
-    const texte = construireTexteTague(champCompose.value);
-    majTemoin('attente');
+    const texte = construireTexteTague(champCompose.textContent);
     const reponse = await envoyerAuContentScript({ type: 'fogbank:ecrire', texte });
 
     if (!reponse || !reponse.ok) {
-      majTemoin('echec');
       logger(`Échec de réplication : ${(reponse && reponse.erreur) || 'réponse vide'}`, 'erreur');
       gererEchec(estAuto);
       return;
@@ -517,11 +552,9 @@
 
     const { contenuCorrespond, contenuFinal } = reponse.resultat;
     if (contenuCorrespond) {
-      majTemoin('synchronise');
       compteurEchecs = 0;
       logger('Réplication OK.', 'succes');
     } else {
-      majTemoin('echec');
       logger(`Écart après écriture — contenu final : « ${contenuFinal} ».`, 'erreur');
       gererEchec(estAuto);
     }
@@ -548,22 +581,9 @@
 
   boutonEnvoyer.addEventListener('click', () => envoyer(false));
 
-  // Repli presse-papier (voir UC-004) : copie la version taguée, pas le
-  // texte en clair du panneau — sans quoi ce repli enverrait un nom réel
-  // dès qu'il est collé sur le site, contournant la pseudonymisation.
-  boutonCopier.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(construireTexteTague(champCompose.value));
-      logger('Copié dans le presse-papier (version pseudonymisée).', 'succes');
-    } catch (err) {
-      logger(`Échec de copie : ${err.message || err}`, 'erreur');
-    }
-  });
-
   boutonReprendre.addEventListener('click', () => {
     syncSuspendue = false;
     messageSuspension.hidden = true;
-    majTemoin('inactif');
     logger('Synchronisation reprise.');
   });
 
@@ -670,22 +690,30 @@
   const ICONE_LOCALISER =
     '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="22" x2="18" y1="12" y2="12"></line><line x1="6" x2="2" y1="12" y2="12"></line><line x1="12" x2="12" y1="6" y2="2"></line><line x1="12" x2="12" y1="22" y2="18"></line></svg>';
 
+  // Les actions (copier/localiser) sortent de la bulle plutôt que d'y
+  // prendre une ligne d'entête : elles se placent à côté, du côté opposé à
+  // l'alignement (à gauche de « Vous », à droite de l'assistant) pour ne
+  // pas mordre sur la largeur de texte disponible. `title` sert d'info-
+  // bulle d'aide au survol, seule indication puisque les boutons n'ont pas
+  // de libellé visible.
   function construireBulle(tour, texteResolu) {
+    const ligne = document.createElement('div');
+    ligne.className = `ligne-bulle ligne-bulle-${tour.role}`;
+
     const bulle = document.createElement('div');
     bulle.className = `bulle bulle-${tour.role}`;
-
-    const entete = document.createElement('div');
-    entete.className = 'bulle-entete';
-    const tag = document.createElement('span');
-    tag.className = `tag ${tour.role === 'utilisateur' ? 'tag-accent' : 'tag-neutre'}`;
-    tag.textContent = tour.role === 'utilisateur' ? 'Vous' : 'Assistant';
+    const corps = document.createElement('p');
+    corps.className = 'bulle-texte';
+    corps.textContent = texteResolu;
+    bulle.append(corps);
 
     const actions = document.createElement('div');
     actions.className = 'bulle-actions';
     const boutonCopierBulle = document.createElement('button');
     boutonCopierBulle.type = 'button';
     boutonCopierBulle.className = 'btn-icone';
-    boutonCopierBulle.title = 'Copier';
+    boutonCopierBulle.title = 'Copier ce message';
+    boutonCopierBulle.setAttribute('aria-label', 'Copier ce message');
     boutonCopierBulle.innerHTML = ICONE_COPIER;
     boutonCopierBulle.addEventListener('click', async () => {
       try {
@@ -698,7 +726,8 @@
     const boutonLocaliserBulle = document.createElement('button');
     boutonLocaliserBulle.type = 'button';
     boutonLocaliserBulle.className = 'btn-icone';
-    boutonLocaliserBulle.title = 'Localiser dans la page';
+    boutonLocaliserBulle.title = 'Localiser ce message dans la page du site';
+    boutonLocaliserBulle.setAttribute('aria-label', 'Localiser ce message dans la page du site');
     boutonLocaliserBulle.innerHTML = ICONE_LOCALISER;
     boutonLocaliserBulle.addEventListener('click', async () => {
       const reponse = await envoyerAuContentScript({ type: 'fogbank:localiser-tour', index: tour.index });
@@ -709,14 +738,15 @@
       }
     });
     actions.append(boutonCopierBulle, boutonLocaliserBulle);
-    entete.append(tag, actions);
 
-    const corps = document.createElement('p');
-    corps.className = 'bulle-texte';
-    corps.textContent = texteResolu;
-
-    bulle.append(entete, corps);
-    return bulle;
+    // Vous (aligné à droite) : icônes à gauche de la bulle. Assistant
+    // (aligné à gauche) : icônes à droite.
+    if (tour.role === 'utilisateur') {
+      ligne.append(actions, bulle);
+    } else {
+      ligne.append(bulle, actions);
+    }
+    return ligne;
   }
 
   // `tours` : `null`/vide → repli bloc unique ; sinon une bulle par tour,
@@ -742,6 +772,12 @@
       actionsRepliHistorique.hidden = false;
       sousTitreRepliHistorique.hidden = false;
     }
+
+    // Message fini d'être écrit (page stabilisée, voir fogbank:page-stable
+    // plus bas) : place l'ascenseur de l'historique sur le dernier message
+    // plutôt que de laisser l'utilisateur en haut du cadre à chaque mise à
+    // jour.
+    cadreHistorique.scrollTop = cadreHistorique.scrollHeight;
   }
 
   boutonLire.addEventListener('click', async () => {
@@ -798,7 +834,6 @@
       afficherHistorique(message.texte, message.tours);
     } else if (message.type === 'fogbank:modification-externe') {
       syncSuspendue = true;
-      majTemoin('suspendu');
       messageSuspension.hidden = false;
       logger('Modification externe détectée sur le champ du site — synchro suspendue.', 'erreur');
     }
@@ -814,8 +849,8 @@
     compteurEchecs = 0;
     onboardingIgnoree = false;
     messageSuspension.hidden = true;
-    majTemoin('inactif');
     afficherOnboarding();
+    majAccessibiliteSections();
     await rafraichirCible();
   }
 
