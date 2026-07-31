@@ -6,10 +6,10 @@ Extension Chrome (Manifest V3) qui pseudonymise les données sensibles dans un
 prompt avant envoi, puis permet de restaurer (reverse) les valeurs
 d'origine dans la réponse reçue.
 
-> Statut : projet en démarrage. Les spécifications détaillées sont dans
-> [docs/SPECS.md](docs/SPECS.md) et l'architecture cible dans
-> [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (décisions détaillées dans
-> [docs/adr/](docs/adr/)).
+> Spécifications détaillées dans [docs/SPECS.md](docs/SPECS.md),
+> architecture dans [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (décisions
+> détaillées dans [docs/adr/](docs/adr/)), reste à faire dans
+> [bugs.md](bugs.md).
 
 ## Installation (développement)
 
@@ -30,22 +30,12 @@ d'origine dans la réponse reçue.
 
 ## Structure du projet
 
-```
-fogbank/
-├── src/                  # Code source de l'extension (chargé dans Chrome)
-│   ├── manifest.json      # Déclaration Manifest V3
-│   ├── popup/             # UI de la popup (action de la barre d'outils)
-│   ├── background/        # Service worker
-│   ├── content/           # Scripts injectés dans les sites autorisés
-│   │   └── site-adapters/  # Un adaptateur DOM par site IA pris en charge
-│   ├── options/           # Page de configuration (annuaire, sites, export/import Excel)
-│   ├── vendor/            # Dépendances tierces vendored (ex: SheetJS, Apache-2.0)
-│   └── icons/             # Icônes de l'extension
-├── docs/                  # Documentation publique (specs, architecture, ADR)
-│   └── adr/                # Décisions d'architecture (Architecture Decision Records)
-├── tests/                 # Tests
-└── private/               # Contenu confidentiel, non versionné (voir .gitignore)
-```
+Détail à jour dans [ARCHITECTURE.md](docs/ARCHITECTURE.md) (§ Composants de
+l'extension) — en résumé : `src/sidepanel/` est la surface principale
+(composition, lecture, réplication), `src/content/` et `src/shared/` le
+code injecté/partagé, `src/options/` et `src/popup/` la configuration,
+`docs/` la documentation publique (specs, architecture, ADR), `tests/` les
+tests, `private/` le contenu confidentiel non versionné.
 
 Le dossier `private/` contient des données métier finance (cas réels,
 benchmarks, notes) et n'est **jamais** poussé sur GitHub : il est listé dans

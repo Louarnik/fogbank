@@ -81,8 +81,17 @@ function correspondDomaine(site, href) {
   return href.includes(motif);
 }
 
-function genererIdSite(domaine) {
-  return `site-${domaine.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-+|-+$)/g, '')}`;
+// Même désambiguïsation que options.js#genererIdSite (dupliquée ici pour la
+// même raison module/script classique que correspondDomaine ci-dessus) :
+// sans elle, deux domaines produisant le même slug (ex. deux sous-domaines
+// réduits au même id) écraseraient silencieusement l'un l'autre.
+function genererIdSite(domaine, sitesExistants) {
+  const idsExistants = new Set(sitesExistants.map((s) => s.id));
+  const base = `site-${domaine.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-+|-+$)/g, '')}`;
+  if (!idsExistants.has(base)) return base;
+  let suffixe = 2;
+  while (idsExistants.has(`${base}-${suffixe}`)) suffixe += 1;
+  return `${base}-${suffixe}`;
 }
 
 function aujourdHuiISO() {
@@ -93,10 +102,11 @@ function aujourdHuiISO() {
 // (pas généré par M-10), utilisée par le test d'envoi du parcours de
 // configuration pour valider une résolution réelle plutôt qu'une simple
 // sous-chaîne arbitraire. Présente dès l'installation, avec un alias par
-// site dont la date de péremption est la date de création du site — cet
-// alias n'est jamais le fruit d'un usage réel, il doit apparaître déjà
-// expiré pour qu'une mention réelle de « Paris » déclenche la rotation
-// paresseuse habituelle (M-08) dès sa première utilisation.
+// site dont `idDiscussion` est `null` (voir ADR-012) — cet alias n'est
+// jamais le fruit d'un usage réel, il doit rester distinct de toute vraie
+// discussion pour qu'une mention réelle de « Paris » déclenche la rotation
+// paresseuse habituelle (M-08) dès sa première utilisation sous la
+// politique « par discussion ».
 const ENTITE_PARIS_ID = 'ent-defaut-paris';
 const ENTITE_PARIS_CODE = 'PA0001';
 
@@ -120,11 +130,15 @@ function assurerAliasParisPourTousLesSites(annuaire, sites) {
   sites.forEach((site) => {
     if (entite.aliasParSite.some((aps) => aps.siteId === site.id)) return;
     const dateRef = site.creeLe || aujourdHuiISO();
+    // idDiscussion: null (voir ADR-012, même raisonnement que
+    // options.js#assurerAliasParisPourSite) — distinct de toute vraie
+    // discussion, pour que la politique « par discussion » régénère cet
+    // alias dès la première mention réelle.
     entite.aliasParSite.push({
       siteId: site.id,
       aliasActif: ENTITE_PARIS_CODE,
-      expireLe: dateRef,
-      historique: [{ alias: ENTITE_PARIS_CODE, attribueLe: dateRef, expireLe: dateRef }],
+      idDiscussion: null,
+      historique: [{ alias: ENTITE_PARIS_CODE, attribueLe: dateRef, idDiscussion: null }],
     });
   });
 }
@@ -160,12 +174,12 @@ async function assurerSiteConfigure(tab) {
   if (sites.some((s) => correspondDomaine(s, tab.url))) return;
 
   const nouveauSite = {
-    id: genererIdSite(domaine),
+    id: genererIdSite(domaine, sites),
     domaine,
     preActive: false,
     actif: true,
     creeLe: aujourdHuiISO(),
-    dureeViePseudonyme: '1a',
+    politiqueRotation: 'jamais',
     formatPseudonyme: 'court',
     modeReplication: 'manuel',
     conversionFichierMode: 'manuel',

@@ -64,7 +64,7 @@
             <th>Domaine</th>
             <th>Actif</th>
             <th>Pré-activé</th>
-            <th>Durée de vie</th>
+            <th>Rotation</th>
             <th>Format</th>
             <th>Réplication</th>
             <th>Ciblage</th>
@@ -151,12 +151,10 @@
       </label>
 
       <label>
-        Durée de vie du pseudonyme
-        <select id="site-champ-duree">
-          <option value="1s">1 semaine</option>
-          <option value="1t">1 trimestre</option>
-          <option value="1a">1 an</option>
-          <option value="infini">Infinie</option>
+        Rotation du pseudonyme
+        <select id="site-champ-rotation">
+          <option value="parDiscussion">Par discussion</option>
+          <option value="jamais">Jamais</option>
         </select>
       </label>
 
@@ -186,6 +184,9 @@
     </form>
   </dialog>
 
+  <script src="../shared/date-utils.js"></script>
+  <script src="../shared/storage.js"></script>
+  <script src="../shared/dom-utils.js"></script>
   <script src="options.js"></script>
 </body>
 </html>

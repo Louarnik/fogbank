@@ -46,10 +46,10 @@ window.fogbankProfilsLecture = (function () {
     return PROFILS.find((p) => p.correspond(hostname)) || null;
   }
 
-  // Même exclusion que le scan générique (voir ecriture.js) : un champ de
-  // saisie capturé par erreur dans un tour n'a pas de sens.
-  function texteVisible(el) {
-    const marcheur = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  // Partagée avec ecriture.js (scan générique de document.body) : un champ
+  // de saisie capturé par erreur, ici comme là, n'a pas de sens.
+  function texteVisibleDe(racine) {
+    const marcheur = document.createTreeWalker(racine, NodeFilter.SHOW_TEXT);
     let texte = '';
     let n = marcheur.nextNode();
     while (n) {
@@ -72,7 +72,7 @@ window.fogbankProfilsLecture = (function () {
     return elements.map((el, index) => ({
       index,
       role: profil.role(el),
-      texte: texteVisible(el),
+      texte: texteVisibleDe(el),
     }));
   }
 
@@ -89,5 +89,5 @@ window.fogbankProfilsLecture = (function () {
     return elements[index] || null;
   }
 
-  return { obtenirTours, obtenirElementTour };
+  return { obtenirTours, obtenirElementTour, texteVisibleDe };
 })();

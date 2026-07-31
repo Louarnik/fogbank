@@ -4,8 +4,13 @@ Classée par priorité — à réévaluer à la reprise, ce n'est qu'une proposi
 
 ## Haute — bugs/fiabilité qui touchent le cœur du produit
 
-- [ ] La taille du tag doit être au moins égale à la taille du nom en clair,
-      pour que la substitution se passe bien. *(fiabilité/données)*
+- [x] La taille du tag doit être au moins égale à la taille du nom en clair,
+      pour que la substitution se passe bien. *(fiabilité/données)* — cause
+      réelle : collision entre un tag déjà inséré et le nom réel d'une
+      entité traitée ensuite (`conversion-fichier.js`, substitution en
+      plusieurs passes split/join). Corrigé par une seule passe de
+      substitution (regex d'alternance), voir test de régression dans
+      `tests/conversion-fichier.test.js`.
 - [ ] Revoir l'onboarding d'un site — actuellement trop buggué et trop long
       par rapport à l'objectif visé. *(ergonomie/UX)*
 - [ ] Enregistrer le dictionnaire (annuaire) et vérifier qu'il reste à jour
@@ -15,9 +20,22 @@ Classée par priorité — à réévaluer à la reprise, ce n'est qu'une proposi
 - [ ] Mieux enregistrer Copilot, OpenAI et ChatGPT comme sites par défaut.
       *(sites supportés)*
 - [ ] Vérifier en vrai navigateur le nouveau contenteditable-handle (Ctrl+Z, IME, collage). *(fiabilité/données)*
+- [x] Remplacer la rotation temporelle du pseudonyme (durée calendaire par
+      site) par une rotation par discussion ou jamais, voir
+      [ADR-012](docs/adr/0012-rotation-par-discussion.md). *(sécurité)* —
+      implémenté avec l'URL de l'onglet actif comme signal de discussion
+      (best-effort, générique, pas de profil par site) ; à revalider contre
+      les vrais sites — un site qui garde la même URL pour toute la session
+      ne déclenchera jamais de rotation par ce biais.
 
 ## Moyenne — améliorations importantes mais non bloquantes
 
+- [ ] Afficher l'historique de rotation des alias (M-09) dans l'onglet
+      Annuaire de `options/` — déjà en storage
+      (`aliasParSite[].historique`), pas encore affiché. *(ergonomie/UX)*
+- [ ] Éprouver l'auto-repérage du ciblage (M-15) en usage réel prolongé —
+      descripteur best-effort jamais testé longtemps sur de vrais sites.
+      *(fiabilité/données)*
 - [ ] Clarifier l'objectif d'ergonomie et les UC : le site doit porter les
       réglages de site ; la **lecture** est paramétrée/rafraîchie dans
       l'historique (en clair) ; l'**écriture** est paramétrée dans le
@@ -36,6 +54,13 @@ Classée par priorité — à réévaluer à la reprise, ce n'est qu'une proposi
 
 ## Basse — qualité, dette, exploration
 
+- [ ] Filtrer le bruit du texte extrait en mode bloc unique (réception, M-07)
+      si l'usage réel s'avère gênant — pas de profil de lecture sur le
+      site concerné. *(ergonomie/UX)*
+- [ ] Réintroduire une infobulle par tag en mode réception — perdue au
+      passage à l'affichage panneau (M-07), si jugée utile. *(ergonomie/UX)*
+- [ ] Brancher l'export/import Excel (M-13, ADR-006) dans `options/` —
+      `vendor/xlsx.full.min.js` vendored mais inutilisé. *(sites supportés)*
 - [ ] Simplifier le code. *(qualité)*
 - [ ] Nettoyer le code et les UC. *(qualité)*
 - [ ] Faire un audit de code. *(qualité)*

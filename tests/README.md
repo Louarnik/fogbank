@@ -66,3 +66,38 @@ navigateur, et vérifie sur trois types de fichiers texte simples
   cadratin) survivent intacts à la pseudonymisation ;
 - l'aller-retour `restaurer(pseudonymiser(texte))` redonne exactement le
   texte d'origine, à l'octet près.
+
+## Cas de test — persistance de l'annuaire multi-sessions (M-02/M-08/M-09)
+
+Pas de harnais `chrome.storage` automatisable pour l'instant (voir bugs.md,
+« Ajouter des tests automatisés... ») — à dérouler manuellement dans le
+navigateur, comme le reste des UC ci-dessus.
+
+1. **Redémarrage du navigateur** : ajouter une entité dans `options/`,
+   fermer complètement le navigateur, le rouvrir → l'entité doit toujours
+   être là. `chrome.runtime.onInstalled` (`background.js`) ne se
+   redéclenche pas à chaque session ; rien ne doit dépendre à tort de lui
+   pour la persistance de base.
+2. **Écriture concurrente entre deux surfaces** : ouvrir `options/` sur un
+   onglet, déclencher une rotation d'alias dans le panneau d'un autre
+   onglet (écriture `sidepanel.js#persisterAnnuaire`, **sans relecture**),
+   puis enregistrer un changement dans `options/` (qui **relit** avant
+   d'écrire, `options.js#mettreAJourAnnuaire`) → vérifier que la rotation
+   du panneau n'est pas écrasée.
+3. **Deux side panels simultanés** sur deux sites différents, chacun
+   déclenchant `obtenirOuCreerAlias` à quelques secondes d'intervalle → les
+   deux alias doivent apparaître dans l'annuaire final, sans que le
+   listener `chrome.storage.onChanged` (`sidepanel.js`, dans
+   `chargerDonnees`/écoute des changements) n'en perde un par écrasement de
+   sa copie locale.
+4. **Échec silencieux de `chrome.storage.local.set`** (simulable en
+   remplissant le quota, ou en coupant l'extension au mauvais moment) juste
+   après une rotation dans le panneau (`persisterAnnuaire`, qui ne fait
+   qu'un `.catch(console.error)` sans retry ni UI d'erreur) → vérifier si
+   l'alias reste correct en mémoire mais disparaît au reload, et si
+   l'utilisateur peut s'en rendre compte autrement que dans la console.
+5. **Fusion dev-only au rechargement de l'extension** : avec des données
+   déjà modifiées en storage, recharger l'extension en mode développeur
+   (redéclenche `onInstalled` → `chargerDonneesDeDeveloppement`) → vérifier
+   que les entités déjà présentes ne sont jamais réécrasées par les
+   fixtures (`fusionnerParId`, filtré par `id`).

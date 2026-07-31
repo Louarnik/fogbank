@@ -42,7 +42,8 @@ Si ce fichier JSON évolue, reporter le changement à la main dans
   (voir [ADR-002](../../docs/adr/0002-format-pseudonyme.md)) : `court` sur
   `site-chatgpt`, `etendu` sur `site-claude`, `opaque` sur
   `site-local-test` (`fogbank.sites[].formatPseudonyme`).
-- Les **3 durées de vie** de site (`1a`, `infini`, `1s`), réparties sur
+- Les **2 politiques de rotation** de site (`parDiscussion`, `jamais`, voir
+  [ADR-012](../../docs/adr/0012-rotation-par-discussion.md)), réparties sur
   **5 sites** au total : les trois grands sites IA (`site-chatgpt`,
   `site-claude`) plus les trois fixtures locales
   (`site-local-test` → `mock-ai-site`, `site-local-test-claude` →
@@ -54,10 +55,10 @@ Si ce fichier JSON évolue, reporter le changement à la main dans
   avec rotation — et `PIDU` sur `site-claude` — format étendu). Illustre
   que le format suit le site, pas l'entité.
 - Un exemple de **rotation** (`ent-01` sur `site-chatgpt` : alias `PDT`
-  expiré puis `PDT-2` actif).
+  supplanté par `PDT-2`, conservés tous deux dans l'historique).
 - Un exemple de **collision, résolue globalement** (`ent-02`, Paul Dumont :
   le code déterministe `PDT` était déjà pris par Pierre Dupont — y compris
-  dans son historique expiré sur `site-chatgpt` — d'où `PDT-3`). L'unicité
+  dans son historique sur `site-chatgpt` — d'où `PDT-3`). L'unicité
   du code est vérifiée sur tout l'annuaire (tous sites confondus) pour le
   même type, pas seulement sur le site où l'entité est ajoutée — voir
   hypothèse 2 ci-dessous.
@@ -66,9 +67,9 @@ Si ce fichier JSON évolue, reporter le changement à la main dans
   que le champ est réellement optionnel).
 - Un exemple de **nom à un seul mot** pour une entité de type lieu
   (`ent-07`, "Paris") — voir hypothèse 3 ci-dessous.
-- Deux entités dont l'alias **expire bientôt** (`ent-04`, `ent-10`, sur
-  `site-local-test`, durée `1s`) — utile pour tester la logique de
-  rotation de M-08 sans attendre.
+- Deux entités sur `site-local-test`, dont la politique est `parDiscussion`
+  (`ent-04`, `ent-10`) — utile pour tester la rotation par discussion de
+  M-08 en simulant simplement un changement d'URL d'onglet.
 - Un exemple de type **`MISC`** (`ent-11`, "Opération Mistral") — la
   catégorie fourre-tout ajoutée par [ADR-003](../../docs/adr/0003-typage-entites.md)
   pour toute entité sensible qui ne rentre dans aucun des quatre autres
@@ -84,12 +85,12 @@ de données fait un choix pour rester cohérent, mais ce choix reste ouvert :
    entité change d'alias par rotation sur un site (`ent-01` sur
    `site-chatgpt` : `PDT` → `PDT-2`) que quand deux entités différentes
    génèrent le même code (`ent-02` obtient `PDT-3` car `PDT` et `PDT-2`
-   étaient déjà pris par `ent-01`, y compris dans son historique expiré).
+   étaient déjà pris par `ent-01`, y compris dans son historique).
    Alternative possible : traiter les deux cas séparément avec une
    notation différente.
 2. **Portée de la détection de collision : globale par type, pas par
    site.** Elle considère tout l'annuaire (toutes les entités du même
-   type, tous sites confondus, y compris leur historique expiré) — pas
+   type, tous sites confondus, y compris leur historique) — pas
    seulement le site sur lequel l'entité est ajoutée. Raison : M-12
    (conversion manuelle d'un fichier généré par l'IA) doit pouvoir
    résoudre un tag `[TYP:CODE]` sans connaître le site d'origine du

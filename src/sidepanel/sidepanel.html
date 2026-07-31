@@ -52,12 +52,10 @@
       <div class="etape-onboarding">
         <p class="etape-titre">4. Préférences</p>
         <label>
-          Durée de vie du pseudonyme
-          <select id="onboarding-duree">
-            <option value="1s">1 semaine</option>
-            <option value="1t">1 trimestre</option>
-            <option value="1a">1 an</option>
-            <option value="infini">Infinie</option>
+          Rotation du pseudonyme
+          <select id="onboarding-rotation">
+            <option value="parDiscussion">Par discussion</option>
+            <option value="jamais">Jamais</option>
           </select>
         </label>
         <label>
@@ -171,6 +169,9 @@
   </div>
 
   <script src="../shared/site-matching.js"></script>
+  <script src="../shared/date-utils.js"></script>
+  <script src="../shared/storage.js"></script>
+  <script src="../shared/dom-utils.js"></script>
   <script src="../content/pseudonyme.js"></script>
   <script src="../content/conversion-fichier.js"></script>
   <script src="../content/editor-handle/contenteditable-handle.js"></script>

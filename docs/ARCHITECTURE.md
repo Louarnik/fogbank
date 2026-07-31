@@ -87,7 +87,7 @@ s'exécute, seul l'`EditorHandle` qu'on leur passe compte.
 | `content/profils-lecture.js` | Identification best-effort des tours de conversation par site (voir ADR-011) — lecture seule, repli automatique si aucun profil ne correspond | M-07 |
 | `sidepanel/` | Orchestration principale : champ de composition (`&` + décoration), statut de ciblage, mode de réplication (manuel/auto) avec témoin de synchro, bouton copier, affichage de la réponse résolue | M-03 à M-07, M-10, M-15, M-16 |
 | `background/background.js` | Cycle de vie de l'extension, menu contextuel (« écrire ici »), ouverture du panel sur clic | M-15 |
-| `options/` | Deux onglets : CRUD de l'annuaire (entités), CRUD des sites (`fogbank.sites`) — format de pseudonyme, durée de vie, actif/inactif, mode de réplication | M-01, M-02, M-09, M-10, M-12 |
+| `options/` | Deux onglets : CRUD de l'annuaire (entités), CRUD des sites (`fogbank.sites`) — format de pseudonyme, politique de rotation, actif/inactif, mode de réplication | M-01, M-02 |
 | `popup/` | Statut du site de l'onglet actif (reconnu/non, actif/inactif) avec bascule directe, lien vers le panneau et les deux onglets de `options/` | M-01 |
 | `vendor/xlsx.full.min.js` | Lecture/écriture de fichiers `.xlsx` en local (prévu, pas encore branché à `options/`) | M-13 |
 
@@ -126,24 +126,20 @@ l'historique (voir ADR-011) :
   dans le panneau) ne correspond pas au tag brut réellement présent sur la
   page — la recherche échoue dans ce cas, voir SPECS.md § Ergonomie.
 
-### Pourquoi il n'y a pas d'adaptateur de site — pour écrire
+### Pas d'adaptateur de site pour écrire
 
-fogbank ne cherche jamais à deviner un composer ou une zone de réponse par
-heuristique ou par sélecteur **pour y écrire** ([ADR-008](adr/0008-side-panel.md)) :
+fogbank ne devine jamais un composer ou une zone de réponse par heuristique
+ou sélecteur **pour y écrire** ([ADR-008](adr/0008-side-panel.md)) :
 composition et lecture vivent dans le panneau, le site n'est atteint que
-sur un ciblage **explicite** (clic droit) et persistant (descripteur par
-site, pas une détection à chaque chargement). Il n'existe donc pas de
-dossier `site-adapters/` ni de contrat d'adaptateur d'écriture
+sur un ciblage **explicite** (clic droit) et persistant. Pas de dossier
+`site-adapters/` ni de contrat d'adaptateur d'écriture
 (`matches`/`getInputFields`/`getResponseContainer`/`isStreaming`/
-`onStreamingEnd`) : aucun composant ne cherche à identifier automatiquement
-un champ ou une zone sur le site pour y cibler ou y écrire.
+`onStreamingEnd`).
 
-**Nuance côté lecture** (voir [ADR-011](adr/0011-lecture-par-tour.md)) :
+**Nuance côté lecture** ([ADR-011](adr/0011-lecture-par-tour.md)) :
 `content/profils-lecture.js` identifie best-effort les tours de
 conversation par site, mais **exclusivement en lecture** — jamais pour
-cibler un champ ni écrire. Le risque n'est pas le même : un sélecteur de
-lecture qui se trompe dégrade vers le bloc unique déjà existant, il ne
-casse jamais le site ni la composition de l'utilisateur.
+cibler un champ ni écrire.
 
 ## Modèle de données (`chrome.storage.local`)
 
@@ -163,8 +159,8 @@ de stockage.
   domaine: string,                         // ex: "chatgpt.com"
   preActive: boolean,                      // true pour les grands sites IA (ADR-004)
   actif: boolean,
-  creeLe: string,                          // ISO date, création de l'entrée ; sert de date de péremption à l'alias par défaut « Paris, France » (voir plus bas)
-  dureeViePseudonyme: "1s" | "1t" | "1a" | "infini",  // M-08
+  creeLe: string,                          // ISO date, création de l'entrée
+  politiqueRotation: "parDiscussion" | "jamais",      // M-08, ADR-012
   formatPseudonyme: "court" | "etendu" | "opaque",    // voir ADR-002 — s'applique à toutes les entités sur ce site
   modeReplication: "manuel" | "auto",       // défaut "manuel", M-16
   cibleEcriture: {                          // descripteur best-effort, M-15 ; null si jamais ciblé
@@ -189,9 +185,9 @@ de stockage.
     {
       siteId: string,                       // référence fogbank.sites[].id
       aliasActif: string,                   // ex: "PDT" — voir ADR-002
-      expireLe: string | null,              // null = infini (durée définie par le site, M-08)
+      idDiscussion: string | null,          // signal de discussion à l'attribution (M-08, ADR-012) ; non pertinent (toujours réutilisé) si le site est en politique "jamais"
       historique: [
-        { alias: string, attribueLe: string, expireLe: string | null }
+        { alias: string, attribueLe: string, idDiscussion: string | null }
       ]
     }
   ]
@@ -203,20 +199,17 @@ encore être utilisée sur tel site, avoir un alias actif sur tel autre, et
 un historique de rotation propre à chacun.
 
 En revanche, l'**unicité du `CODE`** (pour un `type` donné) est **globale**,
-tous sites confondus — ce n'est *pas* scopée par site. Raison : M-12
-(conversion manuelle d'un fichier) doit pouvoir résoudre un tag
-`[TYP:ALIAS]` sans connaître le site d'origine du fichier ; si deux entités
-différentes pouvaient porter le même code sur deux sites différents, la
-résolution serait ambiguë dès que le fichier sort du contexte d'un site
-précis. La génération d'un nouvel alias (M-10) doit donc vérifier
-l'absence de collision dans **tout** `fogbank.annuaire` (tous les
-`aliasParSite[].historique` de toutes les entités du même `type`, quel que
-soit le site), pas seulement dans le site courant.
+tous sites confondus — ce n'est *pas* scopée par site (raison détaillée
+dans [ADR-002](adr/0002-format-pseudonyme.md)). La génération d'un nouvel
+alias (M-10) vérifie donc l'absence de collision dans **tout**
+`fogbank.annuaire` (tous les `aliasParSite[].historique` de toutes les
+entités du même `type`, quel que soit le site), pas seulement dans le site
+courant.
 
 Le **format de génération** (court/étendu/opaque) est une caractéristique
 du site (`fogbank.sites[].formatPseudonyme`), pas de l'entité : toutes les
 entités mentionnées sur un même site partagent le même style de
-pseudonyme, au même titre que sa durée de vie (M-08). Une même entité peut
+pseudonyme, au même titre que sa politique de rotation (M-08). Une même entité peut
 donc avoir des styles différents selon le site (ex: alias court sur
 ChatGPT, alias étendu sur Claude).
 
@@ -236,10 +229,11 @@ d'envoi du parcours de configuration insère toujours le même tag).
 `assurerAliasParisPourTousLesSites` (dupliquée en `background.js` et
 `options.js`, même contrainte module/script classique que
 `shared/site-matching.js`) garantit, de façon idempotente, un
-`aliasParSite` pour chaque site — `expireLe` égal au `creeLe` du site :
-cet alias n'est jamais le fruit d'un usage réel, il doit apparaître déjà
-expiré pour que la rotation paresseuse (M-08) s'applique dès la première
-mention réelle de « Paris ».
+`aliasParSite` pour chaque site — `idDiscussion: null` (voir
+[ADR-012](adr/0012-rotation-par-discussion.md)) : cet alias n'est jamais le
+fruit d'un usage réel, `idDiscussion` reste donc distinct de toute vraie
+discussion, pour que la rotation paresseuse (M-08) s'applique dès la
+première mention réelle de « Paris » sous la politique « par discussion ».
 
 ## Flux principaux
 
@@ -247,9 +241,11 @@ mention réelle de « Paris ».
 1. Le panneau attache, à son unique champ de composition
    (`<div contenteditable>` propre à fogbank), un `EditorHandle`
    (`ContentEditableHandle`), `mention-menu.js` et `display.js`.
-2. `mention-menu.js` écoute la frappe du caractère déclencheur, interroge
-   `fogbank.annuaire` (lecture directe de `chrome.storage.local`,
-   accessible depuis une page d'extension), filtre par texte tapé.
+2. `mention-menu.js` écoute la frappe du caractère déclencheur et filtre par
+   texte tapé via `rechercherEntites`, un callback fourni par `sidepanel.js`
+   (fermeture sur sa variable `annuaire` locale, elle-même chargée depuis
+   `chrome.storage.local` et tenue à jour par `chrome.storage.onChanged`) —
+   `mention-menu.js` ne lit jamais le storage lui-même.
 3. Sélection (M-04) → le **vrai nom** de l'entité est inséré **directement
    dans le champ du panneau** via `EditorHandle.replaceRange` — jamais le
    tag. L'alias (`CODE`) pour le site **actuellement ciblé** (ou, à
@@ -305,7 +301,7 @@ mention réelle de « Paris ».
   panneau affiche un parcours guidé en plus de la zone de composition
   normale (jamais à sa place) : test d'écriture (réutilise l'écrasement de
   M-16), test d'envoi avec vérification de réponse (réutilise la lecture
-  de M-07), puis choix de la durée de vie et du format de pseudonyme.
+  de M-07), puis choix de la politique de rotation et du format de pseudonyme.
 - Le test d'envoi cherche la sous-chaîne « test bien reçu [LOC:PA0001] »
   (voir entité par défaut, ci-dessus) **deux fois** dans le texte extrait :
   la première occurrence localise le message de l'utilisateur, la
@@ -357,28 +353,31 @@ mention réelle de « Paris ».
    lecture seule — remplacement textuel simple, **aucune écriture dans le
    DOM du site**. Un tag inconnu reste affiché tel quel.
 
-**Rotation (M-08) — paresseuse, pas de tâche périodique**
+**Rotation (M-08, [ADR-012](adr/0012-rotation-par-discussion.md)) — paresseuse, pas de tâche périodique**
 - Pas de `chrome.alarms` ni de balayage périodique de tout l'annuaire :
   inutile de faire ce travail si l'alias n'est jamais réutilisé entre-temps.
-  La vérification d'expiration se fait à la place **au moment où l'alias
-  est effectivement utilisé**, lors de l'insertion d'une mention dans le
-  panneau (Composition, étape 3) : comparaison de `expireLe` de l'`aliasParSite`
-  concerné à la date courante ; si expiré, un nouvel alias est généré à la
-  volée (unicité globale par type, voir plus haut) — l'ancien alias est
-  ajouté à `historique` (jamais supprimé, M-09).
+  La vérification de validité se fait à la place **au moment où l'alias est
+  effectivement utilisé**, lors de l'insertion d'une mention dans le
+  panneau (Composition, étape 3), selon la `politiqueRotation` du site :
+  - `"jamais"` : l'alias existant est toujours réutilisé tel quel.
+  - `"parDiscussion"` : comparaison de l'URL de l'onglet actif (proxy de
+    l'identifiant de discussion, best-effort — voir ADR-012) à
+    `idDiscussion` de l'`aliasParSite` concerné ; si différent, un nouvel
+    alias est généré à la volée (unicité globale par type, voir plus haut)
+    — l'ancien alias est ajouté à `historique` (jamais supprimé, M-09).
 
 **Conversion manuelle de fichier (M-12)**
-- Page d'options : zone de dépôt de fichier + choix de sens
-  (pseudonymiser / restaurer) ; le texte est traité en mémoire avec la même
-  logique de génération/résolution de code que M-10, puis proposé au
-  téléchargement avec un infixe avant l'extension d'origine :
-  `rapport.txt` → `rapport.fog.txt` (pseudonymisé) ou `rapport.unfog.txt`
-  (restauré). Non implémenté à ce jour.
+- Panneau : zone de dépôt de fichier + choix de sens (pseudonymiser /
+  restaurer) ; le texte est traité en mémoire avec la même logique de
+  génération/résolution de code que M-10, puis proposé au téléchargement
+  avec un infixe avant l'extension d'origine : `rapport.txt` →
+  `rapport.mask.txt` (pseudonymisé) ou `rapport.unmask.txt` (restauré).
+  Mode automatique au téléchargement non implémenté (voir bugs.md).
 
 **Export / import Excel (M-13)**
 - Prévu dans `options.js` via `vendor/xlsx.full.min.js` — voir
   [ADR-006](adr/0006-export-import-excel.md) pour le format des feuilles.
-  Non implémenté à ce jour.
+  Non implémenté à ce jour (voir bugs.md).
 
 ## Permissions
 
@@ -388,7 +387,7 @@ Manifest actuel (`content_scripts` avec `matches: ["<all_urls>",
 [ADR-008](adr/0008-side-panel.md) envisage de remplacer ces `matches`
 larges par `activeTab` + `contextMenus` (permission demandée au clic droit
 plutôt qu'a priori) mais ce n'est **pas encore implémenté** — voir
-« Travail restant ».
+[bugs.md](../bugs.md).
 
 Permissions actuellement déclarées : `storage`, `unlimitedStorage`,
 `tabs` (statut du site actif dans la popup/le panneau), `contextMenus`
@@ -406,36 +405,20 @@ Permissions actuellement déclarées : `storage`, `unlimitedStorage`,
 | M-06 | vestigial — absorbé par M-16 (réplication), voir Flux Composition/Réplication |
 | M-07 | `content/ecriture.js` (extraction) + `content/profils-lecture.js` (tours par site, voir ADR-011) + `sidepanel/` (résolution et affichage, bulles ou bloc unique) |
 | M-08 | `sidepanel/sidepanel.js`, inline lors de l'insertion d'une mention (rotation paresseuse, pas de composant dédié) |
-| M-09 | `fogbank.annuaire[].aliasParSite[].historique`, affiché via `options/` |
+| M-09 | `fogbank.annuaire[].aliasParSite[].historique` — déjà en storage, pas encore affiché dans `options/` (voir bugs.md) |
 | M-10 | logique partagée (`content/pseudonyme.js`, utilisé par `sidepanel/` et `options/`) |
-| M-12 | `options/` — non implémenté |
+| M-12 | `content/conversion-fichier.js` (logique pure, testée) + `sidepanel/` (UI) — mode manuel implémenté, mode automatique non |
 | M-13 | non implémenté — `vendor/xlsx.full.min.js` est vendored mais rien dans `options/` ne l'utilise encore |
 | M-15 | `background.js` (menu contextuel, auto-création de site) + `content/ecriture.js` (ciblage, persistance, auto-repérage) + `sidepanel/` (onboarding, UC-005) |
 | M-16 | `content/ecriture.js` (écrasement, détection de modification externe) + `sidepanel/` (mode, témoin de synchro, dégradation, copier) |
-
-## Travail restant
-
-- **Permission à la demande** : remplacer les `matches` larges des
-  content scripts par `activeTab` + `contextMenus`, pour que fogbank ne
-  s'exécute que sur un geste explicite plutôt que sur tout `<all_urls>` —
-  voir § Permissions.
-- **Bruit du texte extrait en réception** (voir UC-002, Points ouverts) :
-  filtrage éventuel si l'usage réel s'avère gênant.
-- **Infobulle par tag en réception** perdue par le passage à l'affichage
-  panneau (voir UC-002, Points ouverts) — à réintroduire si jugé utile.
-- **M-09** : l'historique de rotation est déjà en storage
-  (`aliasParSite[].historique`) mais pas encore affiché dans `options/`.
-- **M-12/M-13** : conversion manuelle de fichier et export/import Excel —
-  non implémentés, `vendor/xlsx.full.min.js` vendored mais inutilisé.
-- **Auto-repérage du ciblage** (M-15) : descripteur best-effort, pas
-  encore éprouvé en usage réel prolongé (voir UC-003, Contraintes).
 
 ## Statut
 
 Side panel implémenté comme surface principale (composition, décoration,
 ciblage, réplication manuel/auto, lecture) — voir ADR-008/ADR-009 pour le
 détail des décisions et `content/ecriture.js` pour l'implémentation côté
-site. `options/` (CRUD annuaire + CRUD sites, avec mode de réplication) et
-`popup/` (statut/toggle du site courant) sont implémentés. Aucun composant
+site. `options/` (CRUD annuaire + CRUD sites, avec mode de réplication),
+`popup/` (statut/toggle du site courant) et la conversion manuelle de
+fichier (M-12, mode automatique excepté) sont implémentés. Aucun composant
 ne cherche à identifier automatiquement un champ ou une zone sur le site.
-Reste à faire : voir § Travail restant.
+Reste à faire : voir [bugs.md](../bugs.md).

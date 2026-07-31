@@ -13,7 +13,7 @@
       "preActive": true,
       "actif": true,
       "creeLe": "2025-09-01",
-      "dureeViePseudonyme": "1a",
+      "politiqueRotation": "parDiscussion",
       "formatPseudonyme": "court",
       "modeReplication": "manuel",
       "cibleEcriture": null,
@@ -25,7 +25,7 @@
       "preActive": true,
       "actif": true,
       "creeLe": "2025-09-01",
-      "dureeViePseudonyme": "infini",
+      "politiqueRotation": "jamais",
       "formatPseudonyme": "etendu",
       "modeReplication": "manuel",
       "cibleEcriture": null,
@@ -37,7 +37,7 @@
       "preActive": false,
       "actif": true,
       "creeLe": "2026-07-01",
-      "dureeViePseudonyme": "1s",
+      "politiqueRotation": "parDiscussion",
       "formatPseudonyme": "opaque",
       "modeReplication": "manuel",
       "cibleEcriture": null,
@@ -49,7 +49,7 @@
       "preActive": false,
       "actif": true,
       "creeLe": "2026-07-01",
-      "dureeViePseudonyme": "infini",
+      "politiqueRotation": "jamais",
       "formatPseudonyme": "etendu",
       "modeReplication": "manuel",
       "cibleEcriture": null,
@@ -61,7 +61,7 @@
       "preActive": false,
       "actif": true,
       "creeLe": "2026-07-01",
-      "dureeViePseudonyme": "1a",
+      "politiqueRotation": "parDiscussion",
       "formatPseudonyme": "court",
       "modeReplication": "manuel",
       "cibleEcriture": null,
@@ -80,18 +80,18 @@
         {
           "siteId": "site-chatgpt",
           "aliasActif": "PDT-2",
-          "expireLe": "2027-01-01",
+          "idDiscussion": null,
           "historique": [
-            { "alias": "PDT", "attribueLe": "2025-10-01", "expireLe": "2026-01-01" },
-            { "alias": "PDT-2", "attribueLe": "2026-01-01", "expireLe": "2027-01-01" }
+            { "alias": "PDT", "attribueLe": "2025-10-01", "idDiscussion": null },
+            { "alias": "PDT-2", "attribueLe": "2026-01-01", "idDiscussion": null }
           ]
         },
         {
           "siteId": "site-claude",
           "aliasActif": "PIDU",
-          "expireLe": null,
+          "idDiscussion": null,
           "historique": [
-            { "alias": "PIDU", "attribueLe": "2026-06-10", "expireLe": null }
+            { "alias": "PIDU", "attribueLe": "2026-06-10", "idDiscussion": null }
           ]
         }
       ]
@@ -106,9 +106,9 @@
         {
           "siteId": "site-chatgpt",
           "aliasActif": "PDT-3",
-          "expireLe": "2027-05-01",
+          "idDiscussion": null,
           "historique": [
-            { "alias": "PDT-3", "attribueLe": "2026-05-01", "expireLe": "2027-05-01" }
+            { "alias": "PDT-3", "attribueLe": "2026-05-01", "idDiscussion": null }
           ]
         }
       ]
@@ -123,9 +123,9 @@
         {
           "siteId": "site-claude",
           "aliasActif": "MALE",
-          "expireLe": null,
+          "idDiscussion": null,
           "historique": [
-            { "alias": "MALE", "attribueLe": "2026-02-15", "expireLe": null }
+            { "alias": "MALE", "attribueLe": "2026-02-15", "idDiscussion": null }
           ]
         }
       ]
@@ -140,9 +140,9 @@
         {
           "siteId": "site-local-test",
           "aliasActif": "X7K2Q",
-          "expireLe": "2026-07-22",
+          "idDiscussion": null,
           "historique": [
-            { "alias": "X7K2Q", "attribueLe": "2026-07-15", "expireLe": "2026-07-22" }
+            { "alias": "X7K2Q", "attribueLe": "2026-07-15", "idDiscussion": null }
           ]
         }
       ]
@@ -157,9 +157,9 @@
         {
           "siteId": "site-chatgpt",
           "aliasActif": "ACN",
-          "expireLe": "2027-03-01",
+          "idDiscussion": null,
           "historique": [
-            { "alias": "ACN", "attribueLe": "2026-03-01", "expireLe": "2027-03-01" }
+            { "alias": "ACN", "attribueLe": "2026-03-01", "idDiscussion": null }
           ]
         }
       ]
@@ -174,9 +174,9 @@
         {
           "siteId": "site-claude",
           "aliasActif": "BEIN",
-          "expireLe": null,
+          "idDiscussion": null,
           "historique": [
-            { "alias": "BEIN", "attribueLe": "2026-01-10", "expireLe": null }
+            { "alias": "BEIN", "attribueLe": "2026-01-10", "idDiscussion": null }
           ]
         }
       ]
@@ -191,9 +191,9 @@
         {
           "siteId": "site-chatgpt",
           "aliasActif": "PAIS",
-          "expireLe": "2027-04-01",
+          "idDiscussion": null,
           "historique": [
-            { "alias": "PAIS", "attribueLe": "2026-04-01", "expireLe": "2027-04-01" }
+            { "alias": "PAIS", "attribueLe": "2026-04-01", "idDiscussion": null }
           ]
         }
       ]
@@ -208,9 +208,9 @@
         {
           "siteId": "site-claude",
           "aliasActif": "NEYO",
-          "expireLe": null,
+          "idDiscussion": null,
           "historique": [
-            { "alias": "NEYO", "attribueLe": "2026-05-20", "expireLe": null }
+            { "alias": "NEYO", "attribueLe": "2026-05-20", "idDiscussion": null }
           ]
         }
       ]
@@ -225,9 +225,9 @@
         {
           "siteId": "site-chatgpt",
           "aliasActif": "PAE",
-          "expireLe": "2027-06-01",
+          "idDiscussion": null,
           "historique": [
-            { "alias": "PAE", "attribueLe": "2026-06-01", "expireLe": "2027-06-01" }
+            { "alias": "PAE", "attribueLe": "2026-06-01", "idDiscussion": null }
           ]
         }
       ]
@@ -242,9 +242,9 @@
         {
           "siteId": "site-local-test",
           "aliasActif": "Q7Z3M",
-          "expireLe": "2026-07-25",
+          "idDiscussion": null,
           "historique": [
-            { "alias": "Q7Z3M", "attribueLe": "2026-07-18", "expireLe": "2026-07-25" }
+            { "alias": "Q7Z3M", "attribueLe": "2026-07-18", "idDiscussion": null }
           ]
         }
       ]
@@ -259,9 +259,9 @@
         {
           "siteId": "site-chatgpt",
           "aliasActif": "OML",
-          "expireLe": "2027-07-05",
+          "idDiscussion": null,
           "historique": [
-            { "alias": "OML", "attribueLe": "2026-07-05", "expireLe": "2027-07-05" }
+            { "alias": "OML", "attribueLe": "2026-07-05", "idDiscussion": null }
           ]
         }
       ]

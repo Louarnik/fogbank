@@ -2,7 +2,6 @@
 // Composition (& + décoration), ciblage, réplication manuel/auto avec
 // témoin de synchro, et affichage résolu de la réponse.
 (async function () {
-  const DUREE_EN_JOURS = { '1s': 7, '1t': 91, '1a': 365 };
   const DELAI_AUTO_MS = 350;
   const TEXTE_TEST_ECRITURE = 'Test fogbank — écriture';
   // [LOC:PA0001] résout vers l'entité par défaut « Paris, France » (voir
@@ -56,7 +55,7 @@
   const boutonVerifierReponse = document.getElementById('bouton-verifier-reponse');
   const onboardingEtatVerification = document.getElementById('onboarding-etat-verification');
   const onboardingDialogue = document.getElementById('onboarding-dialogue');
-  const onboardingDuree = document.getElementById('onboarding-duree');
+  const onboardingRotation = document.getElementById('onboarding-rotation');
   const onboardingFormat = document.getElementById('onboarding-format');
   const boutonTerminerConfig = document.getElementById('bouton-terminer-config');
   const boutonPasserConfig = document.getElementById('bouton-passer-config');
@@ -69,6 +68,13 @@
   let journal = []; // fogbank.journal — voir la page Journal des options
   let siteActif = null; // site fogbank.sites[] correspondant à l'onglet actif
   let ongletId = null;
+  // Signal de changement de discussion (voir ADR-012) : l'URL de l'onglet
+  // actif au moment de la dernière détermination de site sert de proxy —
+  // la plupart des sites IA encodent l'identifiant de conversation dans
+  // l'URL (ex: /c/<uuid>). Best-effort, comme le reste de la lecture par
+  // site (voir ADR-011) : un site qui garde la même URL pour plusieurs
+  // discussions ne déclenchera simplement jamais de rotation par ce biais.
+  let urlOngletActif = null;
   let compteurEchecs = 0;
   let syncSuspendue = false;
   let minuteurAuto = null;
@@ -140,6 +146,7 @@
   async function determinerSite() {
     const onglet = await ongletActifCourant();
     ongletId = onglet && onglet.id ? onglet.id : null;
+    urlOngletActif = onglet && onglet.url ? onglet.url : null;
     siteActif =
       onglet && onglet.url ? window.fogbankSiteMatching.trouverSiteActifPour(sites, onglet.url) : null;
     afficherBanniereSite(onglet);
@@ -164,19 +171,9 @@
     }
   });
 
-  // --- Rotation / résolution (M-08/M-10, voir pseudonyme.js) ------------
+  // --- Rotation / résolution (M-08/M-10, voir pseudonyme.js, ADR-012) ---
 
-  function aujourdHuiISO() {
-    return new Date().toISOString().slice(0, 10);
-  }
-
-  function calculerExpiration(duree, depuisISO) {
-    if (duree === 'infini' || !duree) return null;
-    const jours = DUREE_EN_JOURS[duree] || 365;
-    const date = new Date(depuisISO);
-    date.setDate(date.getDate() + jours);
-    return date.toISOString().slice(0, 10);
-  }
+  const { aujourdHuiISO } = window.fogbankDateUtils;
 
   function persisterAnnuaire() {
     chrome.storage.local.set({ 'fogbank.annuaire': annuaire }).catch((err) => {
@@ -188,7 +185,6 @@
   // format par défaut plutôt que de bloquer la frappe (voir UC-001, Cas
   // d'erreur) — pas de siteId valide où persister une rotation.
   function obtenirOuCreerAlias(entite) {
-    const aujourdHui = aujourdHuiISO();
     if (!siteActif) {
       return window.fogbankPseudonyme.genererAliasUnique(
         entite.nomReel,
@@ -198,7 +194,12 @@
       );
     }
     let entree = entite.aliasParSite.find((a) => a.siteId === siteActif.id);
-    if (entree && (entree.expireLe === null || entree.expireLe > aujourdHui)) {
+    const politique = siteActif.politiqueRotation || 'jamais';
+    // « Jamais » : un alias déjà attribué reste valable indéfiniment. « Par
+    // discussion » : valable tant que le signal de discussion courant
+    // (urlOngletActif, voir determinerSite) n'a pas changé depuis sa
+    // dernière attribution.
+    if (entree && (politique !== 'parDiscussion' || entree.idDiscussion === urlOngletActif)) {
       return entree.aliasActif;
     }
     const alias = window.fogbankPseudonyme.genererAliasUnique(
@@ -207,15 +208,15 @@
       entite.type,
       annuaire
     );
-    const expireLe = calculerExpiration(siteActif.dureeViePseudonyme, aujourdHui);
+    const idDiscussion = politique === 'parDiscussion' ? urlOngletActif : null;
     if (!entree) {
-      entree = { siteId: siteActif.id, aliasActif: alias, expireLe, historique: [] };
+      entree = { siteId: siteActif.id, aliasActif: alias, idDiscussion, historique: [] };
       entite.aliasParSite.push(entree);
     } else {
       entree.aliasActif = alias;
-      entree.expireLe = expireLe;
+      entree.idDiscussion = idDiscussion;
     }
-    entree.historique.push({ alias, attribueLe: aujourdHui, expireLe });
+    entree.historique.push({ alias, attribueLe: aujourdHuiISO(), idDiscussion });
     persisterAnnuaire();
     return alias;
   }
@@ -390,7 +391,7 @@
     const doitAfficher = !!siteActif && !siteActif.configurationTerminee && !onboardingIgnoree;
     sectionOnboarding.hidden = !doitAfficher;
     if (doitAfficher) {
-      onboardingDuree.value = siteActif.dureeViePseudonyme || '1a';
+      onboardingRotation.value = siteActif.politiqueRotation || 'jamais';
       onboardingFormat.value = siteActif.formatPseudonyme || 'court';
       onboardingEtatVerification.textContent = '';
       onboardingEtatVerification.className = '';
@@ -401,13 +402,10 @@
 
   async function mettreAJourSite(mutateur) {
     if (!siteActif) return;
-    const donnees = await chrome.storage.local.get(['fogbank.sites']);
-    const actuel = donnees['fogbank.sites'] || [];
-    const site = actuel.find((s) => s.id === siteActif.id);
-    if (site) {
-      mutateur(site);
-      await chrome.storage.local.set({ 'fogbank.sites': actuel });
-    }
+    await window.fogbankStorage.mettreAJourListe('fogbank.sites', (actuel) => {
+      const site = actuel.find((s) => s.id === siteActif.id);
+      if (site) mutateur(site);
+    });
   }
 
   boutonTestEcriture.addEventListener('click', async () => {
@@ -501,7 +499,7 @@
 
   boutonTerminerConfig.addEventListener('click', async () => {
     await mettreAJourSite((site) => {
-      site.dureeViePseudonyme = onboardingDuree.value;
+      site.politiqueRotation = onboardingRotation.value;
       site.formatPseudonyme = onboardingFormat.value;
       site.configurationTerminee = true;
     });
@@ -521,14 +519,9 @@
   }
 
   async function definirModeReplication(mode) {
-    if (!siteActif) return;
-    const donnees = await chrome.storage.local.get(['fogbank.sites']);
-    const actuel = donnees['fogbank.sites'] || [];
-    const site = actuel.find((s) => s.id === siteActif.id);
-    if (site) {
+    await mettreAJourSite((site) => {
       site.modeReplication = mode;
-      await chrome.storage.local.set({ 'fogbank.sites': actuel });
-    }
+    });
   }
 
   toggleEnvoiAuto.addEventListener('change', () => {
@@ -690,12 +683,16 @@
   const ICONE_LOCALISER =
     '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="22" x2="18" y1="12" y2="12"></line><line x1="6" x2="2" y1="12" y2="12"></line><line x1="12" x2="12" y1="6" y2="2"></line><line x1="12" x2="12" y1="22" y2="18"></line></svg>';
 
+  // `title` sert d'info-bulle d'aide au survol, seule indication puisque
+  // ces boutons n'ont pas de libellé visible.
+  function creerBoutonIcone(icone, libelle, onClick) {
+    return window.fogbankDomUtils.creerBouton({ html: icone, classe: 'btn-icone', titre: libelle, onClick });
+  }
+
   // Les actions (copier/localiser) sortent de la bulle plutôt que d'y
   // prendre une ligne d'entête : elles se placent à côté, du côté opposé à
   // l'alignement (à gauche de « Vous », à droite de l'assistant) pour ne
-  // pas mordre sur la largeur de texte disponible. `title` sert d'info-
-  // bulle d'aide au survol, seule indication puisque les boutons n'ont pas
-  // de libellé visible.
+  // pas mordre sur la largeur de texte disponible.
   function construireBulle(tour, texteResolu) {
     const ligne = document.createElement('div');
     ligne.className = `ligne-bulle ligne-bulle-${tour.role}`;
@@ -709,13 +706,7 @@
 
     const actions = document.createElement('div');
     actions.className = 'bulle-actions';
-    const boutonCopierBulle = document.createElement('button');
-    boutonCopierBulle.type = 'button';
-    boutonCopierBulle.className = 'btn-icone';
-    boutonCopierBulle.title = 'Copier ce message';
-    boutonCopierBulle.setAttribute('aria-label', 'Copier ce message');
-    boutonCopierBulle.innerHTML = ICONE_COPIER;
-    boutonCopierBulle.addEventListener('click', async () => {
+    const boutonCopierBulle = creerBoutonIcone(ICONE_COPIER, 'Copier ce message', async () => {
       try {
         await navigator.clipboard.writeText(texteResolu);
         logger('Message copié dans le presse-papier.', 'succes');
@@ -723,20 +714,18 @@
         logger(`Échec de copie : ${err.message || err}`, 'erreur');
       }
     });
-    const boutonLocaliserBulle = document.createElement('button');
-    boutonLocaliserBulle.type = 'button';
-    boutonLocaliserBulle.className = 'btn-icone';
-    boutonLocaliserBulle.title = 'Localiser ce message dans la page du site';
-    boutonLocaliserBulle.setAttribute('aria-label', 'Localiser ce message dans la page du site');
-    boutonLocaliserBulle.innerHTML = ICONE_LOCALISER;
-    boutonLocaliserBulle.addEventListener('click', async () => {
-      const reponse = await envoyerAuContentScript({ type: 'fogbank:localiser-tour', index: tour.index });
-      if (reponse && reponse.ok) {
-        logger('Message localisé sur la page.', 'succes');
-      } else {
-        logger('Message introuvable sur la page (structure du site changée ?).', 'erreur');
+    const boutonLocaliserBulle = creerBoutonIcone(
+      ICONE_LOCALISER,
+      'Localiser ce message dans la page du site',
+      async () => {
+        const reponse = await envoyerAuContentScript({ type: 'fogbank:localiser-tour', index: tour.index });
+        if (reponse && reponse.ok) {
+          logger('Message localisé sur la page.', 'succes');
+        } else {
+          logger('Message introuvable sur la page (structure du site changée ?).', 'erreur');
+        }
       }
-    });
+    );
     actions.append(boutonCopierBulle, boutonLocaliserBulle);
 
     // Vous (aligné à droite) : icônes à gauche de la bulle. Assistant

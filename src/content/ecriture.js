@@ -186,20 +186,12 @@
     return false;
   }
 
-  // Lecture (M-07) : même exclusion que l'ancien reception.js (jamais un
-  // champ de saisie actif) mais renvoie le texte brut au panneau plutôt que
-  // de substituer dans le DOM du site.
+  // Lecture (M-07) : exclut tout champ de saisie actif (jamais capturé dans
+  // le texte lu) et renvoie le texte brut au panneau plutôt que de
+  // substituer dans le DOM du site — même scan que profils-lecture.js
+  // (partagé via texteVisibleDe), appliqué ici à document.body entier.
   function texteVisibleHorsChamps() {
-    const marcheur = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-    let texte = '';
-    let n = marcheur.nextNode();
-    while (n) {
-      const horsPortee =
-        n.parentElement && n.parentElement.closest('[contenteditable="true"], textarea');
-      if (!horsPortee) texte += n.textContent;
-      n = marcheur.nextNode();
-    }
-    return texte;
+    return window.fogbankProfilsLecture.texteVisibleDe(document.body);
   }
 
   // Lecture par tour (voir ADR-011, UC-002 révisé) — `null` si aucun profil

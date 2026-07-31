@@ -9,7 +9,7 @@
 //   réplication (M-16) et ciblage mémorisé (M-15, voir ADR-008) modifiables
 //   ici aussi.
 (function () {
-  const LIBELLES_DUREE = { '1s': '1 semaine', '1t': '1 trimestre', '1a': '1 an', infini: 'Infinie' };
+  const LIBELLES_ROTATION = { parDiscussion: 'Par discussion', jamais: 'Jamais' };
   const LIBELLES_FORMAT = { court: 'Court', etendu: 'Étendu', opaque: 'Opaque' };
 
   // Entité par défaut « Paris, France » (voir UC-005, Données) — même
@@ -36,8 +36,13 @@
     entite.aliasParSite.push({
       siteId: site.id,
       aliasActif: ENTITE_PARIS_CODE,
-      expireLe: site.creeLe,
-      historique: [{ alias: ENTITE_PARIS_CODE, attribueLe: site.creeLe, expireLe: site.creeLe }],
+      // idDiscussion: null, distinct de toute vraie discussion (voir
+      // ADR-012) — cet alias n'est jamais le fruit d'un usage réel, il
+      // doit rester distinguable pour qu'une mention réelle de « Paris »
+      // déclenche la rotation paresseuse habituelle (M-08) dès sa première
+      // utilisation sous la politique « par discussion ».
+      idDiscussion: null,
+      historique: [{ alias: ENTITE_PARIS_CODE, attribueLe: site.creeLe, idDiscussion: null }],
     });
   }
 
@@ -93,6 +98,22 @@
   const erreurFormulaire = document.getElementById('erreur-formulaire');
   const boutonAnnuler = document.getElementById('bouton-annuler');
 
+  // Helpers de rendu partagés par les deux tableaux CRUD (annuaire, sites) :
+  // cellule texte simple, et bouton d'action de la colonne « actions ».
+  function celluleTexte(valeur) {
+    const td = document.createElement('td');
+    td.textContent = valeur;
+    return td;
+  }
+
+  function boutonAction(libelle, classe, onClick) {
+    return window.fogbankDomUtils.creerBouton({
+      texte: libelle,
+      classe: classe ? `bouton-icone ${classe}` : 'bouton-icone',
+      onClick,
+    });
+  }
+
   function nomSite(siteId) {
     const site = sites.find((s) => s.id === siteId);
     return site ? site.domaine : siteId;
@@ -122,9 +143,6 @@
       code.textContent = aps.aliasActif;
       ligne.appendChild(document.createTextNode(`${nomSite(aps.siteId)} → `));
       ligne.appendChild(code);
-      if (aps.expireLe) {
-        ligne.appendChild(document.createTextNode(` (expire ${aps.expireLe})`));
-      }
       conteneur.appendChild(ligne);
     });
     return conteneur;
@@ -148,17 +166,9 @@
       tdType.appendChild(code);
       ligne.appendChild(tdType);
 
-      const tdNom = document.createElement('td');
-      tdNom.textContent = entite.nomReel;
-      ligne.appendChild(tdNom);
-
-      const tdEmail = document.createElement('td');
-      tdEmail.textContent = entite.email || '—';
-      ligne.appendChild(tdEmail);
-
-      const tdCree = document.createElement('td');
-      tdCree.textContent = entite.creeLe || '—';
-      ligne.appendChild(tdCree);
+      ligne.appendChild(celluleTexte(entite.nomReel));
+      ligne.appendChild(celluleTexte(entite.email || '—'));
+      ligne.appendChild(celluleTexte(entite.creeLe || '—'));
 
       const tdAlias = document.createElement('td');
       tdAlias.appendChild(celluleAlias(entite));
@@ -166,22 +176,10 @@
 
       const tdActions = document.createElement('td');
       tdActions.className = 'col-actions';
-
-      const boutonEditer = document.createElement('button');
-      boutonEditer.type = 'button';
-      boutonEditer.className = 'bouton-icone';
-      boutonEditer.textContent = 'Modifier';
-      boutonEditer.addEventListener('click', () => ouvrirFormulaire(entite));
-      tdActions.appendChild(boutonEditer);
-
-      const boutonSupprimer = document.createElement('button');
-      boutonSupprimer.type = 'button';
-      boutonSupprimer.className = 'bouton-icone danger';
-      boutonSupprimer.textContent = 'Supprimer';
-      boutonSupprimer.addEventListener('click', () => supprimerEntite(entite));
-      tdActions.appendChild(boutonSupprimer);
-
+      tdActions.appendChild(boutonAction('Modifier', '', () => ouvrirFormulaire(entite)));
+      tdActions.appendChild(boutonAction('Supprimer', 'danger', () => supprimerEntite(entite)));
       ligne.appendChild(tdActions);
+
       corpsTableau.appendChild(ligne);
     });
   }
@@ -216,10 +214,7 @@
   // de cette page et la validation du formulaire (rotation paresseuse,
   // M-08). Écraser tel quel effacerait cette mise à jour concurrente.
   async function mettreAJourAnnuaire(mutateur) {
-    const donnees = await chrome.storage.local.get(['fogbank.annuaire']);
-    const actuel = donnees['fogbank.annuaire'] || [];
-    mutateur(actuel);
-    await chrome.storage.local.set({ 'fogbank.annuaire': actuel });
+    await window.fogbankStorage.mettreAJourListe('fogbank.annuaire', mutateur);
   }
 
   async function enregistrerFormulaire(e) {
@@ -249,7 +244,7 @@
           type,
           nomReel,
           email,
-          creeLe: new Date().toISOString().slice(0, 10),
+          creeLe: window.fogbankDateUtils.aujourdHuiISO(),
           aliasParSite: [],
         });
       }
@@ -294,7 +289,7 @@
   const siteChampDomaine = document.getElementById('site-champ-domaine');
   const siteChampActif = document.getElementById('site-champ-actif');
   const siteChampPreActive = document.getElementById('site-champ-pre-active');
-  const siteChampDuree = document.getElementById('site-champ-duree');
+  const siteChampRotation = document.getElementById('site-champ-rotation');
   const siteChampFormat = document.getElementById('site-champ-format');
   const siteChampReplication = document.getElementById('site-champ-replication');
   const erreurFormulaireSite = document.getElementById('erreur-formulaire-site');
@@ -320,63 +315,29 @@
     listeSites.forEach((site) => {
       const ligne = document.createElement('tr');
 
-      const tdDomaine = document.createElement('td');
-      tdDomaine.textContent = site.domaine;
-      ligne.appendChild(tdDomaine);
+      ligne.appendChild(celluleTexte(site.domaine));
+      ligne.appendChild(celluleTexte(cocheOuTiret(site.actif)));
+      ligne.appendChild(celluleTexte(cocheOuTiret(site.preActive)));
 
-      const tdActif = document.createElement('td');
-      tdActif.textContent = cocheOuTiret(site.actif);
-      ligne.appendChild(tdActif);
-
-      const tdPreActive = document.createElement('td');
-      tdPreActive.textContent = cocheOuTiret(site.preActive);
-      ligne.appendChild(tdPreActive);
-
-      const tdDuree = document.createElement('td');
-      tdDuree.textContent = LIBELLES_DUREE[site.dureeViePseudonyme] || site.dureeViePseudonyme;
-      ligne.appendChild(tdDuree);
+      const tdRotation = document.createElement('td');
+      tdRotation.textContent = LIBELLES_ROTATION[site.politiqueRotation] || site.politiqueRotation;
+      ligne.appendChild(tdRotation);
 
       const tdFormat = document.createElement('td');
       tdFormat.textContent = LIBELLES_FORMAT[site.formatPseudonyme] || site.formatPseudonyme;
       ligne.appendChild(tdFormat);
 
-      const tdReplication = document.createElement('td');
-      tdReplication.textContent = site.modeReplication === 'auto' ? 'Auto' : 'Manuel';
-      ligne.appendChild(tdReplication);
-
-      const tdCiblage = document.createElement('td');
-      tdCiblage.textContent = site.cibleEcriture ? (site.cibleEcriture.tag || 'ciblé') : '—';
-      ligne.appendChild(tdCiblage);
-
-      const tdConfigure = document.createElement('td');
-      tdConfigure.textContent = cocheOuTiret(site.configurationTerminee);
-      ligne.appendChild(tdConfigure);
+      ligne.appendChild(celluleTexte(site.modeReplication === 'auto' ? 'Auto' : 'Manuel'));
+      ligne.appendChild(celluleTexte(site.cibleEcriture ? (site.cibleEcriture.tag || 'ciblé') : '—'));
+      ligne.appendChild(celluleTexte(cocheOuTiret(site.configurationTerminee)));
 
       const tdActions = document.createElement('td');
       tdActions.className = 'col-actions';
-
-      const boutonEditer = document.createElement('button');
-      boutonEditer.type = 'button';
-      boutonEditer.className = 'bouton-icone';
-      boutonEditer.textContent = 'Modifier';
-      boutonEditer.addEventListener('click', () => ouvrirFormulaireSite(site));
-      tdActions.appendChild(boutonEditer);
-
-      const boutonReinitialiser = document.createElement('button');
-      boutonReinitialiser.type = 'button';
-      boutonReinitialiser.className = 'bouton-icone';
-      boutonReinitialiser.textContent = 'Retirer les réglages';
-      boutonReinitialiser.addEventListener('click', () => reinitialiserConfiguration(site));
-      tdActions.appendChild(boutonReinitialiser);
-
-      const boutonSupprimer = document.createElement('button');
-      boutonSupprimer.type = 'button';
-      boutonSupprimer.className = 'bouton-icone danger';
-      boutonSupprimer.textContent = 'Supprimer';
-      boutonSupprimer.addEventListener('click', () => supprimerSite(site));
-      tdActions.appendChild(boutonSupprimer);
-
+      tdActions.appendChild(boutonAction('Modifier', '', () => ouvrirFormulaireSite(site)));
+      tdActions.appendChild(boutonAction('Retirer les réglages', '', () => reinitialiserConfiguration(site)));
+      tdActions.appendChild(boutonAction('Supprimer', 'danger', () => supprimerSite(site)));
       ligne.appendChild(tdActions);
+
       corpsTableauSites.appendChild(ligne);
     });
   }
@@ -389,7 +350,7 @@
       siteChampDomaine.value = site.domaine;
       siteChampActif.checked = site.actif;
       siteChampPreActive.checked = site.preActive;
-      siteChampDuree.value = site.dureeViePseudonyme;
+      siteChampRotation.value = site.politiqueRotation;
       siteChampFormat.value = site.formatPseudonyme;
       siteChampReplication.value = site.modeReplication || 'manuel';
     } else {
@@ -398,7 +359,7 @@
       formulaireSite.reset();
       siteChampActif.checked = true;
       siteChampPreActive.checked = false;
-      siteChampDuree.value = '1a';
+      siteChampRotation.value = 'jamais';
       siteChampFormat.value = 'court';
       siteChampReplication.value = 'manuel';
     }
@@ -413,10 +374,7 @@
   }
 
   async function mettreAJourSites(mutateur) {
-    const donnees = await chrome.storage.local.get(['fogbank.sites']);
-    const actuel = donnees['fogbank.sites'] || [];
-    mutateur(actuel);
-    await chrome.storage.local.set({ 'fogbank.sites': actuel });
+    await window.fogbankStorage.mettreAJourListe('fogbank.sites', mutateur);
   }
 
   async function enregistrerFormulaireSite(e) {
@@ -424,7 +382,7 @@
     const domaine = siteChampDomaine.value.trim();
     const actif = siteChampActif.checked;
     const preActive = siteChampPreActive.checked;
-    const dureeViePseudonyme = siteChampDuree.value;
+    const politiqueRotation = siteChampRotation.value;
     const formatPseudonyme = siteChampFormat.value;
     const modeReplication = siteChampReplication.value;
 
@@ -443,7 +401,7 @@
           site.domaine = domaine;
           site.actif = actif;
           site.preActive = preActive;
-          site.dureeViePseudonyme = dureeViePseudonyme;
+          site.politiqueRotation = politiqueRotation;
           site.formatPseudonyme = formatPseudonyme;
           site.modeReplication = modeReplication;
         }
@@ -453,8 +411,8 @@
           domaine,
           actif,
           preActive,
-          creeLe: new Date().toISOString().slice(0, 10),
-          dureeViePseudonyme,
+          creeLe: window.fogbankDateUtils.aujourdHuiISO(),
+          politiqueRotation,
           formatPseudonyme,
           modeReplication,
           cibleEcriture: null,

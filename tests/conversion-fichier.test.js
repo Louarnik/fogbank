@@ -51,8 +51,8 @@ function creerObtenirAlias(window, annuaire) {
     entree = {
       siteId: SITE_TEST,
       aliasActif: alias,
-      expireLe: null,
-      historique: [{ alias, attribueLe: '2026-07-24', expireLe: null }],
+      idDiscussion: null,
+      historique: [{ alias, attribueLe: '2026-07-24', idDiscussion: null }],
     };
     entite.aliasParSite.push(entree);
     return alias;
@@ -147,6 +147,61 @@ function executerTests() {
       console.log('OK : aller-retour pseudonymiser → restaurer fidèle à l\'octet près.');
     }
   });
+
+  // 6. Régression — collision entre un tag déjà inséré et le nom réel
+  //    (court) d'une entité traitée ensuite (voir bugs.md, « la taille du
+  //    tag doit être au moins égale à la taille du nom en clair » ; cause
+  //    réelle : substitution en plusieurs passes split/join, corrigée en
+  //    une seule passe regex). Ex : le tag [PER:MDT] généré pour « Marc
+  //    Damiot » contient littéralement « MDT », le nom réel d'une seconde
+  //    entité traitée après lui (triée par longueur croissante) — une
+  //    implémentation en plusieurs passes la substituerait *dans* ce tag.
+  console.log('\n--- régression : collision tag/nom réel ---');
+  {
+    const annuaireCollision = [
+      {
+        id: 'ent-collision-01',
+        type: 'PER',
+        nomReel: 'Marc Damiot',
+        email: null,
+        creeLe: '2026-07-24',
+        aliasParSite: [],
+      },
+      {
+        id: 'ent-collision-02',
+        type: 'ORG',
+        nomReel: 'MDT',
+        email: null,
+        creeLe: '2026-07-24',
+        aliasParSite: [],
+      },
+    ];
+    const obtenirOuCreerAlias = creerObtenirAlias(window, annuaireCollision);
+    const original = "Contactez Marc Damiot ou l'org MDT.";
+    const masque = window.fogbankConversionFichier.pseudonymiser(original, annuaireCollision, obtenirOuCreerAlias);
+
+    total += 1;
+    const regexTag = window.fogbankPseudonyme.creerRegexTag();
+    const tagsTrouves = masque.match(regexTag) || [];
+    if (tagsTrouves.some((t) => /\[PER:\[/.test(t) || /\[ORG:\[/.test(t))) {
+      echecs += 1;
+      console.error(`ÉCHEC : tag corrompu (imbriqué) trouvé dans « ${masque} ».`);
+    } else if (tagsTrouves.length !== 2) {
+      echecs += 1;
+      console.error(`ÉCHEC : attendu 2 tags valides, trouvé ${tagsTrouves.length} dans « ${masque} ».`);
+    } else {
+      console.log(`OK : deux tags valides, aucune imbrication : « ${masque} ».`);
+    }
+
+    total += 1;
+    const restaure = window.fogbankConversionFichier.restaurer(masque, annuaireCollision);
+    if (restaure !== original) {
+      echecs += 1;
+      console.error(`ÉCHEC : aller-retour infidèle — attendu « ${original} », obtenu « ${restaure} ».`);
+    } else {
+      console.log("OK : aller-retour pseudonymiser → restaurer fidèle malgré la collision tag/nom réel.");
+    }
+  }
 
   console.log(`\n${total - echecs}/${total} assertions passées.`);
   if (echecs > 0) {
