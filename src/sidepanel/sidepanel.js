@@ -37,15 +37,6 @@
   const compteurMenu = document.getElementById('compteur-menu');
   const compteurListe = document.getElementById('compteur-liste');
 
-  const boutonConvertirFichier = document.getElementById('bouton-convertir-fichier');
-  const entreeFichierConversion = document.getElementById('entree-fichier-conversion');
-  const choixSensConversion = document.getElementById('choix-sens-conversion');
-  const nomFichierConversion = document.getElementById('nom-fichier-conversion');
-  const boutonPseudonymiserFichier = document.getElementById('bouton-pseudonymiser-fichier');
-  const boutonRestaurerFichier = document.getElementById('bouton-restaurer-fichier');
-  const toggleConversionAuto = document.getElementById('toggle-conversion-auto');
-  const noteConversionAuto = document.getElementById('note-conversion-auto');
-
   const sectionLecture = document.getElementById('section-lecture');
   const sectionComposition = document.getElementById('section-composition');
   const sectionOnboarding = document.getElementById('section-onboarding');
@@ -159,7 +150,6 @@
       // Un site peut avoir été retrouvé par un id différent après rechargement des sites
       if (siteActif) siteActif = sites.find((s) => s.id === siteActif.id) || siteActif;
       majAffichageMode();
-      majAffichageConversion();
       afficherOnboarding();
       majAccessibiliteSections();
     }
@@ -580,96 +570,10 @@
     logger('Synchronisation reprise.');
   });
 
-  // --- Conversion de fichiers (M-12, voir UC-006) -----------------------
-  //
-  // Mode manuel implémenté : lecture locale (FileReader), conversion en
-  // mémoire (logique partagée avec les tests, voir
-  // content/conversion-fichier.js), téléchargement du résultat avec infixe
-  // .mask/.unmask — jamais d'écrasement du fichier d'origine, jamais
-  // d'appel réseau. Le mode automatique (toggle) n'est que persisté pour
-  // l'instant, voir docs/SPECS.md UC-006, Points ouverts.
-
-  function pseudonymiserTexte(texte) {
-    return window.fogbankConversionFichier.pseudonymiser(texte, annuaire, obtenirOuCreerAlias);
-  }
-
-  function telechargerTexte(texte, nomFichierOriginal, infixe) {
-    const pointIndex = nomFichierOriginal.lastIndexOf('.');
-    const nomFichier =
-      pointIndex === -1
-        ? `${nomFichierOriginal}.${infixe}`
-        : `${nomFichierOriginal.slice(0, pointIndex)}.${infixe}${nomFichierOriginal.slice(pointIndex)}`;
-    const blob = new Blob([texte], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const lien = document.createElement('a');
-    lien.href = url;
-    lien.download = nomFichier;
-    lien.click();
-    URL.revokeObjectURL(url);
-  }
-
-  let fichierEnAttente = null; // fichier choisi, en attente du choix de sens (voir choix-sens-conversion)
-
-  function fermerChoixSensConversion() {
-    fichierEnAttente = null;
-    choixSensConversion.hidden = true;
-    nomFichierConversion.textContent = '';
-  }
-
-  boutonConvertirFichier.addEventListener('click', () => {
-    entreeFichierConversion.value = '';
-    entreeFichierConversion.click();
-  });
-
-  entreeFichierConversion.addEventListener('change', () => {
-    const fichier = entreeFichierConversion.files[0];
-    if (!fichier) return;
-    fichierEnAttente = fichier;
-    nomFichierConversion.textContent = `« ${fichier.name} » — dans quel sens ?`;
-    choixSensConversion.hidden = false;
-  });
-
-  async function convertirFichierEnAttente(versTag) {
-    const fichier = fichierEnAttente;
-    if (!fichier) return;
-    fermerChoixSensConversion();
-    try {
-      const texte = await fichier.text();
-      const resultat = versTag ? pseudonymiserTexte(texte) : resoudreTags(texte);
-      telechargerTexte(resultat, fichier.name, versTag ? 'mask' : 'unmask');
-      logger(`Fichier « ${fichier.name} » converti (${versTag ? 'pseudonymisé' : 'restauré'}).`, 'succes');
-    } catch (err) {
-      logger(`Échec de conversion du fichier : ${err.message || err}`, 'erreur');
-    }
-  }
-
-  boutonPseudonymiserFichier.addEventListener('click', () => convertirFichierEnAttente(true));
-  boutonRestaurerFichier.addEventListener('click', () => convertirFichierEnAttente(false));
-
-  function majAffichageConversion() {
-    const mode = (siteActif && siteActif.conversionFichierMode) || 'manuel';
-    toggleConversionAuto.checked = mode === 'auto';
-    boutonConvertirFichier.hidden = mode === 'auto';
-    noteConversionAuto.hidden = mode !== 'auto';
-    if (mode === 'auto') fermerChoixSensConversion();
-  }
-
-  async function definirModeConversion(mode) {
-    if (!siteActif) return;
-    await mettreAJourSite((site) => {
-      site.conversionFichierMode = mode;
-    });
-  }
-
-  toggleConversionAuto.addEventListener('change', async () => {
-    await definirModeConversion(toggleConversionAuto.checked ? 'auto' : 'manuel');
-    majAffichageConversion();
-  });
-
   // --- Réception (M-07, voir UC-002) ------------------------------------
 
   function resoudreTags(texteBrut) {
-    return window.fogbankConversionFichier.restaurer(texteBrut, annuaire);
+    return window.fogbankPseudonyme.resoudreTexte(texteBrut, annuaire);
   }
 
   // Bulles par tour (voir ADR-011, UC-002 révisé) si le content script a pu
@@ -833,7 +737,6 @@
   async function reinitialiserPourOngletActif() {
     await determinerSite();
     majAffichageMode();
-    majAffichageConversion();
     syncSuspendue = false;
     compteurEchecs = 0;
     onboardingIgnoree = false;

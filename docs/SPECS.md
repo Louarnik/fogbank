@@ -110,13 +110,6 @@ distinct de Copilot grand public (domaines et backend différents), dont le
 corpus tenant (documents, mails, messages) est interrogé en grande partie
 hors du prompt lui-même.
 
-En complément du flux automatique (`&` → réplication → réponse affichée),
-un fichier généré par l'IA et téléchargé (ex: `.md`, `.csv`, `.txt`) peut
-contenir des pseudonymes qui ne sont pas restaurés automatiquement (portée
-hors de ce que le panneau lit). Une interface dédiée, déclenchée par un
-geste explicite de l'utilisateur, permet de convertir manuellement un
-fichier dans les deux sens — pseudonymiser ou restaurer — voir M-12.
-
 ### Hors périmètre (version open source)
 
 La version publiée sous AGPL-3.0 est volontairement **mono-utilisateur,
@@ -126,8 +119,8 @@ mono-poste** :
 - Pas de synchronisation entre plusieurs machines (stockage strictement
   local à l'installation, voir [ADR-005](adr/0005-stockage-local.md)).
 - Pas de fusion/merge automatique entre deux annuaires importés.
-- M-12/M-13 se limitent aux formats texte simples (`.md`, `.html`) —
-  pas de documents Office structurés (`.xlsx`, `.docx`, `.pptx`).
+- M-13 se limite au format `.xlsx` pour l'annuaire — pas d'autres formats
+  Office structurés (`.docx`, `.pptx`).
 
 ## Ergonomie
 
@@ -170,11 +163,6 @@ le bas :
      unique** (texte en monospace, actions copier/localiser globales
      au-dessus du cadre) si aucun profil ne correspond au site ou n'y
      trouve rien — jamais d'échec, seulement une dégradation.
-   - **Conversion fichier** (M-12, voir UC-006), imbriqué dans ce même bloc
-     sans padding latéral propre, aligné avec les autres en-têtes : bouton
-     ghost « Convertir un fichier… » (visible seulement en mode manuel) +
-     toggle « Conversion automatique au téléchargement » (avec note
-     explicative quand actif).
 4. **Composer, en clair** (voir UC-001/UC-004) :
    - En-tête « Composer » + toggle « Envoi automatique » (mode de
      réplication, M-16).
@@ -224,7 +212,6 @@ ci-dessous. Chaque macro-UC deviendra un ou plusieurs UC-XXX.
 | M-09 | Historique des alias | Conserver la trace de tous les pseudonymes jamais attribués à chaque entité, **par site**, y compris ceux remplacés par une rotation ultérieure |
 | M-10 | Génération du pseudonyme | Générer le pseudonyme `[TYP:ALIAS]` selon le format configuré **pour le site courant** (M-01, commun aux 4 types sur ce site) : reconnaissable (initiales, plusieurs variantes) ou opaque (aléatoire), avec suffixe numérique automatique en cas de collision |
 | M-11 | Typage de l'entité | Faire choisir manuellement le type (PER/ORG/LOC/PRJ/MISC) à l'utilisateur lors de l'ajout, et le conserver en clair dans le tag du pseudonyme |
-| M-12 | Conversion de fichiers générés | Interface dédiée (voir UC-006) pour pseudonymiser ou restaurer le contenu d'un fichier (.md, .csv, .txt...) dans les deux sens, en mode manuel (bouton, geste explicite) ou automatique (toggle par site, au téléchargement) ; le fichier proposé porte un infixe avant l'extension d'origine (`rapport.txt` → `rapport.mask.txt` ou `rapport.unmask.txt`) |
 | M-13 | Export / import de l'annuaire (Excel) | Exporter l'annuaire et son historique vers un fichier `.xlsx` local, et importer un tel fichier pour peupler ou mettre à jour l'annuaire |
 | M-14 | Mode « vision site » _(différé, non spécifié)_ | Bascule volontaire affichant les pseudonymes bruts tels que le site IA les voit réellement, sans restauration — voir TODO dans UC-002 |
 | M-15 | Ciblage du champ d'écriture, persistant par site | Cibler un champ éditable du site par clic droit (« écrire ici »), mémoriser ce ciblage pour l'onglet courant et le persister par site pour un retrouvage automatique aux visites suivantes |
@@ -275,7 +262,6 @@ applicables à ce cas d'usage._
 | UC-003 | Ciblage du champ d'écriture, persistant par site | implémenté |
 | UC-004 | Réplication du panneau vers le champ ciblé | implémenté |
 | UC-005 | Configuration d'un site (onboarding) | en cours d'implémentation |
-| UC-006 | Conversion de fichiers (manuelle et automatique) | brouillon |
 
 ---
 
@@ -909,95 +895,3 @@ Trois actions distinctes, disponibles depuis l'onglet Sites de `options/` :
   affichée par son seul identifiant technique. Action irréversible,
   confirmée explicitement avant exécution.
 
----
-
-### UC-006 — Conversion de fichiers (manuelle et automatique)
-
-**Statut** : brouillon — mode manuel implémenté, mode automatique non
-implémenté (voir Points ouverts)
-**Macro-UC rattaché** : M-12
-**Dépendances** : M-10 (génération/résolution d'alias, même annuaire que le
-composer)
-
-Complète le flux automatique (`&` → réplication → réponse affichée) : un
-fichier généré par l'IA et téléchargé (`.md`, `.txt`...) peut contenir des
-pseudonymes que le panneau ne restaure pas automatiquement (portée hors de
-ce qu'il lit sur la page, voir UC-002). Vit dans le bloc « Conversion
-fichier », imbriqué dans la zone Historique (voir § Ergonomie).
-
-**Déclencheur**
-- **Manuel** : l'utilisateur clique sur « Convertir un fichier… » (visible
-  seulement quand `conversionFichierMode !== 'auto'` pour le site actif) et
-  choisit un fichier local via un sélecteur natif.
-- **Automatique** _(non implémenté, voir Points ouverts)_ : bascule du
-  toggle « Conversion automatique au téléchargement » à actif pour le site
-  courant ; en théorie, chaque fichier téléchargé depuis ce site serait
-  alors converti sans confirmation.
-
-**Résultat attendu**
-1. Mode manuel : le fichier choisi est lu en local (`FileReader`, jamais
-   uploadé), son contenu textuel est passé dans un sens ou l'autre :
-   - **Pseudonymiser** : chaque nom réel de l'annuaire trouvé tel quel dans
-     le texte est remplacé par son alias actif **pour le site courant**
-     (même génération/rotation qu'une mention `&`, voir M-10) sous forme de
-     tag `[TYP:ALIAS]`.
-   - **Restaurer** : chaque tag `[TYP:ALIAS]` trouvé est résolu vers le nom
-     réel de l'entité correspondante (même mécanisme que UC-002), tous
-     sites confondus (unicité globale du code, voir Vue d'ensemble).
-   Le sens (pseudonymiser/restaurer) est choisi explicitement par
-   l'utilisateur avant conversion, via deux boutons distincts affichés
-   après sélection du fichier — pas de détection automatique du sens à
-   partir du contenu.
-2. Le résultat est proposé en téléchargement, avec un infixe avant
-   l'extension d'origine (`rapport.txt` → `rapport.mask.txt` en
-   pseudonymisation, `rapport.unmask.txt` en restauration) — jamais en
-   écrasant le fichier d'origine.
-3. Le toggle « Conversion automatique » est persisté par site
-   (`fogbank.sites[].conversionFichierMode`, `'manuel' | 'auto'`) même si
-   le mode `'auto'` n'a pas encore d'effet réel (voir Points ouverts) — le
-   réglage est prêt à être branché sans migration de données
-   supplémentaire.
-
-**Données**
-- Entrée : fichier local choisi par l'utilisateur (mode manuel), texte lu
-  en mémoire — jamais envoyé à un tiers.
-- Lecture : `fogbank.annuaire[]` (résolution/génération d'alias, même
-  annuaire que le composer), `fogbank.sites[].conversionFichierMode`.
-- Écriture : si conversion en sens « pseudonymiser » et qu'une entité
-  mentionnée n'a pas encore d'alias pour le site courant, un nouvel alias
-  est généré et persisté (même effet de bord que M-10 pour une mention
-  `&`).
-- Sortie : fichier téléchargé localement (infixe `.mask`/`.unmask`), aucune
-  écriture réseau.
-
-**Cas d'erreur**
-
-| Cas | Comportement attendu |
-|-----|----------------------|
-| Fichier binaire ou encodage non textuel | Lecture échoue ou produit un texte inexploitable ; message d'erreur, pas de tentative de conversion partielle. |
-| Aucun nom réel / tag trouvé dans le fichier (sens choisi ne correspond à rien) | Fichier de sortie identique à l'entrée ; pas une erreur, juste un résultat sans effet. |
-| Tag `[TYP:ALIAS]` présent mais entité inconnue de l'annuaire (voir UC-002) | Laissé brut dans le résultat, comme en restauration de page. |
-| Fichier trop volumineux pour un traitement synchrone en mémoire | Non traité dans cette itération — portée limitée aux formats texte simples (voir § Hors périmètre). |
-
-**Contraintes**
-- Formats texte simples uniquement (`.md`, `.txt`, `.html`) — pas de
-  documents Office structurés (voir § Hors périmètre, version open
-  source).
-- Traitement entièrement local (`FileReader` + génération d'un `Blob` à
-  télécharger) : aucun contenu de fichier ne transite par un appel réseau.
-- Même logique d'unicité globale des alias que M-10/M-12 : la restauration
-  ne dépend pas de connaître le site d'origine du fichier.
-
-**Points ouverts**
-
-- **Mode automatique non implémenté** : le toggle est persisté (voir
-  Données) mais n'intercepte encore aucun téléchargement. Nécessiterait
-  `chrome.downloads.onDeterminingFilename` (ou équivalent) et une
-  permission additionnelle (`downloads`) non demandée dans cette itération
-  — à spécifier dans un UC de suivi avant implémentation, plutôt que de
-  deviner son comportement ici.
-- **Détection du sens (pseudonymiser vs restaurer)** : actuellement un
-  choix explicite de l'utilisateur à chaque conversion manuelle ; une
-  détection automatique (présence de tags `[TYP:ALIAS]` vs noms réels
-  connus) est envisageable mais pas retenue pour cette itération, pour
-  éviter une conversion dans le mauvais sens sur un texte ambigu.

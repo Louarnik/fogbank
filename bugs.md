@@ -4,13 +4,6 @@ Classée par priorité — à réévaluer à la reprise, ce n'est qu'une proposi
 
 ## Haute — bugs/fiabilité qui touchent le cœur du produit
 
-- [x] La taille du tag doit être au moins égale à la taille du nom en clair,
-      pour que la substitution se passe bien. *(fiabilité/données)* — cause
-      réelle : collision entre un tag déjà inséré et le nom réel d'une
-      entité traitée ensuite (`conversion-fichier.js`, substitution en
-      plusieurs passes split/join). Corrigé par une seule passe de
-      substitution (regex d'alternance), voir test de régression dans
-      `tests/conversion-fichier.test.js`.
 - [ ] Revoir l'onboarding d'un site — actuellement trop buggué et trop long
       par rapport à l'objectif visé. *(ergonomie/UX)*
 - [ ] Enregistrer le dictionnaire (annuaire) et vérifier qu'il reste à jour
@@ -67,4 +60,4 @@ Classée par priorité — à réévaluer à la reprise, ce n'est qu'une proposi
 - [ ] Faire un REX du dev à partir des commits, pour aller plus vite la
       prochaine fois. *(process)*
 - [ ] Ajouter un support pour Chatlit. *(sites supportés)*
-- [ ] Ajouter des tests automatisés sur mention-menu.js/display.js/EditorHandle (aujourd'hui seul conversion-fichier.js est testé). *(qualité)*
+- [ ] Ajouter des tests automatisés sur mention-menu.js/display.js/EditorHandle/pseudonyme.js — aucun test automatisé actuellement. *(qualité)*

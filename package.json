@@ -7,7 +7,7 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "node tests/conversion-fichier.test.js"
+    "test": "echo \"Aucun test automatise pour l'instant - voir tests/README.md\""
   },
   "repository": {
     "type": "git",

@@ -93,8 +93,7 @@ window.fogbankPseudonyme = (function () {
 
   // Résolution inverse (M-07/UC-002) : retrouve l'entité portant cet ALIAS
   // pour ce type, tous sites confondus (actif ou historique) — même
-  // logique d'unicité globale que genererAliasUnique. Réutilisée telle
-  // quelle par M-12 (conversion manuelle, hors contexte de site).
+  // logique d'unicité globale que genererAliasUnique.
   function resoudreEntite(annuaire, type, alias) {
     return (
       annuaire.find(
@@ -105,7 +104,7 @@ window.fogbankPseudonyme = (function () {
     );
   }
 
-  // Regex de tag partagée (UC-001 calque, UC-002 restauration, M-12) — voir
+  // Regex de tag partagée (UC-001 calque, UC-002 restauration) — voir
   // docs/SPECS.md. Une factory plutôt qu'une constante : une regex globale
   // (`g`) porte un `lastIndex` mutable, dangereux à partager entre appelants
   // qui l'utilisent en parallèle ou de façon imbriquée.
@@ -113,5 +112,15 @@ window.fogbankPseudonyme = (function () {
     return /\[(PER|ORG|LOC|PRJ|MISC):([A-Z0-9]+(?:-\d+)?)\]/g;
   }
 
-  return { genererAliasUnique, resoudreEntite, creerRegexTag };
+  // Résout chaque tag [TYP:ALIAS] complet trouvé dans un texte vers le nom
+  // réel de l'entité correspondante (M-07/UC-002) — un tag inconnu reste
+  // affiché tel quel.
+  function resoudreTexte(texte, annuaire) {
+    return texte.replace(creerRegexTag(), (tagComplet, type, alias) => {
+      const entite = resoudreEntite(annuaire, type, alias);
+      return entite ? entite.nomReel : tagComplet;
+    });
+  }
+
+  return { genererAliasUnique, resoudreEntite, creerRegexTag, resoudreTexte };
 })();

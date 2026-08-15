@@ -52,8 +52,7 @@ src/
 │   │   └── contenteditable-handle.js  #   Range/getClientRects natifs, texte gardé plat (voir fichier)
 │   ├── display.js            # calque de décoration : racine shadow DOM fermée, infobulle (montre le tag), soulignement — chargé par le panneau, pas par le site
 │   ├── mention-menu.js       # menu déclenché par "&" (M-03/M-04) : insère le tag via EditorHandle — chargé par le panneau
-│   ├── pseudonyme.js         # génération/résolution d'alias + regex de tag partagée (M-10) — chargé par le panneau
-│   └── conversion-fichier.js # pseudonymiser/restaurer un texte (M-12, voir UC-006) — logique pure, testée (tests/conversion-fichier.test.js)
+│   └── pseudonyme.js         # génération/résolution d'alias + regex de tag partagée (M-10) — chargé par le panneau
 ├── sidepanel/                 # surface principale : composition, décoration, ciblage, réplication, lecture
 │   ├── sidepanel.html
 │   ├── sidepanel.js
@@ -81,8 +80,7 @@ s'exécute, seul l'`EditorHandle` qu'on leur passe compte.
 | `content/editor-handle/` | Façade de saisie pour le `<div contenteditable>` du panneau (`getText`, `replaceRange`, `getRangeRects`...) | M-04 |
 | `content/mention-menu.js` | Détecte `&`, affiche le menu, insère le tag `[TYP:ALIAS]` via l'`EditorHandle` — attaché au champ du panneau | M-03, M-04, M-11 |
 | `content/display.js` | Calque de décoration cloisonné (shadow DOM) : infobulle (montre le tag au survol d'un nom réel), soulignement — attaché au champ du panneau | M-05 |
-| `content/pseudonyme.js` | Génération de code (M-10), résolution inverse, regex de tag partagée — utilisé par le panneau et `options/` | M-10 |
-| `content/conversion-fichier.js` | Pseudonymiser/restaurer un texte de fichier (voir UC-006) — logique pure, sans DOM ni `chrome.*` | M-12 |
+| `content/pseudonyme.js` | Génération de code (M-10), résolution inverse, regex de tag partagée, résolution de texte (M-07) — utilisé par le panneau et `options/` | M-07, M-10 |
 | `content/ecriture.js` | Ciblage persistant par site, écrasement total, lecture de la page (hors champs de saisie), détection de modification externe | M-15, M-16, M-07 |
 | `content/profils-lecture.js` | Identification best-effort des tours de conversation par site (voir ADR-011) — lecture seule, repli automatique si aucun profil ne correspond | M-07 |
 | `sidepanel/` | Orchestration principale : champ de composition (`&` + décoration), statut de ciblage, mode de réplication (manuel/auto) avec témoin de synchro, bouton copier, affichage de la réponse résolue | M-03 à M-07, M-10, M-15, M-16 |
@@ -366,14 +364,6 @@ première mention réelle de « Paris » sous la politique « par discussion ».
     alias est généré à la volée (unicité globale par type, voir plus haut)
     — l'ancien alias est ajouté à `historique` (jamais supprimé, M-09).
 
-**Conversion manuelle de fichier (M-12)**
-- Panneau : zone de dépôt de fichier + choix de sens (pseudonymiser /
-  restaurer) ; le texte est traité en mémoire avec la même logique de
-  génération/résolution de code que M-10, puis proposé au téléchargement
-  avec un infixe avant l'extension d'origine : `rapport.txt` →
-  `rapport.mask.txt` (pseudonymisé) ou `rapport.unmask.txt` (restauré).
-  Mode automatique au téléchargement non implémenté (voir bugs.md).
-
 **Export / import Excel (M-13)**
 - Prévu dans `options.js` via `vendor/xlsx.full.min.js` — voir
   [ADR-006](adr/0006-export-import-excel.md) pour le format des feuilles.
@@ -407,7 +397,6 @@ Permissions actuellement déclarées : `storage`, `unlimitedStorage`,
 | M-08 | `sidepanel/sidepanel.js`, inline lors de l'insertion d'une mention (rotation paresseuse, pas de composant dédié) |
 | M-09 | `fogbank.annuaire[].aliasParSite[].historique` — déjà en storage, pas encore affiché dans `options/` (voir bugs.md) |
 | M-10 | logique partagée (`content/pseudonyme.js`, utilisé par `sidepanel/` et `options/`) |
-| M-12 | `content/conversion-fichier.js` (logique pure, testée) + `sidepanel/` (UI) — mode manuel implémenté, mode automatique non |
 | M-13 | non implémenté — `vendor/xlsx.full.min.js` est vendored mais rien dans `options/` ne l'utilise encore |
 | M-15 | `background.js` (menu contextuel, auto-création de site) + `content/ecriture.js` (ciblage, persistance, auto-repérage) + `sidepanel/` (onboarding, UC-005) |
 | M-16 | `content/ecriture.js` (écrasement, détection de modification externe) + `sidepanel/` (mode, témoin de synchro, dégradation, copier) |
@@ -417,8 +406,7 @@ Permissions actuellement déclarées : `storage`, `unlimitedStorage`,
 Side panel implémenté comme surface principale (composition, décoration,
 ciblage, réplication manuel/auto, lecture) — voir ADR-008/ADR-009 pour le
 détail des décisions et `content/ecriture.js` pour l'implémentation côté
-site. `options/` (CRUD annuaire + CRUD sites, avec mode de réplication),
-`popup/` (statut/toggle du site courant) et la conversion manuelle de
-fichier (M-12, mode automatique excepté) sont implémentés. Aucun composant
+site. `options/` (CRUD annuaire + CRUD sites, avec mode de réplication) et
+`popup/` (statut/toggle du site courant) sont implémentés. Aucun composant
 ne cherche à identifier automatiquement un champ ou une zone sur le site.
 Reste à faire : voir [bugs.md](../bugs.md).

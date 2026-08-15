@@ -182,7 +182,6 @@ async function assurerSiteConfigure(tab) {
     politiqueRotation: 'jamais',
     formatPseudonyme: 'court',
     modeReplication: 'manuel',
-    conversionFichierMode: 'manuel',
     cibleEcriture: null,
     configurationTerminee: false,
   };

@@ -97,35 +97,6 @@
         <button id="bouton-localiser" type="button" class="bouton-secondaire">Localiser dans la page</button>
       </div>
       <p id="sous-titre-repli-historique" class="sous-titre">« Localiser » cherche, sur la page du site, le texte sélectionné ci-dessus (ou le début de l'historique à défaut de sélection) — un aller simple, pas une navigation synchronisée.</p>
-
-      <!-- Conversion fichier (M-12, voir UC-006) : imbriqué ici, sans padding latéral propre -->
-      <div id="section-conversion">
-        <div class="entete-section">
-          <h6>Conversion fichier</h6>
-          <button id="bouton-convertir-fichier" type="button" class="btn-ghost">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5z"></path><path d="M14 2v6h6"></path></svg>
-            Convertir un fichier…
-          </button>
-        </div>
-        <input id="entree-fichier-conversion" type="file" accept=".md,.txt,.html" hidden />
-
-        <!-- Choix du sens, affiché après sélection d'un fichier (voir UC-006) -->
-        <div id="choix-sens-conversion" class="ligne-toggle" hidden>
-          <p class="sous-titre" id="nom-fichier-conversion"></p>
-          <div class="actions">
-            <button id="bouton-pseudonymiser-fichier" type="button" class="bouton-secondaire">Pseudonymiser</button>
-            <button id="bouton-restaurer-fichier" type="button" class="bouton-secondaire">Restaurer</button>
-          </div>
-        </div>
-        <div class="ligne-toggle">
-          <p class="sous-titre">Conversion automatique au téléchargement (.md, .txt)</p>
-          <label class="toggle">
-            <input id="toggle-conversion-auto" type="checkbox" />
-            <span class="toggle-piste"><span class="toggle-curseur"></span></span>
-          </label>
-        </div>
-        <p id="note-conversion-auto" class="sous-titre" hidden>Chaque fichier téléchargé sur un site actif serait converti automatiquement — non actif dans cette version (voir UC-006, Points ouverts), le réglage est seulement mémorisé.</p>
-      </div>
     </section>
 
     <!-- 4. Composer -->
@@ -173,7 +144,6 @@
   <script src="../shared/storage.js"></script>
   <script src="../shared/dom-utils.js"></script>
   <script src="../content/pseudonyme.js"></script>
-  <script src="../content/conversion-fichier.js"></script>
   <script src="../content/editor-handle/contenteditable-handle.js"></script>
   <script src="../content/display.js"></script>
   <script src="../content/mention-menu.js"></script>
