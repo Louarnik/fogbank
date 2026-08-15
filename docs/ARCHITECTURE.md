@@ -65,8 +65,8 @@ src/
 │   ├── popup.js
 │   └── popup.css
 ├── vendor/                   # dépendances tierces vendored
-│   ├── xlsx.full.min.js      # SheetJS CE, Apache-2.0 (voir ADR-006)
 │   └── fonts/                # Barlow/Barlow Condensed (SIL OFL), voir fonts/README.md
+│                              # SheetJS (xlsx) pas encore vendored — voir M-13, ADR-006
 └── icons/
 ```
 
@@ -86,7 +86,7 @@ s'exécute, seul l'`EditorHandle` qu'on leur passe compte.
 | `background/background.js` | Cycle de vie de l'extension, menu contextuel (« écrire ici »), ouverture du panel sur clic | M-15 |
 | `options/` | Deux onglets : CRUD de l'annuaire (entités), CRUD des sites (`fogbank.sites`) — actif/inactif, mode de réplication | M-01, M-02 |
 | `popup/` | Statut du site de l'onglet actif (reconnu/non, actif/inactif) avec bascule directe, lien vers le panneau et les deux onglets de `options/` | M-01 |
-| `vendor/xlsx.full.min.js` | Lecture/écriture de fichiers `.xlsx` en local (prévu, pas encore branché à `options/`) | M-13 |
+| _(à venir)_ `vendor/xlsx.full.min.js` | Lecture/écriture de fichiers `.xlsx` en local (prévu — bibliothèque pas encore vendored, rien dans `options/`) | M-13 |
 
 La page d'options (`options_page` dans `manifest.json`) s'ouvre dans son
 propre onglet plutôt qu'en popover : les tableaux d'annuaire et de sites
@@ -360,9 +360,9 @@ première mention réelle de « Paris ».
   `feature/choix-rotation-format`.
 
 **Export / import Excel (M-13)**
-- Prévu dans `options.js` via `vendor/xlsx.full.min.js` — voir
-  [ADR-006](adr/0006-export-import-excel.md) pour le format des feuilles.
-  Non implémenté à ce jour (voir bugs.md).
+- Prévu dans `options.js` via SheetJS (`vendor/xlsx.full.min.js`, pas encore
+  vendored) — voir [ADR-006](adr/0006-export-import-excel.md) pour le
+  format des feuilles. Non implémenté à ce jour (voir bugs.md).
 
 ## Permissions
 
@@ -392,7 +392,7 @@ Permissions actuellement déclarées : `storage`, `unlimitedStorage`,
 | M-08 | `sidepanel/sidepanel.js`, inline lors de l'insertion d'une mention (rotation paresseuse, pas de composant dédié) |
 | M-09 | `fogbank.annuaire[].aliasParSite[].historique` — déjà en storage, pas encore affiché dans `options/` (voir bugs.md) |
 | M-10 | logique partagée (`content/pseudonyme.js`, utilisé par `sidepanel/` et `options/`) |
-| M-13 | non implémenté — `vendor/xlsx.full.min.js` est vendored mais rien dans `options/` ne l'utilise encore |
+| M-13 | non implémenté — SheetJS pas encore vendored, rien dans `options/` ne l'utilise |
 | M-15 | `background.js` (menu contextuel, auto-création de site) + `content/ecriture.js` (ciblage, persistance, auto-repérage) + `sidepanel/` (onboarding, UC-005) |
 | M-16 | `content/ecriture.js` (écrasement, détection de modification externe) + `sidepanel/` (mode, témoin de synchro, dégradation, copier) |
 

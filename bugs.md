@@ -58,7 +58,8 @@ Classée par priorité — à réévaluer à la reprise, ce n'est qu'une proposi
 - [ ] Réintroduire une infobulle par tag en mode réception — perdue au
       passage à l'affichage panneau (M-07), si jugée utile. *(ergonomie/UX)*
 - [ ] Brancher l'export/import Excel (M-13, ADR-006) dans `options/` —
-      `vendor/xlsx.full.min.js` vendored mais inutilisé. *(sites supportés)*
+      SheetJS (`vendor/xlsx.full.min.js`) pas encore vendored. *(sites
+      supportés)*
 - [ ] Simplifier le code. *(qualité)*
 - [ ] Nettoyer le code et les UC. *(qualité)*
 - [ ] Faire un audit de code. *(qualité)*
