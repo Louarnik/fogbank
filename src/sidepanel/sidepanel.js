@@ -17,6 +17,7 @@
 
   const banniereDomaine = document.getElementById('banniere-domaine');
   const banniereStatut = document.getElementById('banniere-statut');
+  const boutonOuvrirOptions = document.getElementById('bouton-ouvrir-options');
   const champCompose = document.getElementById('champ-compose');
   const toggleEnvoiAuto = document.getElementById('toggle-envoi-auto');
   const temoinCible = document.getElementById('temoin-cible');
@@ -133,6 +134,10 @@
     banniereStatut.classList.toggle('tag-accent', !!site && site.actif);
     banniereStatut.classList.toggle('tag-neutre', !site || !site.actif);
   }
+
+  boutonOuvrirOptions.addEventListener('click', () => {
+    chrome.runtime.openOptionsPage();
+  });
 
   async function determinerSite() {
     const onglet = await ongletActifCourant();
