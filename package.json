@@ -11,15 +11,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/LouarnGlas/fogbank.git"
+    "url": "git+https://github.com/Louarnik/fogbank.git"
   },
   "keywords": [],
-  "author": "LouarnGlas",
+  "author": "Louarnik",
   "license": "AGPL-3.0",
   "bugs": {
-    "url": "https://github.com/LouarnGlas/fogbank/issues"
+    "url": "https://github.com/Louarnik/fogbank/issues"
   },
-  "homepage": "https://github.com/LouarnGlas/fogbank#readme",
+  "homepage": "https://github.com/Louarnik/fogbank#readme",
   "devDependencies": {
     "@types/chrome": "^0.2.2"
   }

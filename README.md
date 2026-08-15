@@ -15,7 +15,7 @@ d'origine dans la réponse reçue.
 
 1. Cloner le dépôt :
    ```bash
-   git clone https://github.com/LouarnGlas/fogbank.git
+   git clone https://github.com/Louarnik/fogbank.git
    cd fogbank
    ```
 2. Installer les dépendances de développement (types Chrome pour l'IDE) :
