@@ -85,6 +85,7 @@
   const corpsTableau = document.getElementById('corps-tableau');
   const etatVide = document.getElementById('etat-vide');
   const champFiltre = document.getElementById('filtre');
+  const boutonExporterAnnuaire = document.getElementById('bouton-exporter-annuaire');
   const boutonAjouter = document.getElementById('bouton-ajouter');
   const dialogue = document.getElementById('dialogue-formulaire');
   const formulaire = document.getElementById('formulaire-entite');
@@ -266,6 +267,20 @@
     rendreTableau();
   });
 
+  // Export brut de l'annuaire (M-02) en local, aucun appel réseau — nom de
+  // fichier daté (fogbankAAAAMMDD.json) pour distinguer plusieurs exports.
+  function exporterAnnuaire() {
+    const date = window.fogbankDateUtils.aujourdHuiISO().replace(/-/g, '');
+    const blob = new Blob([JSON.stringify(annuaire, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const lien = document.createElement('a');
+    lien.href = url;
+    lien.download = `fogbank${date}.json`;
+    lien.click();
+    URL.revokeObjectURL(url);
+  }
+
+  boutonExporterAnnuaire.addEventListener('click', exporterAnnuaire);
   boutonAjouter.addEventListener('click', () => ouvrirFormulaire(null));
   boutonAnnuler.addEventListener('click', fermerFormulaire);
   formulaire.addEventListener('submit', enregistrerFormulaire);
