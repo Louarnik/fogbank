@@ -28,18 +28,17 @@ pour l'instant.
 ## Jeu de données d'annuaire
 
 [fixtures/annuaire-exemple.json](fixtures/annuaire-exemple.json) fournit un
-annuaire fictif de 11 entités couvrant les 5 types, les 3 formats de
-pseudonyme, la rotation et la collision d'alias — voir
+annuaire fictif de 11 entités couvrant les 5 types, la rotation et la
+collision d'alias — voir
 [fixtures/annuaire-exemple.README.md](fixtures/annuaire-exemple.README.md)
 pour le détail et les hypothèses de modélisation. À utiliser pour
-développer M-02, M-08, M-09, M-10 et M-13 sans données réelles.
+développer M-02, M-08, M-09 et M-13 sans données réelles.
 
-**Pré-chargé automatiquement** : `src/background/background.js` peuple
-`chrome.storage.local` avec cet annuaire (et la whitelist des trois
-fixtures locales) au premier démarrage de l'extension — charger
-l'extension "unpacked" suffit, aucune saisie manuelle dans la console.
-Détail dans `annuaire-exemple.README.md`, section « Chargement
-automatique ».
+**Chargement manuel** (aucun pré-chargement automatique — retiré avant la
+première publication publique, voir `bugs.md`) : coller le contenu du
+fichier dans la console du service worker (`chrome://extensions` → détails
+de fogbank → « Service worker ») via
+`chrome.storage.local.set({ 'fogbank.annuaire': [...], 'fogbank.sites': [...] })`.
 
 Pas d'équivalent `.xlsx` maintenu à côté : un fixture binaire à retenir en
 phase avec le JSON à chaque évolution du modèle (comme le renommage des
@@ -81,8 +80,3 @@ navigateur, comme le reste des UC ci-dessus.
    qu'un `.catch(console.error)` sans retry ni UI d'erreur) → vérifier si
    l'alias reste correct en mémoire mais disparaît au reload, et si
    l'utilisateur peut s'en rendre compte autrement que dans la console.
-5. **Fusion dev-only au rechargement de l'extension** : avec des données
-   déjà modifiées en storage, recharger l'extension en mode développeur
-   (redéclenche `onInstalled` → `chargerDonneesDeDeveloppement`) → vérifier
-   que les entités déjà présentes ne sont jamais réécrasées par les
-   fixtures (`fusionnerParId`, filtré par `id`).

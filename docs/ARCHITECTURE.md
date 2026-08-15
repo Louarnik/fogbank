@@ -43,8 +43,7 @@ src/
 ├── shared/
 │   └── site-matching.js     # correspondance site/URL — partagée par ecriture.js, sidepanel.js et popup.js
 ├── background/
-│   ├── background.js        # service worker : menu contextuel, ouverture du panel, seed de dev
-│   └── donnees-test.js       # données de développement (voir background.js)
+│   └── background.js        # service worker : menu contextuel, ouverture du panel
 ├── content/
 │   ├── ecriture.js           # seul content script de production — ciblage, écrasement, lecture de page
 │   ├── profils-lecture.js    # tours par site, lecture seule, best-effort (voir ADR-011) — jamais de ciblage/écriture

@@ -10,8 +10,13 @@ Classée par priorité — à réévaluer à la reprise, ce n'est qu'une proposi
       sur plusieurs sessions. *(fiabilité/données)*
 - [ ] Bien caler tous les cas de rafraîchissement de page (refresh).
       *(ergonomie/UX)*
-- [ ] Mieux enregistrer Copilot, OpenAI et ChatGPT comme sites par défaut.
-      *(sites supportés)*
+- [ ] Mieux enregistrer Copilot, OpenAI et ChatGPT comme sites par défaut —
+      `background.js#assurerSitesPreActives` pré-active désormais réellement
+      `chatgpt.com`/`claude.ai`/`copilot.microsoft.com` à l'installation
+      (avant v0.1, ce n'était fait que par le seed de dev, retiré avant
+      publication), mais `chat.openai.com` (ancien domaine OpenAI, encore
+      reconnu en lecture par `profils-lecture.js`) ne correspond à aucune
+      entrée de la whitelist. *(sites supportés)*
 - [ ] Vérifier en vrai navigateur le nouveau contenteditable-handle (Ctrl+Z, IME, collage). *(fiabilité/données)*
 - [x] Remplacer la rotation temporelle du pseudonyme (durée calendaire par
       site) par une rotation par discussion ou jamais, voir

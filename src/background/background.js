@@ -1,56 +1,4 @@
 // Service worker de l'extension (Manifest V3).
-import { donneesTest } from './donnees-test.js';
-
-// Chargement de développement : évite de repeupler chrome.storage.local à
-// la main dans la console à chaque test (pas de page d'options tant que
-// M-01/M-02 ne sont pas construits). Voir
-// tests/fixtures/annuaire-exemple.README.md et donnees-test.js.
-//
-// Fusionne plutôt que d'écraser en bloc : un développeur qui a déjà de
-// l'annuaire en storage (testé avant l'ajout de ce mécanisme, ou avant
-// l'ajout d'une nouvelle fixture à donnees-test.js) doit quand même
-// récupérer les entrées manquantes — sites ou entités — sans perdre ses
-// propres modifications sur celles qui existent déjà (identifiées par
-// `id`, jamais réécrites si déjà présentes).
-//
-// TODO : à retirer avant toute release réelle (voir donnees-test.js).
-async function chargerDonneesDeDeveloppement() {
-  const existant = await chrome.storage.local.get([
-    'fogbank.config',
-    'fogbank.sites',
-    'fogbank.annuaire',
-  ]);
-
-  const fusionnerParId = (existants, apport) => {
-    const idsExistants = new Set((existants || []).map((e) => e.id));
-    const manquants = apport.filter((e) => !idsExistants.has(e.id));
-    return [...(existants || []), ...manquants];
-  };
-
-  const sites = fusionnerParId(existant['fogbank.sites'], donneesTest['fogbank.sites']);
-  const annuaire = fusionnerParId(existant['fogbank.annuaire'], donneesTest['fogbank.annuaire']);
-  const config = existant['fogbank.config'] || donneesTest['fogbank.config'];
-
-  // Migration ponctuelle : le trigramme LIE a été renommé en LOC (ADR-003,
-  // alignement sur le schéma NER standard). Le mécanisme de fusion
-  // ci-dessus n'ajoute que les entités manquantes — il ne corrige pas les
-  // champs d'une entité déjà en storage depuis avant ce renommage, d'où
-  // les entités de type lieu (ex. "Paris") qui restaient bloquées sur
-  // l'ancien code et ne matchaient plus la regex de tag partagée
-  // (pseudonyme.js n'accepte plus que PER/ORG/LOC/PRJ/MISC).
-  annuaire.forEach((entite) => {
-    if (entite.type === 'LIE') entite.type = 'LOC';
-  });
-
-  await chrome.storage.local.set({
-    'fogbank.config': config,
-    'fogbank.sites': sites,
-    'fogbank.annuaire': annuaire,
-  });
-  console.log(
-    '[fogbank] données de développement synchronisées (annuaire de test + sites, dont les fixtures locales manquantes ajoutées si besoin).'
-  );
-}
 
 // Ciblage du champ d'écriture (M-15, voir ADR-008 et UC-003) : clic droit
 // sur un champ éditable → content/ecriture.js mémorise ce champ pour
@@ -142,6 +90,35 @@ function assurerAliasParisPourTousLesSites(annuaire, sites) {
   });
 }
 
+// Grands sites IA pré-activés à l'installation (M-01, voir ADR-004 et
+// SPECS.md, Vue d'ensemble) : seule liste de domaines publics à maintenir
+// ici, pas une donnée métier. Idempotent — n'ajoute que les domaines
+// absents de `fogbank.sites`, ne touche jamais une entrée existante (un
+// utilisateur a pu la désactiver ou la reconfigurer).
+const DOMAINES_PRE_ACTIVES = ['chatgpt.com', 'claude.ai', 'copilot.microsoft.com'];
+
+async function assurerSitesPreActives() {
+  const donnees = await chrome.storage.local.get(['fogbank.sites']);
+  const sites = donnees['fogbank.sites'] || [];
+  let modifie = false;
+  DOMAINES_PRE_ACTIVES.forEach((domaine) => {
+    if (sites.some((s) => correspondDomaine(s, domaine))) return;
+    sites.push({
+      id: genererIdSite(domaine, sites),
+      domaine,
+      preActive: true,
+      actif: true,
+      creeLe: aujourdHuiISO(),
+      modeReplication: 'manuel',
+      cibleEcriture: null,
+      configurationTerminee: false,
+    });
+    modifie = true;
+  });
+  if (modifie) await chrome.storage.local.set({ 'fogbank.sites': sites });
+  return sites;
+}
+
 async function assurerEntitesParDefaut() {
   const donnees = await chrome.storage.local.get(['fogbank.sites', 'fogbank.annuaire']);
   const sites = donnees['fogbank.sites'] || [];
@@ -215,14 +192,13 @@ chrome.runtime.onInstalled.addListener(() => {
   enregistrerMenuContextuel();
   (async () => {
     try {
-      await chargerDonneesDeDeveloppement();
+      await assurerSitesPreActives();
     } catch (err) {
-      console.error('[fogbank] échec du chargement des données de développement :', err);
+      console.error('[fogbank] échec de la pré-activation des sites par défaut :', err);
     }
-    // Indépendant du chargement de développement (qui sera retiré avant
-    // une release réelle, voir donnees-test.js) — mais séquencé après lui
-    // pour voir tous les sites déjà connus, fixtures de dev comprises, et
-    // leur ajouter l'alias Paris manquant en un seul passage.
+    // Séquencé après assurerSitesPreActives (pas en parallèle) pour que les
+    // sites tout juste pré-activés reçoivent aussi leur alias Paris par
+    // défaut dès ce premier passage, sans attendre un second déclenchement.
     try {
       await assurerEntitesParDefaut();
     } catch (err) {

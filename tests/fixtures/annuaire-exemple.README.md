@@ -16,23 +16,25 @@ contre un fichier généré par M-13 lui-même, pas contre un exemple statique.
 Aucun nom réel : "Pierre Dupont", "Acme Corporation", "Paris"... sont des
 exemples génériques, pas des personnes/organisations réelles.
 
-## Chargement automatique
+## Chargement manuel
 
 Ce fichier n'est pas lu directement par l'extension (`tests/` est hors de
-l'arborescence `src/` chargée par le navigateur). Une copie fonctionnellement
-identique vit dans
-[`src/background/donnees-test.js`](../../src/background/donnees-test.js) :
-`background.js` la charge dans `chrome.storage.local` au premier démarrage
-(`chrome.runtime.onInstalled`), **seulement si aucune donnée n'existe déjà**
-— un rechargement de l'extension pendant le développement n'écrase donc pas
-des modifications faites depuis (via la page d'options, une fois M-01/M-02
-construits). Charger l'extension "unpacked" suffit à pouvoir tester tout de
-suite, sans étape manuelle dans la console.
+l'arborescence `src/` chargée par le navigateur) et rien ne le charge plus
+automatiquement : le mécanisme de seed au premier démarrage
+(`src/background/donnees-test.js`, chargé via `chrome.runtime.onInstalled`)
+a été retiré avant la première publication publique (une extension publique
+ne doit jamais injecter de fausses entités dans le storage d'un vrai
+utilisateur).
 
-**À retirer avant toute release réelle** (voir le commentaire en tête de
-`donnees-test.js`) : ce mécanisme n'a de sens que pour le développement.
-Si ce fichier JSON évolue, reporter le changement à la main dans
-`donnees-test.js` — pas de génération automatique entre les deux.
+Pour peupler `chrome.storage.local` en développement, coller le contenu de
+ce fichier dans la console du service worker
+(`chrome://extensions` → détails de fogbank → « Service worker ») :
+```js
+chrome.storage.local.set({
+  'fogbank.annuaire': /* … contenu de fogbank.annuaire ci-dessous … */,
+  'fogbank.sites': /* … contenu de fogbank.sites ci-dessous … */,
+});
+```
 
 ## Couverture
 
