@@ -47,8 +47,6 @@
   const boutonVerifierReponse = document.getElementById('bouton-verifier-reponse');
   const onboardingEtatVerification = document.getElementById('onboarding-etat-verification');
   const onboardingDialogue = document.getElementById('onboarding-dialogue');
-  const onboardingRotation = document.getElementById('onboarding-rotation');
-  const onboardingFormat = document.getElementById('onboarding-format');
   const boutonTerminerConfig = document.getElementById('bouton-terminer-config');
   const boutonPasserConfig = document.getElementById('bouton-passer-config');
 
@@ -116,7 +114,7 @@
       'fogbank.annuaire',
       'fogbank.journal',
     ]);
-    config = donnees['fogbank.config'] || { caractereDeclencheur: '&', formatParDefaut: 'court' };
+    config = donnees['fogbank.config'] || { caractereDeclencheur: '&' };
     sites = donnees['fogbank.sites'] || [];
     annuaire = donnees['fogbank.annuaire'] || [];
     journal = donnees['fogbank.journal'] || [];
@@ -176,42 +174,32 @@
     });
   }
 
-  // Sans site actif (onglet non reconnu), génère un alias à la volée avec le
-  // format par défaut plutôt que de bloquer la frappe (voir UC-001, Cas
-  // d'erreur) — pas de siteId valide où persister une rotation.
+  // Sans site actif (onglet non reconnu), génère un alias à la volée plutôt
+  // que de bloquer la frappe (voir UC-001, Cas d'erreur) — pas de siteId
+  // valide où persister une rotation.
+  //
+  // Rotation et format figés sur cette branche (choix par site déplacé sur
+  // feature/choix-rotation-format) : toujours « par discussion » — un alias
+  // reste valable tant que le signal de discussion courant (urlOngletActif,
+  // voir determinerSite) n'a pas changé depuis sa dernière attribution —, et
+  // toujours le format opaque (voir pseudonyme.js).
   function obtenirOuCreerAlias(entite) {
     if (!siteActif) {
-      return window.fogbankPseudonyme.genererAliasUnique(
-        entite.nomReel,
-        config.formatParDefaut || 'court',
-        entite.type,
-        annuaire
-      );
+      return window.fogbankPseudonyme.genererAliasUnique(entite.type, annuaire);
     }
     let entree = entite.aliasParSite.find((a) => a.siteId === siteActif.id);
-    const politique = siteActif.politiqueRotation || 'jamais';
-    // « Jamais » : un alias déjà attribué reste valable indéfiniment. « Par
-    // discussion » : valable tant que le signal de discussion courant
-    // (urlOngletActif, voir determinerSite) n'a pas changé depuis sa
-    // dernière attribution.
-    if (entree && (politique !== 'parDiscussion' || entree.idDiscussion === urlOngletActif)) {
+    if (entree && entree.idDiscussion === urlOngletActif) {
       return entree.aliasActif;
     }
-    const alias = window.fogbankPseudonyme.genererAliasUnique(
-      entite.nomReel,
-      siteActif.formatPseudonyme,
-      entite.type,
-      annuaire
-    );
-    const idDiscussion = politique === 'parDiscussion' ? urlOngletActif : null;
+    const alias = window.fogbankPseudonyme.genererAliasUnique(entite.type, annuaire);
     if (!entree) {
-      entree = { siteId: siteActif.id, aliasActif: alias, idDiscussion, historique: [] };
+      entree = { siteId: siteActif.id, aliasActif: alias, idDiscussion: urlOngletActif, historique: [] };
       entite.aliasParSite.push(entree);
     } else {
       entree.aliasActif = alias;
-      entree.idDiscussion = idDiscussion;
+      entree.idDiscussion = urlOngletActif;
     }
-    entree.historique.push({ alias, attribueLe: aujourdHuiISO(), idDiscussion });
+    entree.historique.push({ alias, attribueLe: aujourdHuiISO(), idDiscussion: urlOngletActif });
     persisterAnnuaire();
     return alias;
   }
@@ -386,8 +374,6 @@
     const doitAfficher = !!siteActif && !siteActif.configurationTerminee && !onboardingIgnoree;
     sectionOnboarding.hidden = !doitAfficher;
     if (doitAfficher) {
-      onboardingRotation.value = siteActif.politiqueRotation || 'jamais';
-      onboardingFormat.value = siteActif.formatPseudonyme || 'court';
       onboardingEtatVerification.textContent = '';
       onboardingEtatVerification.className = '';
       onboardingDialogue.hidden = true;
@@ -494,8 +480,6 @@
 
   boutonTerminerConfig.addEventListener('click', async () => {
     await mettreAJourSite((site) => {
-      site.politiqueRotation = onboardingRotation.value;
-      site.formatPseudonyme = onboardingFormat.value;
       site.configurationTerminee = true;
     });
     logger(`Configuration de ${siteActif.domaine} terminée.`, 'succes');

@@ -15,7 +15,6 @@
 export const donneesTest = {
   'fogbank.config': {
     caractereDeclencheur: '&',
-    formatParDefaut: 'court',
   },
 
   'fogbank.sites': [
@@ -25,8 +24,6 @@ export const donneesTest = {
       preActive: true,
       actif: true,
       creeLe: '2025-09-01',
-      politiqueRotation: 'parDiscussion',
-      formatPseudonyme: 'court',
       modeReplication: 'manuel',
       cibleEcriture: null,
       configurationTerminee: true,
@@ -37,8 +34,6 @@ export const donneesTest = {
       preActive: true,
       actif: true,
       creeLe: '2025-09-01',
-      politiqueRotation: 'jamais',
-      formatPseudonyme: 'etendu',
       modeReplication: 'manuel',
       cibleEcriture: null,
       configurationTerminee: true,
@@ -49,8 +44,6 @@ export const donneesTest = {
       preActive: false,
       actif: true,
       creeLe: '2026-07-01',
-      politiqueRotation: 'parDiscussion',
-      formatPseudonyme: 'opaque',
       modeReplication: 'manuel',
       cibleEcriture: null,
       configurationTerminee: true,
@@ -61,8 +54,6 @@ export const donneesTest = {
       preActive: false,
       actif: true,
       creeLe: '2026-07-01',
-      politiqueRotation: 'jamais',
-      formatPseudonyme: 'etendu',
       modeReplication: 'manuel',
       cibleEcriture: null,
       configurationTerminee: true,
@@ -73,8 +64,6 @@ export const donneesTest = {
       preActive: false,
       actif: true,
       creeLe: '2026-07-01',
-      politiqueRotation: 'parDiscussion',
-      formatPseudonyme: 'court',
       modeReplication: 'manuel',
       cibleEcriture: null,
       configurationTerminee: true,

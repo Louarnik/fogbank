@@ -38,38 +38,40 @@ Si ce fichier JSON évolue, reporter le changement à la main dans
 
 - Les **5 types** d'entités (PER, ORG, LOC, PRJ, MISC — voir
   [ADR-003](../../docs/adr/0003-typage-entites.md)).
-- Les **3 formats** de pseudonyme, chacun configuré **au niveau du site**
-  (voir [ADR-002](../../docs/adr/0002-format-pseudonyme.md)) : `court` sur
-  `site-chatgpt`, `etendu` sur `site-claude`, `opaque` sur
-  `site-local-test` (`fogbank.sites[].formatPseudonyme`).
-- Les **2 politiques de rotation** de site (`parDiscussion`, `jamais`, voir
-  [ADR-012](../../docs/adr/0012-rotation-par-discussion.md)), réparties sur
-  **5 sites** au total : les trois grands sites IA (`site-chatgpt`,
-  `site-claude`) plus les trois fixtures locales
-  (`site-local-test` → `mock-ai-site`, `site-local-test-claude` →
-  `mock-claude-site`, `site-local-test-copilot` → `mock-copilot-site`),
-  toutes **pré-activées de base par `background.js`** (voir plus bas) pour
-  tester sans étape manuelle de whitelist.
-- Une entité mentionnée sur **deux sites, avec deux styles différents**
-  (`ent-01`, Pierre Dupont : `PDT-2` sur `site-chatgpt` — format court,
-  avec rotation — et `PIDU` sur `site-claude` — format étendu). Illustre
-  que le format suit le site, pas l'entité.
+- Format de pseudonyme et politique de rotation ne sont plus configurables
+  par site sur cette branche : toujours **opaque** (voir
+  [ADR-002](../../docs/adr/0002-format-pseudonyme.md)) et toujours **par
+  discussion** (voir [ADR-012](../../docs/adr/0012-rotation-par-discussion.md))
+  — le choix par site vit sur `feature/choix-rotation-format`. Les codes
+  d'alias de ce jeu de données (`PDT`, `PIDU`, `MALE`...) datent d'avant ce
+  changement : ils restent des exemples valides de la mécanique de
+  collision/rotation, même s'ils ne ressemblent plus à ce que génèrerait
+  le code actuel (chaînes opaques à 5 caractères).
+- **5 sites** au total : les trois grands sites IA (`site-chatgpt`,
+  `site-claude`) plus les trois fixtures locales (`site-local-test` →
+  `mock-ai-site`, `site-local-test-claude` → `mock-claude-site`,
+  `site-local-test-copilot` → `mock-copilot-site`), toutes **pré-activées
+  de base par `background.js`** (voir plus bas) pour tester sans étape
+  manuelle de whitelist.
+- Une entité mentionnée sur **deux sites** (`ent-01`, Pierre Dupont :
+  `PDT-2` sur `site-chatgpt`, `PIDU` sur `site-claude`) — chaque site a son
+  propre alias, indépendant.
 - Un exemple de **rotation** (`ent-01` sur `site-chatgpt` : alias `PDT`
   supplanté par `PDT-2`, conservés tous deux dans l'historique).
 - Un exemple de **collision, résolue globalement** (`ent-02`, Paul Dumont :
-  le code déterministe `PDT` était déjà pris par Pierre Dupont — y compris
-  dans son historique sur `site-chatgpt` — d'où `PDT-3`). L'unicité
-  du code est vérifiée sur tout l'annuaire (tous sites confondus) pour le
-  même type, pas seulement sur le site où l'entité est ajoutée — voir
-  hypothèse 2 ci-dessous.
+  le code `PDT` était déjà pris par Pierre Dupont — y compris dans son
+  historique sur `site-chatgpt` — d'où `PDT-3`). L'unicité du code est
+  vérifiée sur tout l'annuaire (tous sites confondus) pour le même type,
+  pas seulement sur le site où l'entité est ajoutée — voir hypothèse
+  ci-dessous.
 - Un champ **email facultatif** pour les personnes : renseigné pour
   `ent-01` et `ent-03`, laissé à `null` pour `ent-02` et `ent-04` (montre
   que le champ est réellement optionnel).
 - Un exemple de **nom à un seul mot** pour une entité de type lieu
-  (`ent-07`, "Paris") — voir hypothèse 3 ci-dessous.
-- Deux entités sur `site-local-test`, dont la politique est `parDiscussion`
-  (`ent-04`, `ent-10`) — utile pour tester la rotation par discussion de
-  M-08 en simulant simplement un changement d'URL d'onglet.
+  (`ent-07`, "Paris").
+- Deux entités sur `site-local-test` (`ent-04`, `ent-10`) — utile pour
+  tester la rotation par discussion de M-08 en simulant simplement un
+  changement d'URL d'onglet.
 - Un exemple de type **`MISC`** (`ent-11`, "Opération Mistral") — la
   catégorie fourre-tout ajoutée par [ADR-003](../../docs/adr/0003-typage-entites.md)
   pour toute entité sensible qui ne rentre dans aucun des quatre autres
@@ -77,8 +79,8 @@ Si ce fichier JSON évolue, reporter le changement à la main dans
 
 ## Hypothèses de modélisation (à confirmer lors du développement)
 
-Ces points ne sont pas encore tranchés formellement dans les ADR — le jeu
-de données fait un choix pour rester cohérent, mais ce choix reste ouvert :
+Ce point n'est pas encore tranché formellement dans les ADR — le jeu de
+données fait un choix pour rester cohérent, mais ce choix reste ouvert :
 
 1. **Suffixe de rotation vs suffixe de collision** : le même mécanisme de
    suffixe numérique (`-2`, `-3`...) est utilisé aussi bien quand une même
@@ -88,19 +90,3 @@ de données fait un choix pour rester cohérent, mais ce choix reste ouvert :
    étaient déjà pris par `ent-01`, y compris dans son historique).
    Alternative possible : traiter les deux cas séparément avec une
    notation différente.
-2. **Portée de la détection de collision : globale par type, pas par
-   site.** Elle considère tout l'annuaire (toutes les entités du même
-   type, tous sites confondus, y compris leur historique) — pas
-   seulement le site sur lequel l'entité est ajoutée. Raison : M-12
-   (conversion manuelle d'un fichier généré par l'IA) doit pouvoir
-   résoudre un tag `[TYP:CODE]` sans connaître le site d'origine du
-   fichier ; deux entités portant le même code sur deux sites différents
-   rendraient cette résolution ambiguë. C'est pour ça que Pierre Dupont
-   (`ent-01`) utilise `PIDU` sur `site-claude` et non `PDT` : même si
-   `site-claude` a son propre format (étendu), le code choisi doit rester
-   unique dans tout l'annuaire pour le type `PER`.
-3. **Repli pour un nom à un seul mot** (`ent-07`, "Paris", format court) :
-   règle provisoire notée dans [ADR-003](../../docs/adr/0003-typage-entites.md)
-   (2 premières + 2 dernières lettres du mot unique) → `PA` + `IS` =
-   `PAIS`. Point ouvert explicitement signalé dans l'ADR, pas encore
-   arbitré.

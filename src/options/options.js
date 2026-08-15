@@ -1,5 +1,5 @@
 // Page d'options — deux onglets, deux CRUD indépendants :
-// - Annuaire (fogbank.annuaire, M-12). Les alias par site (aliasParSite)
+// - Annuaire (fogbank.annuaire, M-02). Les alias par site (aliasParSite)
 //   restent en lecture seule ici : ils ne sont produits que par la rotation
 //   paresseuse (M-08/M-10) au fil de l'usage dans le panneau (sidepanel/),
 //   jamais saisis à la main.
@@ -9,9 +9,6 @@
 //   réplication (M-16) et ciblage mémorisé (M-15, voir ADR-008) modifiables
 //   ici aussi.
 (function () {
-  const LIBELLES_ROTATION = { parDiscussion: 'Par discussion', jamais: 'Jamais' };
-  const LIBELLES_FORMAT = { court: 'Court', etendu: 'Étendu', opaque: 'Opaque' };
-
   // Entité par défaut « Paris, France » (voir UC-005, Données) — même
   // logique qu'en background.js, dupliquée volontairement (options.js est
   // un script classique chargé par <script>, background.js un module de
@@ -40,7 +37,7 @@
       // ADR-012) — cet alias n'est jamais le fruit d'un usage réel, il
       // doit rester distinguable pour qu'une mention réelle de « Paris »
       // déclenche la rotation paresseuse habituelle (M-08) dès sa première
-      // utilisation sous la politique « par discussion ».
+      // utilisation.
       idDiscussion: null,
       historique: [{ alias: ENTITE_PARIS_CODE, attribueLe: site.creeLe, idDiscussion: null }],
     });
@@ -289,8 +286,6 @@
   const siteChampDomaine = document.getElementById('site-champ-domaine');
   const siteChampActif = document.getElementById('site-champ-actif');
   const siteChampPreActive = document.getElementById('site-champ-pre-active');
-  const siteChampRotation = document.getElementById('site-champ-rotation');
-  const siteChampFormat = document.getElementById('site-champ-format');
   const siteChampReplication = document.getElementById('site-champ-replication');
   const erreurFormulaireSite = document.getElementById('erreur-formulaire-site');
   const siteBoutonAnnuler = document.getElementById('site-bouton-annuler');
@@ -319,14 +314,6 @@
       ligne.appendChild(celluleTexte(cocheOuTiret(site.actif)));
       ligne.appendChild(celluleTexte(cocheOuTiret(site.preActive)));
 
-      const tdRotation = document.createElement('td');
-      tdRotation.textContent = LIBELLES_ROTATION[site.politiqueRotation] || site.politiqueRotation;
-      ligne.appendChild(tdRotation);
-
-      const tdFormat = document.createElement('td');
-      tdFormat.textContent = LIBELLES_FORMAT[site.formatPseudonyme] || site.formatPseudonyme;
-      ligne.appendChild(tdFormat);
-
       ligne.appendChild(celluleTexte(site.modeReplication === 'auto' ? 'Auto' : 'Manuel'));
       ligne.appendChild(celluleTexte(site.cibleEcriture ? (site.cibleEcriture.tag || 'ciblé') : '—'));
       ligne.appendChild(celluleTexte(cocheOuTiret(site.configurationTerminee)));
@@ -350,8 +337,6 @@
       siteChampDomaine.value = site.domaine;
       siteChampActif.checked = site.actif;
       siteChampPreActive.checked = site.preActive;
-      siteChampRotation.value = site.politiqueRotation;
-      siteChampFormat.value = site.formatPseudonyme;
       siteChampReplication.value = site.modeReplication || 'manuel';
     } else {
       idSiteEnEdition = null;
@@ -359,8 +344,6 @@
       formulaireSite.reset();
       siteChampActif.checked = true;
       siteChampPreActive.checked = false;
-      siteChampRotation.value = 'jamais';
-      siteChampFormat.value = 'court';
       siteChampReplication.value = 'manuel';
     }
     dialogueSite.showModal();
@@ -382,8 +365,6 @@
     const domaine = siteChampDomaine.value.trim();
     const actif = siteChampActif.checked;
     const preActive = siteChampPreActive.checked;
-    const politiqueRotation = siteChampRotation.value;
-    const formatPseudonyme = siteChampFormat.value;
     const modeReplication = siteChampReplication.value;
 
     if (!domaine) {
@@ -401,8 +382,6 @@
           site.domaine = domaine;
           site.actif = actif;
           site.preActive = preActive;
-          site.politiqueRotation = politiqueRotation;
-          site.formatPseudonyme = formatPseudonyme;
           site.modeReplication = modeReplication;
         }
       } else {
@@ -412,8 +391,6 @@
           actif,
           preActive,
           creeLe: window.fogbankDateUtils.aujourdHuiISO(),
-          politiqueRotation,
-          formatPseudonyme,
           modeReplication,
           cibleEcriture: null,
           // Un site ajouté ici n'a pas encore été ciblé ni testé (UC-005) :

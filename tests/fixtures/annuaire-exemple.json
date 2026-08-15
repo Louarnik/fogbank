@@ -2,8 +2,7 @@
   "_avertissement": "Toutes les entités ci-dessous sont fictives, générées pour les tests. Voir annuaire-exemple.README.md pour les hypothèses de modélisation.",
 
   "fogbank.config": {
-    "caractereDeclencheur": "&",
-    "formatParDefaut": "court"
+    "caractereDeclencheur": "&"
   },
 
   "fogbank.sites": [
@@ -13,8 +12,6 @@
       "preActive": true,
       "actif": true,
       "creeLe": "2025-09-01",
-      "politiqueRotation": "parDiscussion",
-      "formatPseudonyme": "court",
       "modeReplication": "manuel",
       "cibleEcriture": null,
       "configurationTerminee": true
@@ -25,8 +22,6 @@
       "preActive": true,
       "actif": true,
       "creeLe": "2025-09-01",
-      "politiqueRotation": "jamais",
-      "formatPseudonyme": "etendu",
       "modeReplication": "manuel",
       "cibleEcriture": null,
       "configurationTerminee": true
@@ -37,8 +32,6 @@
       "preActive": false,
       "actif": true,
       "creeLe": "2026-07-01",
-      "politiqueRotation": "parDiscussion",
-      "formatPseudonyme": "opaque",
       "modeReplication": "manuel",
       "cibleEcriture": null,
       "configurationTerminee": true
@@ -49,8 +42,6 @@
       "preActive": false,
       "actif": true,
       "creeLe": "2026-07-01",
-      "politiqueRotation": "jamais",
-      "formatPseudonyme": "etendu",
       "modeReplication": "manuel",
       "cibleEcriture": null,
       "configurationTerminee": true
@@ -61,8 +52,6 @@
       "preActive": false,
       "actif": true,
       "creeLe": "2026-07-01",
-      "politiqueRotation": "parDiscussion",
-      "formatPseudonyme": "court",
       "modeReplication": "manuel",
       "cibleEcriture": null,
       "configurationTerminee": true

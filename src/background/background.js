@@ -105,8 +105,7 @@ function aujourdHuiISO() {
 // site dont `idDiscussion` est `null` (voir ADR-012) — cet alias n'est
 // jamais le fruit d'un usage réel, il doit rester distinct de toute vraie
 // discussion pour qu'une mention réelle de « Paris » déclenche la rotation
-// paresseuse habituelle (M-08) dès sa première utilisation sous la
-// politique « par discussion ».
+// paresseuse habituelle (M-08) dès sa première utilisation.
 const ENTITE_PARIS_ID = 'ent-defaut-paris';
 const ENTITE_PARIS_CODE = 'PA0001';
 
@@ -132,8 +131,8 @@ function assurerAliasParisPourTousLesSites(annuaire, sites) {
     const dateRef = site.creeLe || aujourdHuiISO();
     // idDiscussion: null (voir ADR-012, même raisonnement que
     // options.js#assurerAliasParisPourSite) — distinct de toute vraie
-    // discussion, pour que la politique « par discussion » régénère cet
-    // alias dès la première mention réelle.
+    // discussion, pour que la rotation régénère cet alias dès la première
+    // mention réelle.
     entite.aliasParSite.push({
       siteId: site.id,
       aliasActif: ENTITE_PARIS_CODE,
@@ -179,8 +178,6 @@ async function assurerSiteConfigure(tab) {
     preActive: false,
     actif: true,
     creeLe: aujourdHuiISO(),
-    politiqueRotation: 'jamais',
-    formatPseudonyme: 'court',
     modeReplication: 'manuel',
     cibleEcriture: null,
     configurationTerminee: false,

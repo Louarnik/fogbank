@@ -78,24 +78,23 @@ Mécanique générale :
   `[TYP:ALIAS]`, `TYP` étant un trigramme (ex: `[PER:PDT]`, `[ORG:ACM]`)
   afin que l'IA reconnaisse la nature de l'entité malgré la substitution —
   voir [ADR-003](adr/0003-typage-entites.md).
-- Le `CODE` est généré selon un format configuré **par site** (M-01) et
-  commun à toutes les entités qui y sont mentionnées : **reconnaissable**
-  (dérivé des initiales du nom, ex: `PDT` ou `PIDU` pour Pierre Dupont —
-  voir M-10 et [ADR-002](adr/0002-format-pseudonyme.md)) ou **opaque**
-  (aléatoire, sans lien visuel avec le nom réel). Une même entité peut donc
-  avoir un style différent selon le site. En cas de collision entre deux
-  entités du même type générant le même code reconnaissable, un suffixe
-  numérique est ajouté automatiquement (ex: `PDT`, `PDT-2`). Cette unicité
-  du code est **globale, tous sites confondus**, pas seulement sur le site
-  où l'entité est ajoutée (raison détaillée dans
-  [ADR-002](adr/0002-format-pseudonyme.md)).
-- Chaque pseudonyme suit une politique de rotation configurable **par site**
-  (**par discussion**, ou **jamais** — paramètre associé à l'entrée de la
-  liste autorisée, voir M-01, [ADR-012](adr/0012-rotation-par-discussion.md)) ;
-  quand la politique déclenche une rotation, un nouveau pseudonyme est généré
-  pour la même entité sur ce site, mais l'historique complet des alias déjà
-  attribués est toujours conservé (traçabilité, ré-association d'anciennes
-  réponses).
+- Le `CODE` est toujours **opaque** (aléatoire, sans lien visuel avec le nom
+  réel — voir M-10 et [ADR-002](adr/0002-format-pseudonyme.md)) ; en cas de
+  collision entre deux entités du même type générant le même code, un
+  suffixe numérique est ajouté automatiquement (ex: `X7K2Q`, `X7K2Q-2`).
+  Cette unicité du code est **globale, tous sites confondus**, pas
+  seulement sur le site où l'entité est ajoutée (raison détaillée dans
+  [ADR-002](adr/0002-format-pseudonyme.md)). Les formats reconnaissables
+  (dérivés des initiales du nom) et le choix d'un format par site ne sont
+  pas retenus sur cette branche — ils vivent sur
+  `feature/choix-rotation-format`.
+- Chaque pseudonyme suit une politique de rotation **par discussion**
+  (voir M-08, [ADR-012](adr/0012-rotation-par-discussion.md)) : un nouveau
+  pseudonyme est généré à chaque nouvelle discussion détectée pour la même
+  entité sur ce site, mais l'historique complet des alias déjà attribués
+  est toujours conservé (traçabilité, ré-association d'anciennes
+  réponses). Le choix d'une politique par site (ex: « jamais ») n'est pas
+  retenu sur cette branche — il vit sur `feature/choix-rotation-format`.
 
 Périmètre : liste blanche uniquement (pas de mode liste noire). Par défaut,
 l'extension n'est active nulle part, à l'exception des grands sites IA
@@ -141,15 +140,12 @@ le bas :
 2. **Bandeau de site** (cadre « blueprint » — bordure fine + 4 marques
    d'angle) :
    - Ligne 1 : nom de domaine (tronqué avec ellipsis) + tag de statut
-     (Actif = teinte accent, Inactif = teinte neutre) à gauche ; 2 boutons
-     icône à droite (« Configurer le site », « Rafraîchir le ciblage »).
-   - Ligne 2, configuration terminée : synthèse des réglages en **2 lignes
-     maximum** — « Rotation : *politique* » · « Alias : *format* » (M-08,
-     M-10).
-   - Variante configuration incomplète (voir UC-005) — **seule exception à
-     la limite de 2 lignes** : liste des étapes du parcours (fait/en
-     attente) + boutons « Continuer la configuration » / « Passer pour
-     l'instant ».
+     (Actif = teinte accent, Inactif = teinte neutre) à gauche ; icône
+     d'accès aux options à droite (implémentée) — rotation (M-08) et
+     format (M-10) sont désormais fixes, plus rien à synthétiser par site.
+   - Variante configuration incomplète (voir UC-005) : liste des étapes du
+     parcours (fait/en attente) + boutons « Continuer la configuration » /
+     « Passer pour l'instant ».
 3. **Historique de la conversation, en clair** (voir UC-002) — **zone
    extensible** (`flex:1`, occupe tout l'espace restant, seule zone du
    panneau à grandir/rétrécir avec la fenêtre) :
@@ -201,16 +197,16 @@ ci-dessous. Chaque macro-UC deviendra un ou plusieurs UC-XXX.
 
 | ID | Macro-UC | Résumé |
 |----|----------|--------|
-| M-01 | Gestion de la liste de sites autorisés | Configurer la whitelist des sites sur lesquels fogbank peut agir (grands sites IA pré-activés + ajout manuel), avec pour chaque site sa politique de rotation (M-08), son format de pseudonyme (M-10) et son mode de réplication (M-16). Un nouveau site passe par un parcours de configuration guidé (M-15, UC-005) avant d'être considéré prêt |
+| M-01 | Gestion de la liste de sites autorisés | Configurer la whitelist des sites sur lesquels fogbank peut agir (grands sites IA pré-activés + ajout manuel), avec pour chaque site son mode de réplication (M-16). Un nouveau site passe par un parcours de configuration guidé (M-15, UC-005) avant d'être considéré prêt |
 | M-02 | Gestion de l'annuaire privé | Créer/modifier/supprimer les entités (personne, organisation, lieu, projet, divers) de l'annuaire, stocké localement dans le navigateur ([ADR-005](adr/0005-stockage-local.md)) ; une entité a un alias indépendant par site (voir [ARCHITECTURE.md](ARCHITECTURE.md)) et, pour une personne, un email facultatif |
 | M-03 | Déclenchement du menu `&` | Ouvrir le menu de sélection à la frappe de `&` **dans le champ de composition du side panel** (voir [ADR-001](adr/0001-caractere-declencheur.md)) |
 | M-04 | Ajout à la volée depuis `&` | Créer une nouvelle entité directement depuis le menu si elle n'existe pas encore dans l'annuaire, avec sélection manuelle obligatoire de son type ; **insère le vrai nom, en clair, dans le champ du panneau**, jamais le tag — le panneau est en clair, voir Vue d'ensemble |
 | M-05 | Calque de décoration de la mention | Le champ de composition du panneau contient le vrai nom en clair ; une couche de décoration (shadow root fermé) le souligne et révèle, au survol, le tag `[TYP:ALIAS]` correspondant — entièrement dans le panneau, jamais dans le DOM du site |
 | M-06 | Envoi sans réécriture | Vestigial, absorbé par M-16 : il n'y a pas de « geste d'envoi » distinct côté fogbank — c'est la réplication (M-16) qui reconstruit la version taguée et détermine ce qui se trouve dans le champ du site au moment où l'utilisateur clique sur son bouton d'envoi. Aucun garde-fou, aucune détection d'un vrai nom tapé en clair hors d'une mention suivie |
 | M-07 | Restauration automatique à la réception | Lire tout le texte visible de la page (hors champs de saisie) et afficher, **dans le panneau**, sa version résolue — aucune substitution dans le DOM du site |
-| M-08 | Politique de rotation du pseudonyme | Générer un nouveau pseudonyme quand l'alias est utilisé, selon la politique configurée pour le site concerné (M-01, [ADR-012](adr/0012-rotation-par-discussion.md)) : **par discussion** (nouvelle discussion détectée) ou **jamais** — rotation paresseuse à l'usage, pas de tâche périodique |
+| M-08 | Rotation du pseudonyme par discussion | Générer un nouveau pseudonyme quand l'alias est utilisé et qu'une nouvelle discussion est détectée ([ADR-012](adr/0012-rotation-par-discussion.md)) — rotation paresseuse à l'usage, pas de tâche périodique. Politique fixe sur cette branche (choix par site sur `feature/choix-rotation-format`) |
 | M-09 | Historique des alias | Conserver la trace de tous les pseudonymes jamais attribués à chaque entité, **par site**, y compris ceux remplacés par une rotation ultérieure |
-| M-10 | Génération du pseudonyme | Générer le pseudonyme `[TYP:ALIAS]` selon le format configuré **pour le site courant** (M-01, commun aux 4 types sur ce site) : reconnaissable (initiales, plusieurs variantes) ou opaque (aléatoire), avec suffixe numérique automatique en cas de collision |
+| M-10 | Génération du pseudonyme | Générer le pseudonyme `[TYP:ALIAS]` au format opaque (aléatoire, sans lien visuel avec le nom réel), avec suffixe numérique automatique en cas de collision. Format fixe sur cette branche — formats reconnaissables et choix par site sur `feature/choix-rotation-format` |
 | M-11 | Typage de l'entité | Faire choisir manuellement le type (PER/ORG/LOC/PRJ/MISC) à l'utilisateur lors de l'ajout, et le conserver en clair dans le tag du pseudonyme |
 | M-13 | Export / import de l'annuaire (Excel) | Exporter l'annuaire et son historique vers un fichier `.xlsx` local, et importer un tel fichier pour peupler ou mettre à jour l'annuaire |
 | M-14 | Mode « vision site » _(différé, non spécifié)_ | Bascule volontaire affichant les pseudonymes bruts tels que le site IA les voit réellement, sans restauration — voir TODO dans UC-002 |
@@ -301,11 +297,10 @@ avoir encore désigné de champ de destination.
      retrouver plus tard quel nom correspond à quelle entité.
    - Si l'entité n'a pas encore d'alias pour le site **actuellement ciblé**
      (déterminé par l'onglet actif au moment de la frappe, voir UC-003), un
-     nouvel alias est généré immédiatement (M-10 : format du site, unicité
-     globale par type — voir [ADR-002](adr/0002-format-pseudonyme.md)) et
-     persisté. Si aucun site actif ne correspond à l'onglet actif, le
-     format par défaut (`fogbank.config.formatParDefaut`) est utilisé
-     plutôt que de bloquer la frappe — composer dans le panneau ne doit
+     nouvel alias opaque est généré immédiatement (M-10, unicité globale
+     par type — voir [ADR-002](adr/0002-format-pseudonyme.md)) et persisté
+     — y compris si aucun site actif ne correspond à l'onglet actif,
+     plutôt que de bloquer la frappe : composer dans le panneau ne doit
      jamais dépendre d'avoir déjà ciblé un champ.
 3. Échap ferme le menu sans rien insérer ; le texte `&filtre` reste tel
    quel en clair dans le champ.
@@ -829,12 +824,10 @@ jamais bloquant, voir Contraintes) :
    assistant » suppose que chaque site restitue l'historique dans un ordre
    chronologique stable dans le texte extrait — à valider contre les sites
    réels, pas seulement contre les fixtures.
-4. **Préférences** : politique de rotation du pseudonyme (M-08) et format du
-   pseudonyme (M-10), choisies dans le panneau — mêmes valeurs et mêmes
-   options que le formulaire de l'onglet Sites de `options/`.
-5. « Terminer la configuration » enregistre ces préférences et passe
-   `configurationTerminee` à `true` : le parcours ne se réaffiche plus
-   pour ce site. « Passer pour l'instant » masque le parcours pour la
+4. « Terminer la configuration » passe `configurationTerminee` à `true` :
+   le parcours ne se réaffiche plus pour ce site (pas de préférences à
+   choisir — rotation et format sont fixes sur cette branche, voir Vue
+   d'ensemble). « Passer pour l'instant » masque le parcours pour la
    session en cours sans modifier `configurationTerminee` (il réapparaîtra
    à la prochaine ouverture du panneau sur ce site).
 
@@ -842,12 +835,10 @@ jamais bloquant, voir Contraintes) :
 
 Écriture dans `fogbank.sites[]` :
 - Nouvelle entrée (points d'entrée 1 et 2), réglages par défaut
-  (`creeLe`: date du jour, `politiqueRotation: "jamais"`,
-  `formatPseudonyme: "court"`, `modeReplication: "manuel"`,
+  (`creeLe`: date du jour, `modeReplication: "manuel"`,
   `cibleEcriture: null`, `configurationTerminee: false`).
 - Puis, au fil du parcours : `cibleEcriture` (étape 1, via UC-003),
-  `politiqueRotation`/`formatPseudonyme` (étape 4), `configurationTerminee`
-  (étape 5).
+  `configurationTerminee` (étape 4).
 
 Écriture dans `fogbank.annuaire[]` — entité par défaut « Paris, France »
 (code fixe `PA0001`, utilisée par le test d'envoi de l'étape 3 pour

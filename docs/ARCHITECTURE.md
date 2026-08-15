@@ -80,12 +80,12 @@ s'exécute, seul l'`EditorHandle` qu'on leur passe compte.
 | `content/editor-handle/` | Façade de saisie pour le `<div contenteditable>` du panneau (`getText`, `replaceRange`, `getRangeRects`...) | M-04 |
 | `content/mention-menu.js` | Détecte `&`, affiche le menu, insère le tag `[TYP:ALIAS]` via l'`EditorHandle` — attaché au champ du panneau | M-03, M-04, M-11 |
 | `content/display.js` | Calque de décoration cloisonné (shadow DOM) : infobulle (montre le tag au survol d'un nom réel), soulignement — attaché au champ du panneau | M-05 |
-| `content/pseudonyme.js` | Génération de code (M-10), résolution inverse, regex de tag partagée, résolution de texte (M-07) — utilisé par le panneau et `options/` | M-07, M-10 |
+| `content/pseudonyme.js` | Génération de code opaque (M-10), résolution inverse, regex de tag partagée, résolution de texte (M-07) — chargé par le panneau | M-07, M-10 |
 | `content/ecriture.js` | Ciblage persistant par site, écrasement total, lecture de la page (hors champs de saisie), détection de modification externe | M-15, M-16, M-07 |
 | `content/profils-lecture.js` | Identification best-effort des tours de conversation par site (voir ADR-011) — lecture seule, repli automatique si aucun profil ne correspond | M-07 |
 | `sidepanel/` | Orchestration principale : champ de composition (`&` + décoration), statut de ciblage, mode de réplication (manuel/auto) avec témoin de synchro, bouton copier, affichage de la réponse résolue | M-03 à M-07, M-10, M-15, M-16 |
 | `background/background.js` | Cycle de vie de l'extension, menu contextuel (« écrire ici »), ouverture du panel sur clic | M-15 |
-| `options/` | Deux onglets : CRUD de l'annuaire (entités), CRUD des sites (`fogbank.sites`) — format de pseudonyme, politique de rotation, actif/inactif, mode de réplication | M-01, M-02 |
+| `options/` | Deux onglets : CRUD de l'annuaire (entités), CRUD des sites (`fogbank.sites`) — actif/inactif, mode de réplication | M-01, M-02 |
 | `popup/` | Statut du site de l'onglet actif (reconnu/non, actif/inactif) avec bascule directe, lien vers le panneau et les deux onglets de `options/` | M-01 |
 | `vendor/xlsx.full.min.js` | Lecture/écriture de fichiers `.xlsx` en local (prévu, pas encore branché à `options/`) | M-13 |
 
@@ -147,8 +147,7 @@ de stockage.
 ```js
 // fogbank.config
 {
-  caractereDeclencheur: "&",              // voir ADR-001
-  formatParDefaut: "court" | "etendu" | "opaque"  // utilisé si aucun site actif ne correspond à l'onglet actif (voir UC-001) ; pré-rempli à la création d'un nouveau site (M-01), voir ADR-002
+  caractereDeclencheur: "&"                // voir ADR-001
 }
 
 // fogbank.sites[]
@@ -158,8 +157,6 @@ de stockage.
   preActive: boolean,                      // true pour les grands sites IA (ADR-004)
   actif: boolean,
   creeLe: string,                          // ISO date, création de l'entrée
-  politiqueRotation: "parDiscussion" | "jamais",      // M-08, ADR-012
-  formatPseudonyme: "court" | "etendu" | "opaque",    // voir ADR-002 — s'applique à toutes les entités sur ce site
   modeReplication: "manuel" | "auto",       // défaut "manuel", M-16
   cibleEcriture: {                          // descripteur best-effort, M-15 ; null si jamais ciblé
     id: string | null,
@@ -204,12 +201,10 @@ alias (M-10) vérifie donc l'absence de collision dans **tout**
 entités du même `type`, quel que soit le site), pas seulement dans le site
 courant.
 
-Le **format de génération** (court/étendu/opaque) est une caractéristique
-du site (`fogbank.sites[].formatPseudonyme`), pas de l'entité : toutes les
-entités mentionnées sur un même site partagent le même style de
-pseudonyme, au même titre que sa politique de rotation (M-08). Une même entité peut
-donc avoir des styles différents selon le site (ex: alias court sur
-ChatGPT, alias étendu sur Claude).
+Le **format de génération** est toujours **opaque** sur cette branche (voir
+[ADR-002](adr/0002-format-pseudonyme.md)) — ni configurable par site, ni
+caractéristique de l'entité. Le choix par site (formats reconnaissables
+inclus) vit sur `feature/choix-rotation-format`.
 
 Le pseudonyme réellement inséré dans le prompt est composé à la volée à
 partir de l'entité et du site courant :
@@ -231,7 +226,7 @@ d'envoi du parcours de configuration insère toujours le même tag).
 [ADR-012](adr/0012-rotation-par-discussion.md)) : cet alias n'est jamais le
 fruit d'un usage réel, `idDiscussion` reste donc distinct de toute vraie
 discussion, pour que la rotation paresseuse (M-08) s'applique dès la
-première mention réelle de « Paris » sous la politique « par discussion ».
+première mention réelle de « Paris ».
 
 ## Flux principaux
 
@@ -247,9 +242,9 @@ première mention réelle de « Paris » sous la politique « par discussion ».
 3. Sélection (M-04) → le **vrai nom** de l'entité est inséré **directement
    dans le champ du panneau** via `EditorHandle.replaceRange` — jamais le
    tag. L'alias (`CODE`) pour le site **actuellement ciblé** (ou, à
-   défaut, le site correspondant à l'onglet actif ; sinon
-   `formatParDefaut`) est généré/récupéré au même moment (rotation
-   paresseuse, voir plus bas) et gardé avec l'entité dans une **mention
+   défaut, le site correspondant à l'onglet actif) est généré/récupéré au
+   même moment (rotation paresseuse, voir plus bas) et gardé avec l'entité
+   dans une **mention
    suivie par position** (`{debut, fin, entite, code}`,
    `mention-menu.js#attacher` en garde la liste) — c'est cette liste, pas
    le texte lui-même, qui permet de reconstruire le tag à la réplication
@@ -299,7 +294,8 @@ première mention réelle de « Paris » sous la politique « par discussion ».
   panneau affiche un parcours guidé en plus de la zone de composition
   normale (jamais à sa place) : test d'écriture (réutilise l'écrasement de
   M-16), test d'envoi avec vérification de réponse (réutilise la lecture
-  de M-07), puis choix de la politique de rotation et du format de pseudonyme.
+  de M-07) — pas de préférences à choisir, rotation et format sont fixes
+  sur cette branche.
 - Le test d'envoi cherche la sous-chaîne « test bien reçu [LOC:PA0001] »
   (voir entité par défaut, ci-dessus) **deux fois** dans le texte extrait :
   la première occurrence localise le message de l'utilisateur, la
@@ -351,18 +347,18 @@ première mention réelle de « Paris » sous la politique « par discussion ».
    lecture seule — remplacement textuel simple, **aucune écriture dans le
    DOM du site**. Un tag inconnu reste affiché tel quel.
 
-**Rotation (M-08, [ADR-012](adr/0012-rotation-par-discussion.md)) — paresseuse, pas de tâche périodique**
+**Rotation (M-08, [ADR-012](adr/0012-rotation-par-discussion.md)) — toujours par discussion, paresseuse, pas de tâche périodique**
 - Pas de `chrome.alarms` ni de balayage périodique de tout l'annuaire :
   inutile de faire ce travail si l'alias n'est jamais réutilisé entre-temps.
   La vérification de validité se fait à la place **au moment où l'alias est
   effectivement utilisé**, lors de l'insertion d'une mention dans le
-  panneau (Composition, étape 3), selon la `politiqueRotation` du site :
-  - `"jamais"` : l'alias existant est toujours réutilisé tel quel.
-  - `"parDiscussion"` : comparaison de l'URL de l'onglet actif (proxy de
-    l'identifiant de discussion, best-effort — voir ADR-012) à
-    `idDiscussion` de l'`aliasParSite` concerné ; si différent, un nouvel
-    alias est généré à la volée (unicité globale par type, voir plus haut)
-    — l'ancien alias est ajouté à `historique` (jamais supprimé, M-09).
+  panneau (Composition, étape 3) : comparaison de l'URL de l'onglet actif
+  (proxy de l'identifiant de discussion, best-effort — voir ADR-012) à
+  `idDiscussion` de l'`aliasParSite` concerné ; si différent, un nouvel
+  alias est généré à la volée (unicité globale par type, voir plus haut)
+  — l'ancien alias est ajouté à `historique` (jamais supprimé, M-09). Le
+  choix d'une politique par site (ex: « jamais ») vit sur
+  `feature/choix-rotation-format`.
 
 **Export / import Excel (M-13)**
 - Prévu dans `options.js` via `vendor/xlsx.full.min.js` — voir
