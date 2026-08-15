@@ -42,6 +42,11 @@ benchmarks, notes) et n'est **jamais** poussé sur GitHub : il est listé dans
 `.gitignore` et un hook `pre-commit` bloque tout commit qui y ferait
 référence.
 
+## Confidentialité
+
+Voir [PRIVACY.md](PRIVACY.md) — en résumé : aucune donnée ne quitte votre
+navigateur, aucun serveur, aucun tracker.
+
 ## Licence
 
 Ce projet est distribué sous licence **AGPL-3.0**. Voir le fichier
