@@ -517,7 +517,7 @@
     const reponse = await envoyerAuContentScript({ type: 'fogbank:ecrire', texte });
 
     if (!reponse || !reponse.ok) {
-      logger(`Échec de réplication : ${(reponse && reponse.erreur) || 'réponse vide'}`, 'erreur');
+      logger(`Échec d'envoi : ${(reponse && reponse.erreur) || 'réponse vide'}`, 'erreur');
       gererEchec(estAuto);
       return;
     }
@@ -525,7 +525,7 @@
     const { contenuCorrespond, contenuFinal } = reponse.resultat;
     if (contenuCorrespond) {
       compteurEchecs = 0;
-      logger('Réplication OK.', 'succes');
+      logger('Envoi OK.', 'succes');
     } else {
       logger(`Écart après écriture — contenu final : « ${contenuFinal} ».`, 'erreur');
       gererEchec(estAuto);
